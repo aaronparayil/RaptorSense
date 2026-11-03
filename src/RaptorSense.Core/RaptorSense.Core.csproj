@@ -7,6 +7,12 @@
   <ItemGroup>
     <!-- WASAPI loopback capture for the music effects (Windows only). -->
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <!-- AcerGamingFunction WMI calls for fans and power profiles (Windows only). -->
+    <PackageReference Include="System.Management" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RaptorSense.Tests" />
   </ItemGroup>
 
 </Project>

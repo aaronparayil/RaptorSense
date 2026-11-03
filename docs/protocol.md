@@ -63,6 +63,21 @@ Input = setting index; value in bits 8-15.
   `0x410009` = both Auto, `0x820009` = both Max.
 - `GetGamingFanSpeed`: input `0x1` returned 100 % in bits 8-15 while in Auto (probably the stored custom value).
   Input `0x8` returned status 1, so the GPU fan ID here is something else.
+- **Confirmed on Windows (2026-11-03): Max works.** `SetGamingFanBehavior(0x820009)` spun both fans to about 6,400 rpm
+  (they idle around 2,500). Custom (`0xC30009`, then `SetGamingFanSpeed((percent << 8) | fan)` with CPU fan 1 and GPU fan 4)
+  comes from TrueSense and still needs confirming here.
+
+### Setting the power profile
+
+`SetGamingMiscSetting((profile << 8) | 0x0B)` is the same call TrueSense uses, and Acer's `AcerHardwareService` uses it too.
+
+**On Windows the call itself reports WMI "Generic failure", yet the switch happens.** Confirmed 2026-11-03:
+Balanced (`0x10B`) was requested from Quiet, the call failed, and `GetGamingMiscSetting(0x0B)` then read Balanced.
+The error appears to come from passing the reply back, after the firmware has already acted.
+Acer's own service has a log line "SetGamingMiscSettingBehavior is fail!!".
+
+So RaptorSense ignores the reply and lets the read-back decide. It polls for up to ~1.5 s and ignores read errors
+while the firmware settles, as TrueSense does. Tested on AC power.
 
 ### Keyboard lighting over WMI
 

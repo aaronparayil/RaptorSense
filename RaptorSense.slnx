@@ -3,5 +3,9 @@
     <Project Path="src/RaptorSense.App/RaptorSense.App.csproj" />
     <Project Path="src/RaptorSense.Cli/RaptorSense.Cli.csproj" />
     <Project Path="src/RaptorSense.Core/RaptorSense.Core.csproj" />
+    <Project Path="src/RaptorSense.Helper/RaptorSense.Helper.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RaptorSense.Tests/RaptorSense.Tests.csproj" />
   </Folder>
 </Solution>
