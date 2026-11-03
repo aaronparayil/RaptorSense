@@ -74,8 +74,11 @@ public sealed class RainbowWaveEffect : IEffect
     {
         for (int cell = 0; cell < Frame.CellCount; cell++)
         {
-            int column = cell / KeyMap.Rows;
-            frame[cell] = Rgb.FromHsv(column * 300.0 / KeyMap.Columns - ctx.Time * 120);
+            // Physical position makes the sweep even across wide keys; cells without a key fall back to the grid.
+            double x = PhysicalLayout.ForCell(cell) is { } rect
+                ? rect.CenterX / PhysicalLayout.Width
+                : (double)(cell / KeyMap.Rows) / KeyMap.Columns;
+            frame[cell] = Rgb.FromHsv(x * 300 - ctx.Time * 120);
         }
     }
 }
@@ -130,13 +133,14 @@ public sealed class ReactiveKeysEffect : IEffect
     }
 }
 
-/// <summary>Each press sends a ring of colour 2 across a dimmed colour 1.</summary>
+/// <summary>Each press sends a ring of colour 2 across dark keys, spreading in real key distances.</summary>
 public sealed class RippleEffect : IEffect
 {
-    const double CellsPerSecond = 14, LifetimeSeconds = 1.2, RingWidth = 1.1, Background = 0.2;
+    // Distances are in key pitches.
+    const double KeysPerSecond = 12, LifetimeSeconds = 1.2, RingWidth = 1.0;
     const int MaxRipples = 32;
 
-    readonly List<(int Column, int Row, double Start)> ripples = [];
+    readonly List<(double X, double Y, double Start)> ripples = [];
 
     public string Id => "ripple";
     public string Name => "Ripple";
@@ -144,24 +148,28 @@ public sealed class RippleEffect : IEffect
 
     public void Render(Frame frame, in EffectContext ctx)
     {
-        foreach (int cell in ctx.Presses) ripples.Add((cell / KeyMap.Rows, cell % KeyMap.Rows, ctx.Time));
+        foreach (int cell in ctx.Presses)
+        {
+            if (PhysicalLayout.ForCell(cell) is { } origin)
+                ripples.Add((origin.CenterX / PhysicalLayout.Pitch, origin.CenterY / PhysicalLayout.Pitch, ctx.Time));
+        }
         double now = ctx.Time;
         ripples.RemoveAll(r => now - r.Start > LifetimeSeconds);
         if (ripples.Count > MaxRipples) ripples.RemoveRange(0, ripples.Count - MaxRipples);
 
-        var background = ctx.Settings.Color.Scale(Background);
         for (int cell = 0; cell < Frame.CellCount; cell++)
         {
-            int column = cell / KeyMap.Rows, row = cell % KeyMap.Rows;
+            if (PhysicalLayout.ForCell(cell) is not { } rect) continue;   // no key there
+            double x = rect.CenterX / PhysicalLayout.Pitch, y = rect.CenterY / PhysicalLayout.Pitch;
             double intensity = 0;
             foreach (var r in ripples)
             {
                 double age = now - r.Start;
-                double distance = Math.Sqrt((column - r.Column) * (column - r.Column) + (row - r.Row) * (row - r.Row));
-                double ring = 1 - Math.Abs(distance - age * CellsPerSecond) / RingWidth;
+                double distance = Math.Sqrt((x - r.X) * (x - r.X) + (y - r.Y) * (y - r.Y));
+                double ring = 1 - Math.Abs(distance - age * KeysPerSecond) / RingWidth;
                 if (ring > 0) intensity = Math.Max(intensity, ring * (1 - age / LifetimeSeconds));
             }
-            frame[cell] = Rgb.Lerp(background, ctx.Settings.Color2, intensity);
+            frame[cell] = ctx.Settings.Color2.Scale(intensity);
         }
     }
 }

@@ -40,6 +40,7 @@ try
         case "run": return Run(positional.FirstOrDefault() ?? "rainbow", options);
         case "builtin": return BuiltIn(positional.FirstOrDefault() ?? "wave", options);
         case "profiles": return ListProfiles();
+        case "layout": return PrintLayout();
         case "profile": return RunProfile(positional.FirstOrDefault(), options);
         default:
             Console.Error.WriteLine($"Unknown command '{args[0]}'.\n\n{Usage}");
@@ -87,6 +88,20 @@ static int RunProfile(string? name, Dictionary<string, string> options)
     profile.ApplyTo(engine);
     ApplySettings(engine, options);   // command-line options override the saved values
     return RunEngine(engine, options);
+}
+
+// CSV of every key's cell and physical rectangle, for checking the layout or drawing it elsewhere.
+static int PrintLayout()
+{
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    Console.WriteLine("label,cell,x,y,width,height");
+    foreach (var key in RaptorSense.Layout.KeyMap.Keys)
+    {
+        if (RaptorSense.Layout.PhysicalLayout.For(key.Label) is not { } r) continue;
+        Console.WriteLine(string.Join(",", $"\"{key.Label.Replace("\"", "\"\"")}\"", key.Cell,
+            r.X.ToString("0.#", inv), r.Y.ToString("0.#", inv), r.Width.ToString("0.#", inv), r.Height.ToString("0.#", inv)));
+    }
+    return 0;
 }
 
 static int ListProfiles()

@@ -16,8 +16,6 @@ namespace RaptorSense.App;
 
 sealed class MainWindow : Window
 {
-    const double KeySize = 46, KeyGap = 5, Pitch = KeySize + KeyGap;
-
     static readonly Rgb[] Swatches =
     [
         Rgb.PredatorTeal, new(255, 0, 0), new(255, 100, 0), new(255, 220, 0), new(0, 255, 60),
@@ -59,7 +57,7 @@ sealed class MainWindow : Window
         root.Children.Add(controls);
         var hint = new TextBlock
         {
-            Text = "Click or drag over keys to paint them with colour 1 Â· right-click to erase",
+            Text = "Click or drag over keys to paint them with colour 1 · right-click to erase",
             Opacity = 0.6,
             Margin = new Thickness(24, 16, 24, 0),
         };
@@ -78,32 +76,54 @@ sealed class MainWindow : Window
 
     // ---- Keyboard preview and painting ----
 
+    // Key caps show the symbols printed on them; anything not listed shows its key-map label.
+    static readonly Dictionary<string, string> CapText = new()
+    {
+        ["`"] = "~\n`", ["-"] = "_\n-", ["="] = "+\n=", ["["] = "{\n[", ["]"] = "}\n]", ["\\"] = "|\n\\",
+        [";"] = ":\n;", ["'"] = "\"\n'", [","] = "<\n,", ["."] = ">\n.", ["/"] = "?\n/",
+        ["Bksp"] = "Backspace", ["Caps"] = "Caps Lock", ["RShift"] = "Shift", ["RCtrl"] = "Ctrl",
+        ["Up"] = "▲", ["Down"] = "▼", ["Left"] = "◀", ["Right"] = "▶",
+        ["Prev"] = "⏮", ["Play"] = "⏯", ["Next"] = "⏭", ["Power"] = "⏻",
+        ["Num/"] = "/", ["Num*"] = "*", ["Num-"] = "-", ["Num+"] = "+", ["NumEnt"] = "Enter", ["Num."] = ".",
+        ["Num0"] = "0", ["Num1"] = "1", ["Num2"] = "2", ["Num3"] = "3", ["Num4"] = "4",
+        ["Num5"] = "5", ["Num6"] = "6", ["Num7"] = "7", ["Num8"] = "8", ["Num9"] = "9",
+    };
+
     Canvas BuildKeyboard()
     {
-        var canvas = new Canvas { Width = KeyMap.Columns * Pitch, Height = KeyMap.Rows * Pitch, Background = Brushes.Transparent };
+        var canvas = new Canvas { Width = PhysicalLayout.Width, Height = PhysicalLayout.Height, Background = Brushes.Transparent };
         foreach (var key in KeyMap.Keys)
         {
+            if (PhysicalLayout.For(key.Label) is not { } rect) continue;
             var fill = new SolidColorBrush(Colors.Black);
+            var text = CapText.GetValueOrDefault(key.Label, key.Label);
+            // Shrink long labels to fit the key's width (about 0.62 em per character) instead of wrapping.
+            int longest = text.Split('\n').Max(line => line.Length);
+            double fontSize = Math.Clamp((rect.Width - 10) / (longest * 0.62), 8, rect.Height < 40 ? 10 : 13);
             var label = new TextBlock
             {
-                Text = key.Label,
-                FontSize = key.Label.Length > 4 ? 9 : 11,
+                Text = text,
+                FontSize = fontSize,
+                TextAlignment = TextAlignment.Center,
+                TextWrapping = TextWrapping.NoWrap,
+                LineHeight = fontSize * 1.3,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             };
             var view = new Border
             {
-                Width = KeySize,
-                Height = KeySize,
-                CornerRadius = new CornerRadius(6),
+                Width = rect.Width,
+                Height = rect.Height,
+                CornerRadius = new CornerRadius(7),
                 Background = fill,
                 BorderBrush = new SolidColorBrush(Color.FromRgb(60, 62, 70)),
                 BorderThickness = new Thickness(1),
                 Child = label,
                 Cursor = new Cursor(StandardCursorType.Hand),
             };
-            Canvas.SetLeft(view, key.Column * Pitch);
-            Canvas.SetTop(view, (KeyMap.Rows - 1 - key.Row) * Pitch);
+            ToolTip.SetTip(view, $"{key.Label} (cell {key.Cell})");
+            Canvas.SetLeft(view, rect.X);
+            Canvas.SetTop(view, rect.Y);
             canvas.Children.Add(view);
             keys[key.Cell] = (fill, label);
         }
@@ -121,11 +141,9 @@ sealed class MainWindow : Window
         bool paint = point.Properties.IsLeftButtonPressed, erase = point.Properties.IsRightButtonPressed;
         if (!paint && !erase) return;
 
-        int column = (int)(point.Position.X / Pitch);
-        int row = KeyMap.Rows - 1 - (int)(point.Position.Y / Pitch);
-        if (point.Position.X % Pitch > KeySize || point.Position.Y % Pitch > KeySize) return;   // in a gap
-        int cell = column * KeyMap.Rows + row;
-        if (!keys.ContainsKey(cell)) return;
+        var hit = KeyMap.Keys.FirstOrDefault(k => PhysicalLayout.For(k.Label)?.Contains(point.Position.X, point.Position.Y) == true);
+        if (hit is null) return;   // between keys
+        int cell = hit.Cell;
 
         if (engine.Effect != Effects.Painted) StartPainting();
         Effects.Painted[cell] = erase ? Rgb.Black : engine.Settings.Color;
@@ -332,7 +350,7 @@ sealed class MainWindow : Window
         }
         status.Text = DateTime.UtcNow < noticeUntil
             ? notice
-            : $"{engine.Status}   Â·   {engine.RenderFps:N0} fps rendered, {engine.SendFps:N0} fps sent";
+            : $"{engine.Status}   ·   {engine.RenderFps:N0} fps rendered, {engine.SendFps:N0} fps sent";
     }
 
     /// <summary>Shows a message in the status bar for a few seconds instead of the live engine status.</summary>
@@ -356,7 +374,8 @@ sealed class MainWindow : Window
 
     static int IndexOf(IEffect effect) => Effects.All.ToList().IndexOf(effect);
 
-    static string DisplayName(IEffect e) => e.UsesAudio ? $"{e.Name}  â™ª" : e.UsesKeys ? $"{e.Name}  âŒ¨" : e.Name;
+    // ♪ = musical note, ⌨ = keyboard. Escaped so no editor or shell encoding can mangle them.
+    static string DisplayName(IEffect e) => e.UsesAudio ? $"{e.Name}  ♪" : e.UsesKeys ? $"{e.Name}  ⌨" : e.Name;
 
     static TextBlock Heading(string text) => new() { Text = text, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 6, 0, 0) };
 
