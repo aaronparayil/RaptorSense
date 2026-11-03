@@ -2,6 +2,7 @@
 using RaptorSense.Hardware;
 using RaptorSense.Input;
 using RaptorSense.Lighting;
+using RaptorSense.Profiles;
 
 const string Usage = """
     RaptorSense command line
@@ -10,6 +11,8 @@ const string Usage = """
       raptorsense list                     List effects
       raptorsense run <effect> [options]   Run a software effect until Ctrl+C
       raptorsense builtin <name> [options] Switch to one of the keyboard's own effects
+      raptorsense profiles                 List saved profiles
+      raptorsense profile <name> [options] Run a saved profile until Ctrl+C (options override it)
 
     Options:
       --color RRGGBB      main colour
@@ -36,6 +39,8 @@ try
         case "list": return List();
         case "run": return Run(positional.FirstOrDefault() ?? "rainbow", options);
         case "builtin": return BuiltIn(positional.FirstOrDefault() ?? "wave", options);
+        case "profiles": return ListProfiles();
+        case "profile": return RunProfile(positional.FirstOrDefault(), options);
         default:
             Console.Error.WriteLine($"Unknown command '{args[0]}'.\n\n{Usage}");
             return 2;
@@ -70,8 +75,31 @@ static int Run(string id, Dictionary<string, string> options)
 {
     var effect = Effects.Find(id) ?? throw new ArgumentException($"Unknown effect '{id}'. Try: raptorsense list");
     using var engine = new EffectEngine(Ph16Keyboard.TryOpen) { Effect = effect };
-    ApplySettings(engine.Settings, options);
-    if (options.TryGetValue("brightness", out var b)) engine.Brightness = Math.Clamp(int.Parse(b), 0, Ph16Keyboard.MaxBrightness);
+    ApplySettings(engine, options);
+    return RunEngine(engine, options);
+}
+
+static int RunProfile(string? name, Dictionary<string, string> options)
+{
+    if (name is null) throw new ArgumentException("Which profile? Try: raptorsense profiles");
+    var profile = ProfileStore.Load(name) ?? throw new ArgumentException($"No profile named '{name}'. Try: raptorsense profiles");
+    using var engine = new EffectEngine(Ph16Keyboard.TryOpen);
+    profile.ApplyTo(engine);
+    ApplySettings(engine, options);   // command-line options override the saved values
+    return RunEngine(engine, options);
+}
+
+static int ListProfiles()
+{
+    var names = ProfileStore.List();
+    if (names.Count == 0) Console.WriteLine($"No profiles yet. Save one in the app; they are stored in {ProfileStore.Folder}");
+    foreach (var name in names) Console.WriteLine($"  {name}");
+    return 0;
+}
+
+static int RunEngine(EffectEngine engine, Dictionary<string, string> options)
+{
+    var effect = engine.Effect;
     if (options.TryGetValue("fps", out var fps)) engine.TargetFps = Math.Clamp(int.Parse(fps), 1, 240);
 
     IAudioSpectrum? audio = null;
@@ -129,11 +157,12 @@ static Ph16Keyboard? OpenOrFail()
     return keyboard;
 }
 
-static void ApplySettings(EffectSettings settings, Dictionary<string, string> options)
+static void ApplySettings(EffectEngine engine, Dictionary<string, string> options)
 {
-    if (options.TryGetValue("color", out var c)) settings.Color = Rgb.Parse(c);
-    if (options.TryGetValue("color2", out var c2)) settings.Color2 = Rgb.Parse(c2);
-    if (options.TryGetValue("speed", out var s)) settings.Speed = double.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
+    if (options.TryGetValue("color", out var c)) engine.Settings.Color = Rgb.Parse(c);
+    if (options.TryGetValue("color2", out var c2)) engine.Settings.Color2 = Rgb.Parse(c2);
+    if (options.TryGetValue("speed", out var s)) engine.Settings.Speed = double.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
+    if (options.TryGetValue("brightness", out var b)) engine.Brightness = Math.Clamp(int.Parse(b), 0, Ph16Keyboard.MaxBrightness);
 }
 
 static Dictionary<string, string> ParseOptions(string[] args, out List<string> positional)

@@ -4,9 +4,13 @@ namespace RaptorSense.Lighting;
 
 public static class Effects
 {
+    /// <summary>The one painted layout the UI edits. Declared before <see cref="All"/>, which includes it.</summary>
+    public static PaintedEffect Painted { get; } = new();
+
     public static IReadOnlyList<IEffect> All { get; } =
     [
         new StaticEffect(),
+        Painted,
         new BreathingEffect(),
         new RainbowWaveEffect(),
         new SpectrumEffect(),
@@ -24,6 +28,29 @@ public sealed class StaticEffect : IEffect
     public string Name => "Static colour";
 
     public void Render(Frame frame, in EffectContext ctx) => frame.Fill(ctx.Settings.Color);
+}
+
+/// <summary>A colour per key, painted by the user. Black means off.</summary>
+public sealed class PaintedEffect : IEffect
+{
+    // Written by the UI thread, read by the engine; a torn read only shows for one frame.
+    readonly Rgb[] cells = new Rgb[Frame.CellCount];
+
+    public string Id => "custom";
+    public string Name => "Custom (paint keys)";
+
+    public Rgb this[int cell]
+    {
+        get => cells[cell];
+        set => cells[cell] = value;
+    }
+
+    public void Fill(Rgb color) => Array.Fill(cells, color);
+
+    public void Render(Frame frame, in EffectContext ctx)
+    {
+        for (int cell = 0; cell < Frame.CellCount; cell++) frame[cell] = cells[cell];
+    }
 }
 
 public sealed class BreathingEffect : IEffect

@@ -19,8 +19,10 @@ Early development. Tested on one machine: **Predator Helios 16 PH16-71**, BIOS V
 | Music effects: spectrum, bass pulse (WASAPI loopback, no microphone) | Works |
 | Keyboard's own built-in effects | Works |
 | Reactive typing: reactive keys, ripple | Works |
+| Key painting: click or drag keys in the preview, right-click to erase | Works |
+| Profiles: save, load, delete; app restores your last setup | Works |
 | Desktop app with live keyboard preview | Early |
-| Key painting, profiles, tray, PREDATOR key | Planned |
+| Tray icon, start with Windows, PREDATOR key | Planned |
 | Fans and performance profiles | Planned (firmware interface mapped in [docs/protocol.md](docs/protocol.md)) |
 | Linux | Planned |
 
@@ -40,7 +42,11 @@ dotnet run --project src/RaptorSense.Cli -- list
 dotnet run --project src/RaptorSense.Cli -- run rainbow
 dotnet run --project src/RaptorSense.Cli -- run spectrum --color 00AEC7 --color2 FF0080
 dotnet run --project src/RaptorSense.Cli -- builtin wave
+dotnet run --project src/RaptorSense.Cli -- profile "WASD gaming"
 ```
+
+Profiles are readable JSON files in `%APPDATA%\RaptorSense\profiles`. Painted keys are stored by name
+(`"W": "FF0000"`), so profiles can be shared and edited by hand.
 
 Acer's lighting service, PredatorSense and Razer Chroma can also drive the keyboard. RaptorSense re-sends its
 frame every second, so it wins, but close PredatorSense while you use it.
