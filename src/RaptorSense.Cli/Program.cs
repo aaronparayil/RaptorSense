@@ -1,5 +1,6 @@
 ﻿using RaptorSense.Audio;
 using RaptorSense.Hardware;
+using RaptorSense.Input;
 using RaptorSense.Lighting;
 
 const string Usage = """
@@ -58,7 +59,8 @@ static int Info()
 static int List()
 {
     Console.WriteLine("Software effects (raptorsense run <id>):");
-    foreach (var e in Effects.All) Console.WriteLine($"  {e.Id,-10} {e.Name}{(e.UsesAudio ? "  (reacts to music)" : "")}");
+    foreach (var e in Effects.All)
+        Console.WriteLine($"  {e.Id,-10} {e.Name}{(e.UsesAudio ? "  (reacts to music)" : e.UsesKeys ? "  (reacts to typing)" : "")}");
     Console.WriteLine("\nKeyboard effects (raptorsense builtin <name>):");
     Console.WriteLine("  " + string.Join(", ", Enum.GetNames<BuiltInEffect>().Select(n => n.ToLowerInvariant())));
     return 0;
@@ -80,6 +82,14 @@ static int Run(string id, Dictionary<string, string> options)
         engine.Audio = audio;
     }
 
+    IKeyPressSource? keys = null;
+    if (effect.UsesKeys)
+    {
+        if (!OperatingSystem.IsWindows()) throw new ArgumentException("Reactive effects are only implemented for Windows so far.");
+        keys = new WindowsKeyHook();
+        keys.CellPressed += engine.NotifyKeyPress;
+    }
+
     using var stop = new ManualResetEventSlim();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Set(); };
     double seconds = options.TryGetValue("seconds", out var s) ? double.Parse(s) : double.PositiveInfinity;
@@ -92,6 +102,7 @@ static int Run(string id, Dictionary<string, string> options)
         stop.Wait(1000);
         Console.WriteLine($"  {engine.Status}  |  render {engine.RenderFps:N0} fps, sent {engine.SendFps:N0} fps, brightness {engine.Brightness}");
     }
+    keys?.Dispose();
     engine.Stop();
     audio?.Dispose();
     return 0;

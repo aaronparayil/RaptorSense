@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using RaptorSense.Audio;
 using RaptorSense.Hardware;
@@ -17,6 +18,7 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
 
     readonly object frameLock = new();
     readonly Frame latest = new();
+    readonly ConcurrentQueue<int> pendingPresses = new();
     Thread? thread;
     volatile bool running;
     volatile IEffect effect = Effects.All[0];
@@ -44,6 +46,12 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
 
     public bool Connected { get; private set; }
 
+    /// <summary>Queues a key press for the next frame. Safe to call from any thread.</summary>
+    public void NotifyKeyPress(int cell)
+    {
+        if (cell is >= 0 and < Frame.CellCount) pendingPresses.Enqueue(cell);
+    }
+
     public void CopyLatestFrame(Frame target)
     {
         lock (frameLock) latest.CopyTo(target);
@@ -70,6 +78,7 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
         var clock = Stopwatch.StartNew();
         var working = new Frame();
         var lastSent = new Frame();
+        var presses = new List<int>();
         int lastSentBrightness = -1;
         double previous = 0, phase = 0, statsStart = 0, nextFrameAt = 0;
         long nextReconnectMs = 0, lastSendMs = long.MinValue / 2;
@@ -82,8 +91,11 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
             previous = now;
             phase += delta * Settings.Speed;
 
+            presses.Clear();
+            while (pendingPresses.TryDequeue(out int cell)) presses.Add(cell);
+
             working.Fill(Rgb.Black);
-            try { effect.Render(working, new EffectContext(phase, now, delta, Settings, Audio)); }
+            try { effect.Render(working, new EffectContext(phase, now, delta, Settings, Audio, presses)); }
             catch (Exception e) { Status = $"Effect error: {e.Message}"; }
             lock (frameLock) working.CopyTo(latest);
             rendered++;

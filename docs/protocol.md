@@ -140,6 +140,12 @@ Windows specifics (confirmed 2026-11-03):
   keys stayed the same colour in every stage. On Windows, RaptorSense sends packets back to back and gets about 75 fps.
   The 16 ms gap is only needed with Linux hidraw's asynchronous writes. That still needs checking once we get to Linux.
 
+### Key map check (confirmed 2026-11-03)
+
+Every key was pressed with the reactive effect running, and each lit its own cell. That covers Esc (cell 5),
+Caps Lock (cell 2), Win (cell 12), `-` (cell 70), the arrows, and the numpad with NumLock on and off.
+The scan-code table is `src/RaptorSense.Core/Layout/ScanCodes.cs`.
+
 ### Prior art for this keyboard (read before reverse engineering)
 
 - [Order52/truesense](https://github.com/Order52/truesense): Linux; tested on a PH16-71 with BIOS V1.18. Per-key RGB, fans, power.

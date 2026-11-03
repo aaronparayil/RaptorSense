@@ -20,7 +20,7 @@ public static class KeyMap
     [
         new(0, "Ctrl"), new(1, "Shift"), new(2, "Caps"), new(3, "Tab"), new(4, "`"), new(5, "Esc"),
         new(6, "Fn"), new(10, "1"), new(11, "F1"),
-        new(12, "Win", Confirmed: false), new(13, "\\"), new(15, "Q"), new(16, "2"), new(17, "F2"),
+        new(12, "Win"), new(13, "\\"), new(15, "Q"), new(16, "2"), new(17, "F2"),
         new(18, "Alt"), new(19, "Z"), new(20, "A"), new(21, "W"), new(22, "3"), new(23, "F3"),
         new(24, "Space"), new(25, "X"), new(26, "S"), new(27, "E"), new(28, "4"), new(29, "F4"),
         new(31, "C"), new(32, "D"), new(33, "R"), new(34, "5"), new(35, "F5"),
@@ -29,7 +29,7 @@ public static class KeyMap
         new(49, "N"), new(50, "H"), new(51, "U"), new(52, "8"), new(53, "F8"),
         new(55, "M"), new(56, "J"), new(57, "I"), new(58, "9"), new(59, "F9"),
         new(60, "AltGr"), new(61, ","), new(62, "K"), new(63, "O"), new(64, "0"), new(65, "F10"),
-        new(67, "."), new(68, "L"), new(69, "P"), new(70, "-", Confirmed: false), new(71, "F11"),
+        new(67, "."), new(68, "L"), new(69, "P"), new(70, "-"), new(71, "F11"),
         new(72, "Menu"), new(73, "/"), new(74, ";"), new(75, "["), new(76, "="), new(77, "F12"),
         new(78, "RCtrl"), new(80, "'"), new(81, "]"), new(82, "Bksp"), new(83, "PrtSc"),
         new(84, "Left"), new(85, "RShift"), new(86, "Enter"), new(89, "Ins"),

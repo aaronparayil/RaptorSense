@@ -18,8 +18,9 @@ Early development. Tested on one machine: **Predator Helios 16 PH16-71**, BIOS V
 | Software effects: static, breathing, rainbow wave | Works |
 | Music effects: spectrum, bass pulse (WASAPI loopback, no microphone) | Works |
 | Keyboard's own built-in effects | Works |
+| Reactive typing: reactive keys, ripple | Works |
 | Desktop app with live keyboard preview | Early |
-| Reactive typing, key painting, profiles, tray, PREDATOR key | Planned |
+| Key painting, profiles, tray, PREDATOR key | Planned |
 | Fans and performance profiles | Planned (firmware interface mapped in [docs/protocol.md](docs/protocol.md)) |
 | Linux | Planned |
 
@@ -43,6 +44,13 @@ dotnet run --project src/RaptorSense.Cli -- builtin wave
 
 Acer's lighting service, PredatorSense and Razer Chroma can also drive the keyboard. RaptorSense re-sends its
 frame every second, so it wins, but close PredatorSense while you use it.
+
+## Privacy
+
+Reactive effects need a Windows keyboard hook. RaptorSense uses it only to learn **which key position** was
+pressed: it reads the physical scan code, turns it into a lighting cell, and passes the key on untouched. It never
+looks at characters, never records or stores anything, and sends nothing anywhere. The hook exists only while a
+reactive effect is selected. See `src/RaptorSense.Core/Input/WindowsKeyHook.cs`.
 
 ## Layout
 

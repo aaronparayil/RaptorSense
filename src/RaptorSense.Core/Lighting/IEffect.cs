@@ -14,7 +14,9 @@ public sealed class EffectSettings
 
 /// <param name="Time">Animation time in seconds, already multiplied by the speed setting.</param>
 /// <param name="RealTime">Wall-clock seconds since the engine started.</param>
-public readonly record struct EffectContext(double Time, double RealTime, double DeltaTime, EffectSettings Settings, IAudioSpectrum? Audio);
+/// <param name="Presses">Cells pressed since the previous frame.</param>
+public readonly record struct EffectContext(
+    double Time, double RealTime, double DeltaTime, EffectSettings Settings, IAudioSpectrum? Audio, IReadOnlyList<int> Presses);
 
 public interface IEffect
 {
@@ -23,6 +25,9 @@ public interface IEffect
     string Name { get; }
 
     bool UsesAudio => false;
+
+    /// <summary>True when the effect reacts to key presses (needs a key-press source).</summary>
+    bool UsesKeys => false;
 
     /// <summary>Draws into <paramref name="frame"/>, which starts black.</summary>
     void Render(Frame frame, in EffectContext ctx);

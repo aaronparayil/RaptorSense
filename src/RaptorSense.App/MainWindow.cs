@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using RaptorSense.Audio;
 using RaptorSense.Hardware;
+using RaptorSense.Input;
 using RaptorSense.Layout;
 using RaptorSense.Lighting;
 using IEffect = RaptorSense.Lighting.IEffect;
@@ -28,6 +29,7 @@ sealed class MainWindow : Window
     readonly Slider brightness = new() { Minimum = 0, Maximum = Ph16Keyboard.MaxBrightness, IsEnabled = false };
     readonly DispatcherTimer uiTimer;
     IAudioSpectrum? audio;
+    IKeyPressSource? keyHook;
     bool brightnessSynced;
 
     public MainWindow()
@@ -91,7 +93,7 @@ sealed class MainWindow : Window
         var panel = new StackPanel { Spacing = 10, Width = 320, Margin = new Thickness(0, 20, 20, 20) };
 
         panel.Children.Add(Heading("Effect"));
-        var effects = new ListBox { ItemsSource = Effects.All.Select(e => e.UsesAudio ? $"{e.Name}  ♪" : e.Name).ToList(), SelectedIndex = 0 };
+        var effects = new ListBox { ItemsSource = Effects.All.Select(e => e.UsesAudio ? $"{e.Name}  ♪" : e.UsesKeys ? $"{e.Name}  ⌨" : e.Name).ToList(), SelectedIndex = 0 };
         effects.SelectionChanged += (_, _) =>
         {
             if (effects.SelectedIndex >= 0) SelectEffect(Effects.All[effects.SelectedIndex]);
@@ -165,6 +167,19 @@ sealed class MainWindow : Window
             try { audio = new LoopbackSpectrum(); engine.Audio = audio; }
             catch (Exception e) { status.Text = $"Could not capture audio: {e.Message}"; }
         }
+
+        // The key hook only exists while a reactive effect is selected.
+        if (effect.UsesKeys && keyHook is null && OperatingSystem.IsWindows())
+        {
+            try { keyHook = new WindowsKeyHook(); keyHook.CellPressed += engine.NotifyKeyPress; }
+            catch (Exception e) { status.Text = $"Could not watch key presses: {e.Message}"; }
+        }
+        else if (!effect.UsesKeys && keyHook is not null)
+        {
+            keyHook.Dispose();
+            keyHook = null;
+        }
+
         engine.Effect = effect;
     }
 
@@ -204,6 +219,7 @@ sealed class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         uiTimer.Stop();
+        keyHook?.Dispose();
         engine.Dispose();
         audio?.Dispose();
         base.OnClosed(e);
