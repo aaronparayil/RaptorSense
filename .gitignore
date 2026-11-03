@@ -1,0 +1,8 @@
+bin/
+obj/
+*.user
+.vs/
+.vscode/
+.idea/
+# Probe reports contain machine-specific data; share them deliberately, not by accident.
+reports/

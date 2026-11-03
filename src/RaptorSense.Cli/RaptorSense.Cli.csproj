@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>raptorsense</AssemblyName>
+    <RootNamespace>RaptorSense.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RaptorSense.Core\RaptorSense.Core.csproj" />
+  </ItemGroup>
+
+</Project>

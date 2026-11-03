@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RaptorSense.App/RaptorSense.App.csproj" />
+    <Project Path="src/RaptorSense.Cli/RaptorSense.Cli.csproj" />
+    <Project Path="src/RaptorSense.Core/RaptorSense.Core.csproj" />
+  </Folder>
+</Solution>
