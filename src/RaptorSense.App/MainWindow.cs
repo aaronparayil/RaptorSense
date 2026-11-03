@@ -17,12 +17,6 @@ namespace RaptorSense.App;
 
 sealed class MainWindow : Window
 {
-    static readonly Rgb[] Swatches =
-    [
-        Rgb.PredatorTeal, new(255, 0, 0), new(255, 100, 0), new(255, 220, 0), new(0, 255, 60),
-        new(0, 90, 255), new(140, 0, 255), new(255, 0, 128), Rgb.White,
-    ];
-
     readonly EffectEngine engine = new(Ph16Keyboard.TryOpen);
     readonly Frame preview = new();
     readonly Dictionary<int, (SolidColorBrush Fill, TextBlock Label)> keys = [];
@@ -30,8 +24,7 @@ sealed class MainWindow : Window
     readonly Dictionary<IEffect, ToggleButton> effectTiles = [];
     readonly CheckBox autoColor = new() { Content = "Auto (rainbow colours)" };
     readonly ComboBox overlayPicker = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
-    readonly TextBox color1 = new() { Width = 90, MaxLength = 7 };
-    readonly TextBox color2 = new() { Width = 90, MaxLength = 7 };
+    readonly ColorEditor colorEditor = new();
     readonly Slider speed = new() { Minimum = 0.1, Maximum = 4 };
     readonly Slider brightness = new() { Minimum = 0, Maximum = Ph16Keyboard.MaxBrightness, IsEnabled = false };
     readonly ComboBox profileList = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Saved profiles" };
@@ -167,6 +160,15 @@ sealed class MainWindow : Window
         if (hit is null) return;   // between keys
         int cell = hit.Cell;
 
+        if (colorEditor.Picking && paint)
+        {
+            engine.CopyLatestFrame(preview);
+            colorEditor.Pick(preview[cell]);   // takes what the key shows right now, from any effect
+            Notify($"Picked #{preview[cell]} from {hit.Label}.");
+            e.Handled = true;
+            return;
+        }
+
         if (engine.Effect != Effects.Painted) StartPainting();
         Effects.Painted[cell] = erase ? Rgb.Black : engine.Settings.Color;
         e.Handled = true;
@@ -237,19 +239,29 @@ sealed class MainWindow : Window
 
     Control BuildControls()
     {
-        var panel = new StackPanel { Spacing = 8, Width = 330, Margin = new Thickness(0, 16, 20, 16) };
+        var panel = new StackPanel { Spacing = 8, Width = 360, Margin = new Thickness(0, 16, 20, 16) };
 
         panel.Children.Add(Heading("Effect"));
         panel.Children.Add(BuildEffectPicker());
         panel.Children.Add(Heading("Typing overlay"));
         panel.Children.Add(BuildOverlayPicker());
 
-        panel.Children.Add(Heading("Colour 1 (also the paint brush)"));
-        panel.Children.Add(ColorRow(color1, c => engine.Settings.Color = c));
+        panel.Children.Add(Heading("Colours"));
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Colour 1 is also the paint brush; typing effects use colour 2.",
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 12,
+            Opacity = 0.65,
+        });
+        colorEditor.ColorChanged += (index, color) =>
+        {
+            if (index == 0) engine.Settings.Color = color;
+            else engine.Settings.Color2 = color;
+        };
+        panel.Children.Add(colorEditor);
         autoColor.IsCheckedChanged += (_, _) => engine.Settings.AutoColor = autoColor.IsChecked == true;
         panel.Children.Add(autoColor);
-        panel.Children.Add(Heading("Colour 2"));
-        panel.Children.Add(ColorRow(color2, c => engine.Settings.Color2 = c));
 
         var fill = new Button { Content = "Fill all keys" };
         fill.Click += (_, _) => { StartPainting(); Effects.Painted.Fill(engine.Settings.Color); };
@@ -310,32 +322,6 @@ sealed class MainWindow : Window
         return new ScrollViewer { Content = panel };
     }
 
-    Control ColorRow(TextBox hex, Action<Rgb> set)
-    {
-        hex.TextChanged += (_, _) => { if (Rgb.TryParse(hex.Text, out var c)) set(c); };
-
-        var swatches = new WrapPanel();
-        foreach (var swatch in Swatches)
-        {
-            var button = new Button
-            {
-                Width = 26,
-                Height = 26,
-                Margin = new Thickness(0, 0, 4, 4),
-                Background = new SolidColorBrush(ToColor(swatch)),
-                CornerRadius = new CornerRadius(13),
-            };
-            ToolTip.SetTip(button, "#" + swatch);
-            button.Click += (_, _) => hex.Text = swatch.ToString();
-            swatches.Children.Add(button);
-        }
-
-        var row = new StackPanel { Spacing = 4 };
-        row.Children.Add(swatches);
-        row.Children.Add(hex);
-        return row;
-    }
-
     void SelectEffect(IEffect effect)
     {
         if (effect.UsesAudio && audio is null && OperatingSystem.IsWindows())
@@ -391,8 +377,7 @@ sealed class MainWindow : Window
     void ApplyProfile(Profile profile)
     {
         profile.ApplyTo(engine);
-        color1.Text = engine.Settings.Color.ToString();
-        color2.Text = engine.Settings.Color2.ToString();
+        colorEditor.SetColors(engine.Settings.Color, engine.Settings.Color2);
         speed.Value = engine.Settings.Speed;
         if (engine.Brightness >= 0)
         {

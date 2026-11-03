@@ -14,6 +14,21 @@ public static class ProfileStore
 
     static string LastPath => Path.Combine(Root, "last.json");
 
+    static string SwatchesPath => Path.Combine(Root, "swatches.json");
+
+    /// <summary>The user's saved colours, as RRGGBB.</summary>
+    public static IReadOnlyList<string> LoadSwatches()
+    {
+        try { return File.Exists(SwatchesPath) ? JsonSerializer.Deserialize<List<string>>(File.ReadAllText(SwatchesPath)) ?? [] : []; }
+        catch (Exception e) when (e is JsonException or IOException or UnauthorizedAccessException) { return []; }
+    }
+
+    public static void SaveSwatches(IEnumerable<string> swatches)
+    {
+        Directory.CreateDirectory(Root);
+        File.WriteAllText(SwatchesPath, JsonSerializer.Serialize(swatches.ToList(), Json));
+    }
+
     public static IReadOnlyList<string> List()
     {
         if (!Directory.Exists(Folder)) return [];

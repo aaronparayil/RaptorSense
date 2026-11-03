@@ -29,6 +29,18 @@ public readonly record struct Rgb(byte R, byte G, byte B)
         return new Rgb(ToByte(r + m), ToByte(g + m), ToByte(b + m));
     }
 
+    /// <summary>Hue in degrees 0..360, saturation and value 0..1.</summary>
+    public (double Hue, double Saturation, double Value) ToHsv()
+    {
+        double r = R / 255.0, g = G / 255.0, b = B / 255.0;
+        double max = Math.Max(r, Math.Max(g, b)), min = Math.Min(r, Math.Min(g, b)), delta = max - min;
+        double hue = delta == 0 ? 0
+            : max == r ? 60 * ((g - b) / delta % 6)
+            : max == g ? 60 * ((b - r) / delta + 2)
+            : 60 * ((r - g) / delta + 4);
+        return ((hue + 360) % 360, max == 0 ? 0 : delta / max, max);
+    }
+
     public static Rgb Parse(string hex)
     {
         if (!TryParse(hex, out var rgb)) throw new FormatException($"Colour must be RRGGBB, got '{hex}'.");

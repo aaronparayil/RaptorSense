@@ -300,9 +300,10 @@ public sealed class SparkleEffect : PressEffect<SparkleEffect.Sparks>
 
     protected override Sparks Spawn(int cell)
     {
-        var near = KeyGeometry.Cells.Where(c => KeyGeometry.Distance(c, KeyGeometry.X(cell), KeyGeometry.Y(cell)) < 2.8)
+        var near = KeyGeometry.Cells.Where(c => c != cell && KeyGeometry.Distance(c, KeyGeometry.X(cell), KeyGeometry.Y(cell)) < 2.8)
             .OrderBy(_ => Random.Next()).Take(8);
-        return new Sparks(near.Select(c => (c, Random.NextDouble() * 0.35)).ToArray());
+        // The pressed key sparks at once, so every press shows straight away; the others follow at random.
+        return new Sparks(near.Select(c => (c, Random.NextDouble() * 0.35)).Prepend((cell, 0)).ToArray());
     }
 
     protected override void Draw(Frame frame, in EffectContext ctx, Sparks sparks, double age, Rgb color)
