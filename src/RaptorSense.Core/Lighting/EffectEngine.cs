@@ -22,11 +22,18 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
     Thread? thread;
     volatile bool running;
     volatile IEffect effect = Effects.All[0];
+    volatile IEffect? overlay;
     Ph16Keyboard? keyboard;
 
     public EffectSettings Settings { get; } = new();
 
     public IEffect Effect { get => effect; set => effect = value; }
+
+    /// <summary>A typing effect drawn on top of <see cref="Effect"/> (brightest wins), or null. Ignored for keyboard-run effects.</summary>
+    public IEffect? Overlay { get => overlay; set => overlay = value; }
+
+    /// <summary>True when the current setup needs key presses (the effect or its overlay reacts to typing).</summary>
+    public bool NeedsKeys => effect.UsesKeys || overlay is not null;
 
     public IAudioSpectrum? Audio { get; set; }
 
@@ -77,8 +84,10 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
         using var timer = new PreciseTimer();
         var clock = Stopwatch.StartNew();
         var working = new Frame();
+        var overlayFrame = new Frame();
         var lastSent = new Frame();
         var presses = new List<int>();
+        (BuiltInEffect Effect, Rgb Color, int Speed, int Brightness)? lastHardware = null;
         int lastSentBrightness = -1;
         double previous = 0, phase = 0, statsStart = 0, nextFrameAt = 0;
         long nextReconnectMs = 0, lastSendMs = long.MinValue / 2;
@@ -94,9 +103,22 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
             presses.Clear();
             while (pendingPresses.TryDequeue(out int cell)) presses.Add(cell);
 
+            var ctx = new EffectContext(phase, now, delta, Settings, Audio, presses);
+            var current = effect;
             working.Fill(Rgb.Black);
-            try { effect.Render(working, new EffectContext(phase, now, delta, Settings, Audio, presses)); }
+            try { current.Render(working, ctx); }
             catch (Exception e) { Status = $"Effect error: {e.Message}"; }
+
+            if (overlay is { } top && top != current)
+            {
+                overlayFrame.Fill(Rgb.Black);
+                try
+                {
+                    top.Render(overlayFrame, ctx);
+                    for (int cell = 0; cell < Frame.CellCount; cell++) working[cell] = EffectMath.Max(working[cell], overlayFrame[cell]);
+                }
+                catch (Exception e) { Status = $"Overlay error: {e.Message}"; }
+            }
             lock (frameLock) working.CopyTo(latest);
             rendered++;
 
@@ -106,9 +128,28 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
                 {
                     Connect();
                     nextReconnectMs = clock.ElapsedMilliseconds + ReconnectIntervalMs;
+                    lastHardware = null;
                 }
-                if (keyboard is not null)
+                if (keyboard is not null && effect is KeyboardEffect hardware)
                 {
+                    // The keyboard runs this one itself: send it once, and again only when a setting changes.
+                    int brightness = Math.Max(Brightness, 0);
+                    int speed = Math.Clamp((int)Math.Round(1 + (Settings.Speed - 0.1) / 3.9 * 11), Ph16Keyboard.MinSpeed, Ph16Keyboard.MaxSpeed);
+                    var request = (hardware.Effect, hardware.UsesColor ? Settings.Color : Rgb.Black, speed, brightness);
+                    if (request != lastHardware)
+                    {
+                        try
+                        {
+                            keyboard.SetBuiltInEffect(request.Effect, request.Item2, speed, brightness);
+                            lastHardware = request;
+                            lastSentBrightness = -1;   // switching back to a software effect re-sends its frame
+                        }
+                        catch (Exception e) { Disconnect($"Lost the keyboard: {e.Message}"); }
+                    }
+                }
+                else if (keyboard is not null)
+                {
+                    lastHardware = null;
                     int brightness = Math.Max(Brightness, 0);
                     bool changed = brightness != lastSentBrightness || !working.SameAs(lastSent);
                     if (changed || clock.ElapsedMilliseconds - lastSendMs >= KeepAliveMs)
@@ -132,6 +173,7 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
             {
                 Disconnect("Preview only");
                 lastSentBrightness = -1;
+                lastHardware = null;
             }
 
             if (now - statsStart >= 1)

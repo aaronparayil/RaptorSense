@@ -17,6 +17,12 @@ public sealed record Profile
 
     public double Speed { get; init; } = 1;
 
+    /// <summary>"Auto" colour: rainbow colours instead of colour 1.</summary>
+    public bool AutoColor { get; init; }
+
+    /// <summary>Id of a typing effect layered on top, or null.</summary>
+    public string? Overlay { get; init; }
+
     /// <summary>0..50, or -1 for the keyboard's own level.</summary>
     public int Brightness { get; init; } = -1;
 
@@ -31,6 +37,8 @@ public sealed record Profile
         Color = engine.Settings.Color.ToString(),
         Color2 = engine.Settings.Color2.ToString(),
         Speed = engine.Settings.Speed,
+        AutoColor = engine.Settings.AutoColor,
+        Overlay = engine.Overlay?.Id,
         Brightness = engine.Brightness,
         Keys = KeyMap.Keys
             .Where(k => Effects.Painted[k.Cell] != Rgb.Black)
@@ -43,6 +51,7 @@ public sealed record Profile
         if (Rgb.TryParse(Color, out var c1)) engine.Settings.Color = c1;
         if (Rgb.TryParse(Color2, out var c2)) engine.Settings.Color2 = c2;
         engine.Settings.Speed = Math.Clamp(Speed, 0.1, 4);
+        engine.Settings.AutoColor = AutoColor;
         if (Brightness >= 0) engine.Brightness = Math.Clamp(Brightness, 0, Hardware.Ph16Keyboard.MaxBrightness);
 
         Effects.Painted.Fill(Rgb.Black);
@@ -52,5 +61,6 @@ public sealed record Profile
         }
 
         engine.Effect = Lighting.Effects.Find(Effect) ?? Lighting.Effects.Painted;
+        engine.Overlay = Overlay is null ? null : Lighting.Effects.Find(Overlay) is { WorksAsOverlay: true } top ? top : null;
     }
 }

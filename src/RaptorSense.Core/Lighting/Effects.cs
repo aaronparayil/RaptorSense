@@ -1,3 +1,4 @@
+using RaptorSense.Hardware;
 using RaptorSense.Layout;
 
 namespace RaptorSense.Lighting;
@@ -9,17 +10,48 @@ public static class Effects
 
     public static IReadOnlyList<IEffect> All { get; } =
     [
-        new StaticEffect(),
-        Painted,
-        new BreathingEffect(),
-        new RainbowWaveEffect(),
-        new SpectrumEffect(),
-        new BassPulseEffect(),
-        new ReactiveKeysEffect(),
-        new RippleEffect(),
+        // Basic
+        new StaticEffect(), Painted, new GradientEffect(), new BreathingEffect(),
+        // Animated
+        new RainbowWaveEffect(), new ColorWaveEffect(), new NeonEffect(), new SnakeEffect(),
+        new RadarEffect(), new SpotlightEffect(), new HeartbeatEffect(), new AuroraEffect(),
+        // Nature
+        new RipplesEffect(), new RainEffect(), new MatrixEffect(), new SnowEffect(),
+        new StarsEffect(), new LightningEffect(), new FireEffect(), new FireballEffect(),
+        // Music
+        new SpectrumEffect(), new BassPulseEffect(),
+        // Typing
+        new ReactiveKeysEffect(), new RippleEffect(), new TypingLightningEffect(), new TypingFireballEffect(),
+        new CometEffect(), new BurstEffect(), new SplashEffect(), new CrosshairEffect(),
+        new HeatmapEffect(), new ConfettiEffect(), new SparkleEffect(),
+        // Run by the keyboard itself; previewed with the closest software effect
+        new KeyboardEffect(BuiltInEffect.Static, "static"), new KeyboardEffect(BuiltInEffect.Breathing, "breathing"),
+        new KeyboardEffect(BuiltInEffect.Wave, "rainbow"), new KeyboardEffect(BuiltInEffect.Snake, "snake"),
+        new KeyboardEffect(BuiltInEffect.Ripple, "ripples"), new KeyboardEffect(BuiltInEffect.Neon, "neon"),
+        new KeyboardEffect(BuiltInEffect.Raindrop, "raindrop"), new KeyboardEffect(BuiltInEffect.Lightning, "lightning"),
+        new KeyboardEffect(BuiltInEffect.Spot, "spotlight"), new KeyboardEffect(BuiltInEffect.Star, "stars"),
+        new KeyboardEffect(BuiltInEffect.Fireball, "fireball"), new KeyboardEffect(BuiltInEffect.Snow, "snow"),
+        new KeyboardEffect(BuiltInEffect.Heartbeat, "heartbeat"),
     ];
 
     public static IEffect? Find(string id) => All.FirstOrDefault(e => e.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>
+/// One of the keyboard's own effects. The engine hands the keyboard over to it instead of streaming frames, so it
+/// keeps running when RaptorSense is closed and costs no CPU. The preview shows the closest software effect.
+/// </summary>
+public sealed class KeyboardEffect(BuiltInEffect effect, string previewId) : IEffect
+{
+    public BuiltInEffect Effect => effect;
+    public string Id => "kb-" + effect.ToString().ToLowerInvariant();
+    public string Name => effect == BuiltInEffect.Raindrop ? "Rain drop" : effect.ToString();
+    public string Category => EffectCategory.Keyboard;
+
+    /// <summary>Wave and neon pick their own colours.</summary>
+    public bool UsesColor => effect is not (BuiltInEffect.Wave or BuiltInEffect.Neon);
+
+    public void Render(Frame frame, in EffectContext ctx) => Effects.Find(previewId)?.Render(frame, ctx);
 }
 
 public sealed class StaticEffect : IEffect
@@ -27,7 +59,11 @@ public sealed class StaticEffect : IEffect
     public string Id => "static";
     public string Name => "Static colour";
 
-    public void Render(Frame frame, in EffectContext ctx) => frame.Fill(ctx.Settings.Color);
+    public void Render(Frame frame, in EffectContext ctx)
+    {
+        foreach (int cell in KeyGeometry.Cells)
+            frame[cell] = ctx.Settings.AutoColor ? Rgb.FromHsv(KeyGeometry.U(cell) * 300) : ctx.Settings.Color;
+    }
 }
 
 /// <summary>A colour per key, painted by the user. Black means off.</summary>
@@ -61,7 +97,7 @@ public sealed class BreathingEffect : IEffect
     public void Render(Frame frame, in EffectContext ctx)
     {
         double level = 0.5 - 0.5 * Math.Cos(ctx.Time * 2 * Math.PI / 3);   // one breath per 3 s at speed 1
-        frame.Fill(ctx.Settings.Color.Scale(level));
+        foreach (int cell in KeyGeometry.Cells) frame[cell] = ctx.Primary(KeyGeometry.U(cell)).Scale(level);
     }
 }
 
@@ -69,6 +105,7 @@ public sealed class RainbowWaveEffect : IEffect
 {
     public string Id => "rainbow";
     public string Name => "Rainbow wave";
+    public string Category => EffectCategory.Animated;
 
     public void Render(Frame frame, in EffectContext ctx)
     {
@@ -88,6 +125,7 @@ public sealed class SpectrumEffect : IEffect
 {
     public string Id => "spectrum";
     public string Name => "Music spectrum";
+    public string Category => EffectCategory.Music;
     public bool UsesAudio => true;
 
     public void Render(Frame frame, in EffectContext ctx)
@@ -119,6 +157,7 @@ public sealed class ReactiveKeysEffect : IEffect
 
     public string Id => "reactive";
     public string Name => "Reactive keys";
+    public string Category => EffectCategory.Typing;
     public bool UsesKeys => true;
 
     public void Render(Frame frame, in EffectContext ctx)
@@ -143,8 +182,10 @@ public sealed class RippleEffect : IEffect
     readonly List<(double X, double Y, double Start)> ripples = [];
 
     public string Id => "ripple";
-    public string Name => "Ripple";
+    public string Name => "Typing ripple";
+    public string Category => EffectCategory.Typing;
     public bool UsesKeys => true;
+    public bool WorksAsOverlay => true;
 
     public void Render(Frame frame, in EffectContext ctx)
     {
@@ -179,6 +220,7 @@ public sealed class BassPulseEffect : IEffect
 {
     public string Id => "pulse";
     public string Name => "Bass pulse";
+    public string Category => EffectCategory.Music;
     public bool UsesAudio => true;
 
     public void Render(Frame frame, in EffectContext ctx)

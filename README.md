@@ -15,17 +15,19 @@ Early development. Tested on one machine: **Predator Helios 16 PH16-71**, BIOS V
 | Feature | State |
 |---|---|
 | Per-key RGB, 60 fps, no admin rights | Works |
-| Software effects: static, breathing, rainbow wave | Works |
+| 24 software effects (60 fps, real key positions, two colours or Auto rainbow): static, gradient, breathing, rainbow wave, colour wave, neon, snake, radar, spotlight, heartbeat, aurora, ripples, rain drop, matrix rain, snow, twinkling stars, lightning, fire, fireball, and more below | Works |
+| The keyboard's 13 built-in effects (keep running when RaptorSense is closed) | Works |
 | Music effects: spectrum, bass pulse (WASAPI loopback, no microphone) | Works |
 | Keyboard's own built-in effects | Works |
-| Reactive typing: reactive keys, ripple | Works |
+| 11 typing effects: reactive keys, typing ripple, typing lightning, typing fireball, comet, burst, splash, crosshair, heatmap, confetti, sparkle | Works |
+| Typing overlay: layer any typing effect on top of any effect (e.g. lightning on key presses over Aurora) | Works |
 | Key painting: click or drag keys in the preview, right-click to erase | Works |
 | Profiles: save, load, delete; app restores your last setup | Works |
 | Desktop app with a live preview of the real key layout | Works |
 | Tray icon: runs in the background, profiles, pause, quit | Works |
 | Start with Windows (per-user, no admin), starts hidden with your last setup | Works |
+| Fans (Auto / Max / Custom) and power profiles, live temperatures | Built; needs the helper service |
 | PREDATOR key | Planned |
-| Fans and performance profiles | Planned (firmware interface mapped in [docs/protocol.md](docs/protocol.md)) |
 | Linux | Planned |
 
 ## Build and run
@@ -52,6 +54,33 @@ Profiles are readable JSON files in `%APPDATA%\RaptorSense\profiles`. Painted ke
 
 Acer's lighting service, PredatorSense and Razer Chroma can also drive the keyboard. RaptorSense re-sends its
 frame every second, so it wins, but close PredatorSense while you use it.
+
+## Fans and power modes
+
+Windows lets only administrators change fans and power profiles, so these go through a small helper service,
+`RaptorSense.Helper`. The app itself keeps running without admin rights and talks to the helper over a local pipe.
+The helper accepts only a fixed set of commands (read sensors, set a power profile, set the fan mode), never
+arbitrary firmware calls.
+
+Install it once, from an **administrator** terminal:
+
+```
+dotnet build RaptorSense.slnx
+src\RaptorSense.Helper\bin\Debug\net10.0-windows\RaptorSense.Helper.exe install
+```
+
+`RaptorSense.Helper.exe uninstall` removes it. To try it without installing, run `RaptorSense.Helper.exe` in an
+administrator terminal and keep it open.
+
+Safety rules, enforced by the helper (tests in `tests/RaptorSense.Tests`):
+
+- Custom fan speeds are at least 25 %.
+- At 90 °C in custom mode the fans go to Max until everything is below 80 °C.
+- If the sensors can't be read in custom mode, the fans go to Max.
+- When the helper stops, the fans go back to Auto. After a crash, it resets leftover custom speeds on its next start.
+- Power profiles are limited to the ones the firmware reports, and every change is read back.
+
+Command line: `raptorsense thermal`, `raptorsense power turbo`, `raptorsense fans custom 60 70`, `raptorsense fans auto`.
 
 ## Privacy
 

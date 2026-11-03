@@ -3,6 +3,7 @@ using RaptorSense.Hardware;
 using RaptorSense.Input;
 using RaptorSense.Lighting;
 using RaptorSense.Profiles;
+using RaptorSense.Thermal;
 
 const string Usage = """
     RaptorSense command line
@@ -13,12 +14,17 @@ const string Usage = """
       raptorsense builtin <name> [options] Switch to one of the keyboard's own effects
       raptorsense profiles                 List saved profiles
       raptorsense profile <name> [options] Run a saved profile until Ctrl+C (options override it)
+      raptorsense thermal                  Temperatures, fan speeds and power profile (needs the helper)
+      raptorsense power <profile>          quiet | balanced | performance | turbo | eco
+      raptorsense fans auto | max | custom <cpu%> <gpu%>
 
     Options:
       --color RRGGBB      main colour
       --color2 RRGGBB     second colour (spectrum top, pulse peak)
       --speed N           run: speed multiplier (1 = normal); builtin: 1 slowest .. 12 fastest
       --brightness N      0..50 (default: keyboard's current level)
+      --auto on|off       run: rainbow "Auto" colours instead of --color
+      --overlay <id>      run: a typing effect on top, e.g. --overlay typing-lightning (or none)
       --seconds N         run: stop after N seconds
       --fps N             run: target frame rate (default 60)
     """;
@@ -41,6 +47,9 @@ try
         case "builtin": return BuiltIn(positional.FirstOrDefault() ?? "wave", options);
         case "profiles": return ListProfiles();
         case "layout": return PrintLayout();
+        case "thermal": return PrintThermal(ThermalClient.StatusAsync().GetAwaiter().GetResult());
+        case "power": return SetPower(positional.FirstOrDefault());
+        case "fans": return SetFans(positional);
         case "profile": return RunProfile(positional.FirstOrDefault(), options);
         default:
             Console.Error.WriteLine($"Unknown command '{args[0]}'.\n\n{Usage}");
@@ -65,8 +74,12 @@ static int Info()
 static int List()
 {
     Console.WriteLine("Software effects (raptorsense run <id>):");
-    foreach (var e in Effects.All)
-        Console.WriteLine($"  {e.Id,-10} {e.Name}{(e.UsesAudio ? "  (reacts to music)" : e.UsesKeys ? "  (reacts to typing)" : "")}");
+    foreach (var group in Effects.All.GroupBy(e => e.Category))
+    {
+        Console.WriteLine($"  {group.Key}");
+        foreach (var e in group)
+            Console.WriteLine($"    {e.Id,-18} {e.Name}{(e.UsesAudio ? "  (music)" : e.WorksAsOverlay ? "  (typing, works as --overlay)" : e.UsesKeys ? "  (typing)" : "")}");
+    }
     Console.WriteLine("\nKeyboard effects (raptorsense builtin <name>):");
     Console.WriteLine("  " + string.Join(", ", Enum.GetNames<BuiltInEffect>().Select(n => n.ToLowerInvariant())));
     return 0;
@@ -88,6 +101,39 @@ static int RunProfile(string? name, Dictionary<string, string> options)
     profile.ApplyTo(engine);
     ApplySettings(engine, options);   // command-line options override the saved values
     return RunEngine(engine, options);
+}
+
+static int PrintThermal(ThermalStatus status)
+{
+    if (status.Reading is not { } r)
+    {
+        Console.Error.WriteLine(status.Error ?? ThermalClient.HelperMissing);
+        return 1;
+    }
+    Console.WriteLine($"CPU {r.CpuTemp} °C, GPU {(r.GpuTemp > 0 ? $"{r.GpuTemp} °C" : "asleep")}, system {r.SystemTemp} °C");
+    Console.WriteLine($"Fans: CPU {r.CpuFanRpm} rpm, GPU {r.GpuFanRpm} rpm, mode {status.FanMode}" +
+        (status.FanMode == FanMode.Custom ? $" ({status.CpuPercent}% / {status.GpuPercent}%)" : "") +
+        (status.SafetyOverride ? "  [safety: held at Max]" : ""));
+    Console.WriteLine($"Power profile: {status.Profile} (supported: {string.Join(", ", status.SupportedProfiles)})");
+    if (!status.Ok || status.Error is not null) Console.Error.WriteLine(status.Error);
+    return status.Ok ? 0 : 1;
+}
+
+static int SetPower(string? name)
+{
+    if (!Enum.TryParse<PowerProfile>(name, ignoreCase: true, out var profile))
+        throw new ArgumentException($"Power profile: {string.Join(", ", Enum.GetNames<PowerProfile>()).ToLowerInvariant()}");
+    return PrintThermal(ThermalClient.SetProfileAsync(profile).GetAwaiter().GetResult());
+}
+
+static int SetFans(List<string> args)
+{
+    if (!Enum.TryParse<FanMode>(args.FirstOrDefault(), ignoreCase: true, out var mode))
+        throw new ArgumentException("Usage: raptorsense fans auto | max | custom <cpu%> <gpu%>");
+    int cpu = 50, gpu = 50;
+    if (mode == FanMode.Custom && (args.Count < 3 || !int.TryParse(args[1], out cpu) || !int.TryParse(args[2], out gpu)))
+        throw new ArgumentException($"Usage: raptorsense fans custom <cpu%> <gpu%>  (at least {FanController.MinCustomPercent}%)");
+    return PrintThermal(ThermalClient.SetFansAsync(mode, cpu, gpu).GetAwaiter().GetResult());
 }
 
 // CSV of every key's cell and physical rectangle, for checking the layout or drawing it elsewhere.
@@ -126,7 +172,7 @@ static int RunEngine(EffectEngine engine, Dictionary<string, string> options)
     }
 
     IKeyPressSource? keys = null;
-    if (effect.UsesKeys)
+    if (engine.NeedsKeys)
     {
         if (!OperatingSystem.IsWindows()) throw new ArgumentException("Reactive effects are only implemented for Windows so far.");
         keys = new WindowsKeyHook();
@@ -178,6 +224,11 @@ static void ApplySettings(EffectEngine engine, Dictionary<string, string> option
     if (options.TryGetValue("color2", out var c2)) engine.Settings.Color2 = Rgb.Parse(c2);
     if (options.TryGetValue("speed", out var s)) engine.Settings.Speed = double.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
     if (options.TryGetValue("brightness", out var b)) engine.Brightness = Math.Clamp(int.Parse(b), 0, Ph16Keyboard.MaxBrightness);
+    if (options.TryGetValue("auto", out var auto)) engine.Settings.AutoColor = auto is "on" or "true" or "1";
+    if (options.TryGetValue("overlay", out var o))
+        engine.Overlay = o == "none" ? null : Effects.Find(o) is { WorksAsOverlay: true } top ? top
+            : throw new ArgumentException($"'{o}' can't be an overlay. Typing effects that can: " +
+                string.Join(", ", Effects.All.Where(e => e.WorksAsOverlay).Select(e => e.Id)));
 }
 
 static Dictionary<string, string> ParseOptions(string[] args, out List<string> positional)
