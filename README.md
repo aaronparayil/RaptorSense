@@ -21,8 +21,10 @@ Early development. Tested on one machine: **Predator Helios 16 PH16-71**, BIOS V
 | Reactive typing: reactive keys, ripple | Works |
 | Key painting: click or drag keys in the preview, right-click to erase | Works |
 | Profiles: save, load, delete; app restores your last setup | Works |
-| Desktop app with live keyboard preview | Early |
-| Tray icon, start with Windows, PREDATOR key | Planned |
+| Desktop app with a live preview of the real key layout | Works |
+| Tray icon: runs in the background, profiles, pause, quit | Works |
+| Start with Windows (per-user, no admin), starts hidden with your last setup | Works |
+| PREDATOR key | Planned |
 | Fans and performance profiles | Planned (firmware interface mapped in [docs/protocol.md](docs/protocol.md)) |
 | Linux | Planned |
 

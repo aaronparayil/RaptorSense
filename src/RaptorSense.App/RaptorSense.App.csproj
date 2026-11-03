@@ -5,12 +5,18 @@
     <AssemblyName>RaptorSense</AssemblyName>
     <RootNamespace>RaptorSense.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\raptorsense.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.5" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.5" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Regenerate with scripts\make-icon.ps1. -->
+    <EmbeddedResource Include="Assets\icon.png" LogicalName="RaptorSense.icon.png" />
   </ItemGroup>
 
   <ItemGroup>

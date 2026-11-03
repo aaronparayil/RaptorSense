@@ -33,16 +33,23 @@ sealed class MainWindow : Window
     readonly Slider brightness = new() { Minimum = 0, Maximum = Ph16Keyboard.MaxBrightness, IsEnabled = false };
     readonly ComboBox profileList = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Saved profiles" };
     readonly TextBox profileName = new() { PlaceholderText = "Profile name" };
+    readonly ToggleSwitch output = new() { IsChecked = true, OnContent = "Controlling the keyboard", OffContent = "Preview only" };
+    readonly ToggleSwitch autostart = new() { OnContent = "Starts with Windows", OffContent = "Start with Windows" };
     readonly DispatcherTimer uiTimer;
     IAudioSpectrum? audio;
     IKeyPressSource? keyHook;
     bool brightnessSynced;
     string? notice;
     DateTime noticeUntil;
+    bool shutDown;
+
+    /// <summary>Raised when something the tray menu shows has changed (profiles, pause, autostart).</summary>
+    public event Action? TrayStateChanged;
 
     public MainWindow()
     {
         Title = $"{AppInfo.Name} {AppInfo.Version}";
+        Icon = App.Icon;
         Width = 1500;
         Height = 640;
         MinWidth = 900;
@@ -201,12 +208,27 @@ sealed class MainWindow : Window
         save.Click += (_, _) => SaveProfile();
         panel.Children.Add(new DockPanel { Children = { Docked(save, Dock.Right), profileName } });
 
-        var output = new ToggleSwitch { IsChecked = true, OnContent = "Controlling the keyboard", OffContent = "Preview only" };
-        output.IsCheckedChanged += (_, _) => engine.OutputEnabled = output.IsChecked == true;
+        output.IsCheckedChanged += (_, _) =>
+        {
+            engine.OutputEnabled = output.IsChecked == true;
+            TrayStateChanged?.Invoke();
+        };
         panel.Children.Add(output);
 
+        if (Autostart.IsSupported)
+        {
+            autostart.IsChecked = Autostart.IsEnabled;
+            autostart.IsCheckedChanged += (_, _) =>
+            {
+                try { Autostart.IsEnabled = autostart.IsChecked == true; }
+                catch (Exception e) { Notify($"Could not change Start with Windows: {e.Message}"); }
+                TrayStateChanged?.Invoke();
+            };
+            panel.Children.Add(autostart);
+        }
+
         var handBack = new Button { Content = "Hand back: keyboard's own rainbow wave" };
-        handBack.Click += (_, _) => HandBack(output);
+        handBack.Click += (_, _) => HandBack();
         panel.Children.Add(handBack);
 
         panel.Children.Add(new TextBlock
@@ -295,12 +317,17 @@ sealed class MainWindow : Window
         ProfileStore.Save(Profile.Capture(name, engine));
         RefreshProfileList();
         profileList.SelectedItem = name;
+        TrayStateChanged?.Invoke();
         Notify($"Saved profile '{name}'.");
     }
 
     void LoadSelectedProfile()
     {
-        if (profileList.SelectedItem is not string name) return;
+        if (profileList.SelectedItem is string name) LoadProfile(name);
+    }
+
+    public void LoadProfile(string name)
+    {
         var profile = ProfileStore.Load(name);
         if (profile is null) { Notify($"Could not read profile '{name}'."); return; }
         ApplyProfile(profile);
@@ -312,6 +339,7 @@ sealed class MainWindow : Window
         if (profileList.SelectedItem is not string name) return;
         ProfileStore.Delete(name);
         RefreshProfileList();
+        TrayStateChanged?.Invoke();
         Notify($"Deleted profile '{name}'.");
     }
 
@@ -319,7 +347,7 @@ sealed class MainWindow : Window
 
     // ---- Misc ----
 
-    void HandBack(ToggleSwitch output)
+    void HandBack()
     {
         output.IsChecked = false;   // the engine lets go of the keyboard on its next frame
         Dispatcher.UIThread.Post(() =>
@@ -361,15 +389,73 @@ sealed class MainWindow : Window
         status.Text = message;
     }
 
+    // ---- Tray integration ----
+
+    public IReadOnlyList<string> Profiles => ProfileStore.List();
+
+    public bool OutputEnabled
+    {
+        get => output.IsChecked == true;
+        set => output.IsChecked = value;
+    }
+
+    public bool StartWithWindows
+    {
+        get => autostart.IsChecked == true;
+        set => autostart.IsChecked = value;
+    }
+
+    public void ShowFromTray()
+    {
+        Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    // Closing the window only hides it: the lighting keeps running from the tray. Quit is in the tray menu.
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        if (!shutDown && e.CloseReason is WindowCloseReason.WindowClosing)
+        {
+            e.Cancel = true;
+            SaveLast();
+            Hide();
+        }
+        base.OnClosing(e);
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        // No preview to draw while hidden.
+        if (change.Property == IsVisibleProperty)
+        {
+            if (IsVisible) uiTimer.Start(); else uiTimer.Stop();
+        }
+    }
+
     protected override void OnClosed(EventArgs e)
     {
-        try { ProfileStore.SaveLast(Profile.Capture("", engine)); }
-        catch (IOException) { }
+        Shutdown();
+        base.OnClosed(e);
+    }
+
+    /// <summary>Saves the current setup and releases the keyboard, audio and key hook. Safe to call twice.</summary>
+    public void Shutdown()
+    {
+        if (shutDown) return;
+        shutDown = true;
+        SaveLast();
         uiTimer.Stop();
         keyHook?.Dispose();
         engine.Dispose();
         audio?.Dispose();
-        base.OnClosed(e);
+    }
+
+    void SaveLast()
+    {
+        try { ProfileStore.SaveLast(Profile.Capture("", engine)); }
+        catch (IOException) { }
     }
 
     static int IndexOf(IEffect effect) => Effects.All.ToList().IndexOf(effect);
