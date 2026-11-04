@@ -38,8 +38,8 @@ sealed class PerformancePanel : UserControl
         tiles.Children.Add(Tile("CPU fan", cpuFan));
         tiles.Children.Add(Tile("GPU fan", gpuFan));
 
-        auto.IsCheckedChanged += (_, _) => { if (auto.IsChecked == true && !updating) _ = SendFans(FanMode.Auto); };
-        max.IsCheckedChanged += (_, _) => { if (max.IsChecked == true && !updating) _ = SendFans(FanMode.Max); };
+        auto.IsCheckedChanged += (_, _) => { if (auto.IsChecked == true && !updating) { choosingCustom = false; _ = SendFans(FanMode.Auto); } };
+        max.IsCheckedChanged += (_, _) => { if (max.IsChecked == true && !updating) { choosingCustom = false; _ = SendFans(FanMode.Max); } };
         custom.IsCheckedChanged += (_, _) => { if (custom.IsChecked == true && !updating) choosingCustom = true; UpdateCustomEnabled(); };
         cpuSpeed.ValueChanged += (_, e) => cpuSpeedText.Text = $"CPU fan {e.NewValue:N0}%";
         gpuSpeed.ValueChanged += (_, e) => gpuSpeedText.Text = $"GPU fan {e.NewValue:N0}%";

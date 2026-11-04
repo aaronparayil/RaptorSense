@@ -143,14 +143,21 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
     {
         Ok = true,
         Error = error,
-        Reading = fans!.LastReading ?? firmware!.ReadSensors(),
-        Profile = firmware!.GetProfile(),
+        Reading = fans!.LastReading ?? Try(firmware!.ReadSensors),
+        Profile = Try(firmware!.GetProfile),
         SupportedProfiles = supported,
         FanMode = fans.RequestedMode,
         CpuPercent = fans.CpuPercent,
         GpuPercent = fans.GpuPercent,
         SafetyOverride = fans.SafetyOverride,
     };
+
+    // The firmware fails reads for a moment after a change; the status reply shouldn't fail with it.
+    static T? Try<T>(Func<T> read) where T : struct
+    {
+        try { return read(); }
+        catch (FirmwareException) { return null; }
+    }
 
     // Signed-in users may connect (the app runs without elevation); only the helper itself can create instances.
     static PipeSecurity PipeAccess()

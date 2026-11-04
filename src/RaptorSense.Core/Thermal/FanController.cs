@@ -64,6 +64,7 @@ public sealed class FanController(IGamingFirmware firmware)
                 reading = firmware.ReadSensors();
                 LastReading = reading;
                 failures = 0;
+                if (!SafetyOverride) LastError = null;   // a passing glitch shouldn't be reported forever
             }
             catch (Exception e) when (e is FirmwareException or System.Runtime.InteropServices.ExternalException)
             {

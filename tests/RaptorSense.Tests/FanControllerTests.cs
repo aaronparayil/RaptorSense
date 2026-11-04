@@ -119,6 +119,19 @@ public sealed class FanControllerTests
     }
 
     [Fact]
+    public void A_passing_sensor_glitch_stops_being_reported()
+    {
+        var fw = new FakeFirmware { SensorsFail = true };
+        var fans = new FanController(fw);
+        fans.Tick();
+        Assert.NotNull(fans.LastError);
+
+        fw.SensorsFail = false;
+        fans.Tick();
+        Assert.Null(fans.LastError);
+    }
+
+    [Fact]
     public void Heat_is_ignored_in_auto_mode()
     {
         var fw = new FakeFirmware();

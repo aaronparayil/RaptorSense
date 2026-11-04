@@ -26,7 +26,7 @@ Early development. Tested on one machine: **Predator Helios 16 PH16-71**, BIOS V
 | Desktop app with a live preview of the real key layout | Works |
 | Tray icon: runs in the background, profiles, pause, quit | Works |
 | Start with Windows (per-user, no admin), starts hidden with your last setup | Works |
-| Fans (Auto / Max / Custom) and power profiles, live temperatures | Built; needs the helper service |
+| Fans (Auto / Max / Custom) and power profiles, live temperatures | Works; needs the helper service |
 | PREDATOR key | Planned |
 | Linux | Planned |
 
@@ -69,8 +69,11 @@ dotnet build RaptorSense.slnx
 src\RaptorSense.Helper\bin\Debug\net10.0-windows\RaptorSense.Helper.exe install
 ```
 
-`RaptorSense.Helper.exe uninstall` removes it. To try it without installing, run `RaptorSense.Helper.exe` in an
-administrator terminal and keep it open.
+The service runs as SYSTEM, so `install` copies it to `C:\Program Files\RaptorSense\Helper` and runs it from there,
+where only administrators can change it. Run `install` again to update it after a rebuild.
+
+`RaptorSense.Helper.exe uninstall` stops the service and removes that folder. To try it without installing, run
+`RaptorSense.Helper.exe` in an administrator terminal and keep it open.
 
 Safety rules, enforced by the helper (tests in `tests/RaptorSense.Tests`):
 

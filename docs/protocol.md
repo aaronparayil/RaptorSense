@@ -59,13 +59,15 @@ Input = setting index; value in bits 8-15.
 
 - `GetGamingFanBehavior` (confirmed): input is a fan mask, CPU `0x1`, GPU `0x8`. CPU mode is in bits 8-9, GPU mode in bits 14-15:
   1 = Auto, 2 = Max, 3 = Custom. The PH16-71 reported Auto for both.
-- `SetGamingFanBehavior` (hypothesis, from `acer-wmi`): same fan mask in bits 0-15, CPU mode in bits 16-17, GPU mode in bits 22-23.
+- `SetGamingFanBehavior` (confirmed; encoding from `acer-wmi`): same fan mask in bits 0-15, CPU mode in bits 16-17, GPU mode in bits 22-23.
   `0x410009` = both Auto, `0x820009` = both Max.
 - `GetGamingFanSpeed`: input `0x1` returned 100 % in bits 8-15 while in Auto (probably the stored custom value).
   Input `0x8` returned status 1, so the GPU fan ID here is something else.
 - **Confirmed on Windows (2026-11-03): Max works.** `SetGamingFanBehavior(0x820009)` spun both fans to about 6,400 rpm
-  (they idle around 2,500). Custom (`0xC30009`, then `SetGamingFanSpeed((percent << 8) | fan)` with CPU fan 1 and GPU fan 4)
-  comes from TrueSense and still needs confirming here.
+  (they idle around 2,500).
+- **Confirmed on Windows (2026-11-04): Custom works.** `0xC30009`, then `SetGamingFanSpeed((percent << 8) | fan)` with CPU fan 1
+  and GPU fan 4 (from TrueSense). Fan speed followed the setting at 30 % and 60 %, and `GetGamingFanBehavior` read back Custom for both fans.
+- **Confirmed on Windows (2026-11-04): Auto (`0x410009`) undoes Custom.** Stopping the helper service at 40 % custom read back Auto for both fans.
 
 ### Setting the power profile
 
@@ -77,7 +79,8 @@ The error appears to come from passing the reply back, after the firmware has al
 Acer's own service has a log line "SetGamingMiscSettingBehavior is fail!!".
 
 So RaptorSense ignores the reply and lets the read-back decide. It polls for up to ~1.5 s and ignores read errors
-while the firmware settles, as TrueSense does. Tested on AC power.
+while the firmware settles, as TrueSense does. Tested on AC power. Confirmed 2026-11-04: switching through Quiet,
+Balanced, Performance, Turbo and Eco works this way.
 
 ### Keyboard lighting over WMI
 

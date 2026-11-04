@@ -1,4 +1,5 @@
 using System.Management;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
 namespace RaptorSense.Thermal;
@@ -84,7 +85,7 @@ public sealed class AcerGamingWmi : IGamingFirmware
         for (int attempt = 0; attempt < 15; attempt++)
         {
             try { if (confirmed()) return; }
-            catch (Exception e) when (e is ManagementException or FirmwareException) { }
+            catch (FirmwareException) { }
             Thread.Sleep(100);
         }
         throw new FirmwareException(failure);
@@ -103,18 +104,24 @@ public sealed class AcerGamingWmi : IGamingFirmware
 
     void Set(string method, ulong input)
     {
-        ulong status;
-        try { status = Invoke(method, input) & 0xFF; }
-        catch (ManagementException e) { throw new FirmwareException($"{method}(0x{input:X}) was refused: {e.Message.Trim()}"); }
+        ulong status = Invoke(method, input) & 0xFF;
         if (status != 0) throw new FirmwareException($"{method}(0x{input:X}) failed with status {status}.");
     }
 
+    // Every WMI failure leaves here as a FirmwareException: the fan safety rules count those as sensor failures.
     ulong Invoke(string method, object input)
     {
-        using var parameters = instance.GetMethodParameters(method);
-        parameters["gmInput"] = input;
-        using var result = instance.InvokeMethod(method, parameters, null);
-        return Convert.ToUInt64(result["gmOutput"]);
+        try
+        {
+            using var parameters = instance.GetMethodParameters(method);
+            parameters["gmInput"] = input;
+            using var result = instance.InvokeMethod(method, parameters, null);
+            return Convert.ToUInt64(result["gmOutput"]);
+        }
+        catch (Exception e) when (e is ManagementException or COMException)
+        {
+            throw new FirmwareException($"{method}(0x{input:X}) was refused: {e.Message.Trim()}");
+        }
     }
 
     public void Dispose() => instance.Dispose();
