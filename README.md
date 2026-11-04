@@ -1,53 +1,65 @@
 # RaptorSense
 
-An open-source alternative to PredatorSense for Acer Predator laptops, focused on **per-key RGB**:
-custom animations, music-reactive lighting, and more control than the stock software. Windows first; Linux is planned.
+A free, open-source alternative to PredatorSense for Acer Predator laptops: **per-key RGB** with custom animations,
+music-reactive lighting and typing effects, plus **fan and power control**.
 
 Created by [aaronparayil](https://github.com/aaronparayil). Free and open source, forever.
+
+![RaptorSense showing the keyboard preview, typing effects and colour controls](docs/screenshot.png)
 
 > Unofficial. Not affiliated with or endorsed by Acer. "Predator" and "PredatorSense" are Acer trademarks,
 > used here only to describe compatibility.
 
-## Status
+## Will it work on my laptop?
 
-Early development. Tested on one machine: **Predator Helios 16 PH16-71**, BIOS V1.18, keyboard `04F2:0117`.
+Tested on one machine so far: **Predator Helios 16 PH16-71**, BIOS V1.18, keyboard `04F2:0117`. Windows only for now;
+Linux is planned.
+
+- **Lighting** looks for keyboards `04F2:0117`, `011A` and `0119`. If yours isn't one of these, the app says
+  "Keyboard not found" and does nothing. A similar keyboard may have its keys mapped differently.
+- **Fans and power** use Acer's gaming firmware interface. **On any other model these are untested.** Firmware
+  differs between laptops, so watch your temperatures, and use them at your own risk.
+
+RaptorSense comes with no warranty (see the [licence](LICENSE)). If you try it on another model, please
+[open an issue](https://github.com/aaronparayil/RaptorSense/issues) and say how it went, whether it worked or not.
+
+## Install
+
+1. Download the zip from [Releases](https://github.com/aaronparayil/RaptorSense/releases). You don't need to install .NET.
+2. Extract it to a folder you'll keep, such as `Documents\RaptorSense`.
+3. Run `RaptorSense.exe`. Close PredatorSense first, because both try to drive the keyboard.
+
+The download isn't code-signed, so Windows may show "Windows protected your PC". Choose **More info**, then **Run anyway**.
+If you'd rather not trust a download, [build it yourself](#build-from-source).
+
+**For fan and power control**, double-click `Install fan control.cmd` once and accept the administrator prompt.
+Lighting works without this. See [Fans and power modes](#fans-and-power-modes) for what it installs.
+
+**To uninstall:**
+
+1. If you installed fan control, double-click `Remove fan control.cmd`.
+2. Turn off **Start with Windows** in the app if you turned it on.
+3. Quit from the tray and delete the folder. Your profiles are in `%APPDATA%\RaptorSense`; delete that too if you don't want them.
+
+## Features
 
 | Feature | State |
 |---|---|
-| Per-key RGB, 60 fps, no admin rights | Works |
-| 24 software effects (60 fps, real key positions, two colours or Auto rainbow): static, gradient, breathing, rainbow wave, colour wave, neon, snake, radar, spotlight, heartbeat, aurora, ripples, rain drop, matrix rain, snow, twinkling stars, lightning, fire, fireball, and more below | Works |
-| The keyboard's 13 built-in effects (keep running when RaptorSense is closed) | Works |
-| Music effects: spectrum, bass pulse (WASAPI loopback, no microphone) | Works |
-| Keyboard's own built-in effects | Works |
-| 11 typing effects: reactive keys, typing ripple, typing lightning, typing fireball, comet, burst, splash, crosshair, heatmap, confetti, sparkle | Works |
-| Typing overlay: layer any typing effect on top of any effect (e.g. lightning on key presses over Aurora) | Works |
+| Per-key RGB at 60 fps, no admin rights | Works |
+| 20 lighting effects using real key positions, with two colours or Auto rainbow: static, gradient, breathing, rainbow wave, neon, snake, radar, aurora, matrix rain, fire, lightning and more | Works |
+| 2 music effects: spectrum and bass pulse (listens to your PC's audio output, never the microphone) | Works |
+| 11 typing effects: reactive keys, ripple, lightning, fireball, comet, burst, splash, crosshair, heatmap, confetti, sparkle | Works |
+| Typing overlay: layer a typing effect over another effect, such as lightning on key presses over Aurora | Works |
+| The keyboard's 13 built-in effects, which keep running when RaptorSense is closed | Works |
 | Key painting: click or drag keys in the preview, right-click to erase | Works |
-| Profiles: save, load, delete; app restores your last setup | Works |
-| Desktop app with a live preview of the real key layout | Works |
-| Tray icon: runs in the background, profiles, pause, quit | Works |
-| Start with Windows (per-user, no admin), starts hidden with your last setup | Works |
-| Fans (Auto / Max / Custom) and power profiles, live temperatures | Works; needs the helper service |
+| Colour wheel with saved swatches and an eyedropper | Works |
+| Profiles: save, load, delete; the app restores your last setup | Works |
+| Live preview of the real key layout | Works |
+| Tray icon: runs in the background, with profiles, pause and quit | Works |
+| Start with Windows (no admin needed), starts hidden with your last setup | Works |
+| Power profiles, fans (Auto / Max / Custom) and live temperatures | Works; needs fan control installed |
 | PREDATOR key | Planned |
 | Linux | Planned |
-
-## Build and run
-
-Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download).
-
-```
-dotnet build RaptorSense.slnx
-dotnet run --project src/RaptorSense.App
-```
-
-Command line:
-
-```
-dotnet run --project src/RaptorSense.Cli -- list
-dotnet run --project src/RaptorSense.Cli -- run rainbow
-dotnet run --project src/RaptorSense.Cli -- run spectrum --color 00AEC7 --color2 FF0080
-dotnet run --project src/RaptorSense.Cli -- builtin wave
-dotnet run --project src/RaptorSense.Cli -- profile "WASD gaming"
-```
 
 Profiles are readable JSON files in `%APPDATA%\RaptorSense\profiles`. Painted keys are stored by name
 (`"W": "FF0000"`), so profiles can be shared and edited by hand.
@@ -58,22 +70,12 @@ frame every second, so it wins, but close PredatorSense while you use it.
 ## Fans and power modes
 
 Windows lets only administrators change fans and power profiles, so these go through a small helper service,
-`RaptorSense.Helper`. The app itself keeps running without admin rights and talks to the helper over a local pipe.
+`RaptorSense.Helper`. The app itself runs without admin rights and talks to the helper over a local pipe.
 The helper accepts only a fixed set of commands (read sensors, set a power profile, set the fan mode), never
 arbitrary firmware calls.
 
-Install it once, from an **administrator** terminal:
-
-```
-dotnet build RaptorSense.slnx
-src\RaptorSense.Helper\bin\Debug\net10.0-windows\RaptorSense.Helper.exe install
-```
-
-The service runs as SYSTEM, so `install` copies it to `C:\Program Files\RaptorSense\Helper` and runs it from there,
-where only administrators can change it. Run `install` again to update it after a rebuild.
-
-`RaptorSense.Helper.exe uninstall` stops the service and removes that folder. To try it without installing, run
-`RaptorSense.Helper.exe` in an administrator terminal and keep it open.
+The service runs as SYSTEM and starts with Windows. Installing it copies it to `C:\Program Files\RaptorSense\Helper`,
+where only administrators can change it. Install again to update it to a newer version.
 
 Safety rules, enforced by the helper (tests in `tests/RaptorSense.Tests`):
 
@@ -83,23 +85,64 @@ Safety rules, enforced by the helper (tests in `tests/RaptorSense.Tests`):
 - When the helper stops, the fans go back to Auto. After a crash, it resets leftover custom speeds on its next start.
 - Power profiles are limited to the ones the firmware reports, and every change is read back.
 
-Command line: `raptorsense thermal`, `raptorsense power turbo`, `raptorsense fans custom 60 70`, `raptorsense fans auto`.
+## Command line
+
+The download includes `cli\raptorsense.exe`:
+
+```
+raptorsense list
+raptorsense run rainbow
+raptorsense run spectrum --color 00AEC7 --color2 FF0080
+raptorsense builtin wave
+raptorsense profile "WASD gaming"
+raptorsense thermal
+raptorsense power turbo
+raptorsense fans custom 60 70
+raptorsense fans auto
+```
+
+The `thermal`, `power` and `fans` commands need fan control installed.
 
 ## Privacy
 
-Reactive effects need a Windows keyboard hook. RaptorSense uses it only to learn **which key position** was
-pressed: it reads the physical scan code, turns it into a lighting cell, and passes the key on untouched. It never
-looks at characters, never records or stores anything, and sends nothing anywhere. The hook exists only while a
-reactive effect is selected. See `src/RaptorSense.Core/Input/WindowsKeyHook.cs`.
+RaptorSense has no accounts or telemetry, and sends nothing anywhere.
 
-## Layout
+Typing effects need a Windows keyboard hook. RaptorSense uses it only to learn **which key position** was
+pressed: it reads the physical scan code, turns it into a lighting cell, and passes the key on untouched. It never
+looks at characters and never records or stores anything. The hook exists only while a typing effect is selected.
+See `src/RaptorSense.Core/Input/WindowsKeyHook.cs`.
+
+Music effects read the audio your PC is playing to measure its loudness per frequency. Nothing is recorded.
+
+## Build from source
+
+Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download).
+
+```
+dotnet build RaptorSense.slnx
+dotnet run --project src/RaptorSense.App
+dotnet test --project tests/RaptorSense.Tests
+```
+
+To use fan control from a source build, run this from an **administrator** terminal:
+
+```
+src\RaptorSense.Helper\bin\Debug\net10.0-windows\RaptorSense.Helper.exe install
+```
+
+`RaptorSense.Helper.exe uninstall` removes it. To try the helper without installing, run `RaptorSense.Helper.exe` in an
+administrator terminal and keep it open.
+
+To build the download zip: `powershell -ExecutionPolicy Bypass -File scripts\package.ps1`
 
 | Path | What |
 |---|---|
-| `src/RaptorSense.Core` | Keyboard protocol, HID transport, key map, effects engine, audio analysis |
+| `src/RaptorSense.Core` | Keyboard protocol, HID transport, key map, effects engine, audio analysis, fan safety rules |
 | `src/RaptorSense.App` | Avalonia desktop app |
 | `src/RaptorSense.Cli` | `raptorsense` command-line tool |
-| `scripts/` | Hardware probes used to map the laptop (`probe.ps1` is read-only) |
+| `src/RaptorSense.Helper` | Elevated service for fans and power |
+| `tests/RaptorSense.Tests` | Effect and fan-safety tests |
+| `scripts/` | Packaging, and the hardware probes used to map the laptop (`probe.ps1` is read-only) |
 | `docs/protocol.md` | Everything known about the hardware, with confidence levels |
 
 ## Other laptops
@@ -110,7 +153,8 @@ If you have a different Predator or Nitro model, the probe helps us add it:
 powershell -ExecutionPolicy Bypass -File scripts\probe.ps1 -Label mymodel
 ```
 
-Run it from an administrator PowerShell. It only reads from the firmware and saves a JSON report to `reports\`. Open an issue and attach it.
+Run it from an administrator PowerShell. It only reads from the firmware and saves a JSON report to `reports\`.
+Check the report before sharing it, then open an issue and attach it.
 
 ## Licence
 
@@ -124,4 +168,5 @@ Created by [aaronparayil](https://github.com/aaronparayil).
 
 The keyboard protocol and key map come from [TrueSense](https://github.com/Order52/truesense) (MIT),
 which mapped this keyboard on the same model and BIOS. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
-and the prior-art list in [docs/protocol.md](docs/protocol.md).
+and the prior-art list in [docs/protocol.md](docs/protocol.md). The download's `licenses` folder lists the
+licence of every library it bundles.
