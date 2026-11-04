@@ -5,7 +5,7 @@ music-reactive lighting and typing effects, plus **fan and power control**.
 
 Created by [aaronparayil](https://github.com/aaronparayil). Free and open source, forever.
 
-![RaptorSense showing the keyboard preview, typing effects and colour controls](docs/screenshot.png)
+![RaptorSense on a Predator Helios 16: typing effects, a rainbow wave and more, matching on the screen and the real keyboard](docs/demo.gif)
 
 > Unofficial. Not affiliated with or endorsed by Acer. "Predator" and "PredatorSense" are Acer trademarks,
 > used here only to describe compatibility.
@@ -42,6 +42,8 @@ Lighting works without this. See [Fans and power modes](#fans-and-power-modes) f
 3. Quit from the tray and delete the folder. Your profiles are in `%APPDATA%\RaptorSense`; delete that too if you don't want them.
 
 ## Features
+
+![The app, showing the keyboard preview, typing effects and colour controls](docs/screenshot.png)
 
 | Feature | State |
 |---|---|
