@@ -93,6 +93,40 @@ They still describe teal:
 
 So on the PH16-71, PredatorSense most likely does not drive the keyboard through WMI. (To confirm: did the keys actually turn red?)
 
+## Light bar (rear, 3 zones): WMI only
+
+**Confirmed on Windows (2026-11-05), PH16-71, BIOS V1.18:** the light bar is not a USB device and is not on the keyboard's
+HID interfaces. It is driven through `AcerGamingFunction`, and every `Set*` call needs administrator rights.
+
+Protocol from [jma-studio-rgb-keyboard](https://github.com/jadamsky/jma-studio-rgb-keyboard) (MIT, `hardware/lightbar.py`
+and `LIGHTBAR_REVERSE_ENGINEERING.md`), checked on this unit. Parameter sizes here: `SetGamingLED` 12 bytes,
+`SetGamingKBBacklight` 16 bytes, `SetGamingRgbKb` a `u64`.
+
+- **Static colour, one zone**: `SetGamingRgbKb((r << 8) | (g << 16) | (b << 24) | (0x08 << 32) | (mask << 40))`.
+  Masks: 1 = left, 2 = centre, 3rd zone = 4 = right, from the front with the lid up (the left/right order is from jma-studio;
+  confirm it by eye on this unit). The plain `mask | r << 8 | …` packing does not work.
+- **One commit round**, as sent by Acer's own stack:
+  1. `SetGamingLED` with `10 00 00 00 00 00 FF FF FF 15 00 00`.
+  2. `SetGamingKBBacklight` with `00 00 <brightness 0-100> 00 00 00 00 00 03 02 00 00 00 00 00 00`.
+  3. `SetGamingRgbKb` once per zone.
+
+  jma-studio repeats the round 3 times, 65 ms apart, for a reliable change, and sends a single round for fast updates.
+  All calls returned status 0 here with 3 rounds: zone 1 red, zone 2 green, zone 3 blue.
+- **Read-back**: `GetGamingKBBacklight` slots 2 and 3 return `00 00 <brightness> 00 00 R G B 03 …` for the current colour
+  (blue → `00 00 FF`, then red → `FF 00 00` after the commit). It is a state read-back, **not** where colours are written:
+  writing the same layout with `SetGamingKBBacklight` is refused with status 1.
+- **Animated modes**: `SetGamingKBBacklight` with `[mode, speed, brightness, 0, 1, R, G, B, 3, 2, 0…]`, in the same
+  commit round as above (`SetGamingLED` first, then this, no `SetGamingRgbKb`).
+  Modes: breathing 1, neon 2, rainbow 3, wave 4, ripple 5, scanner 6, strobe 7. One colour for the whole bar.
+  **Confirmed on Windows (2026-11-05):** breathing, neon, rainbow, wave, ripple and scanner, at speed 5 and brightness 100
+  (the owner watched the bar; the per-mode look was not written down). Strobe was not tried (rapid flashing).
+  The speed range (RaptorSense clamps it to 0-10) and speeds other than 5 are unchecked. Static mode `0xFF` is documented
+  by jma-studio as not working on this chassis.
+- **Timing** (2026-11-05, WMI from a .NET process, helper-less): one static change of 3 rounds takes 0.4-0.5 s, an
+  animation change about 0.3 s. A single round is roughly 90 ms, so live per-frame effects on the bar top out near 10 updates a second.
+- No handshake or mutex is needed. COM objects are thread-affine, so use one WMI instance per thread.
+- `GetGamingLED*` (ids 4, 11, 13) read all zeros or an error status on this laptop; the bar does not use them for reads.
+
 ## USB HID: Chicony keyboard `04F2:0117`
 
 | Interface | Usage page | Role |

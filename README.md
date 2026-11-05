@@ -60,6 +60,7 @@ Lighting works without this. See [Fans and power modes](#fans-and-power-modes) f
 | Tray icon: runs in the background, with profiles, pause and quit | Works |
 | Start with Windows (no admin needed), starts hidden with your last setup | Works |
 | Power profiles, fans (Auto / Max / Custom) and live temperatures | Works; needs fan control installed |
+| Rear light bar: a colour per zone, brightness, and its 6 built-in animations | Works; needs fan control installed. No live effects or music sync on it yet |
 | PREDATOR key | Planned |
 | Linux | Planned |
 
@@ -71,10 +72,10 @@ frame every second, so it wins, but close PredatorSense while you use it.
 
 ## Fans and power modes
 
-Windows lets only administrators change fans and power profiles, so these go through a small helper service,
-`RaptorSense.Helper`. The app itself runs without admin rights and talks to the helper over a local pipe.
-The helper accepts only a fixed set of commands (read sensors, set a power profile, set the fan mode), never
-arbitrary firmware calls.
+Windows lets only administrators change fans, power profiles and the rear light bar, so these go through a small
+helper service, `RaptorSense.Helper`. The app itself runs without admin rights and talks to the helper over a local pipe.
+The helper accepts only a fixed set of commands (read sensors, set a power profile, set the fan mode, set the light bar),
+never arbitrary firmware calls.
 
 The service runs as SYSTEM and starts with Windows. Installing it copies it to `C:\Program Files\RaptorSense\Helper`,
 where only administrators can change it. Install again to update it to a newer version.
@@ -101,9 +102,14 @@ raptorsense thermal
 raptorsense power turbo
 raptorsense fans custom 60 70
 raptorsense fans auto
+raptorsense lightbar FF0000
+raptorsense lightbar FF0000 00FF00 0000FF --brightness 60
+raptorsense lightbar wave --color 00AEC7
+raptorsense lightbar off
 ```
 
-The `thermal`, `power` and `fans` commands need fan control installed.
+The `thermal`, `power`, `fans` and `lightbar` commands need fan control installed. `lightbar` takes one colour for
+the whole bar or three (left, centre, right), or an animation: breathing, neon, rainbow, wave, ripple or scanner.
 
 ## Privacy
 
@@ -142,8 +148,8 @@ To build the download zip: `powershell -ExecutionPolicy Bypass -File scripts\pac
 | `src/RaptorSense.Core` | Keyboard protocol, HID transport, key map, effects engine, audio analysis, fan safety rules |
 | `src/RaptorSense.App` | Avalonia desktop app |
 | `src/RaptorSense.Cli` | `raptorsense` command-line tool |
-| `src/RaptorSense.Helper` | Elevated service for fans and power |
-| `tests/RaptorSense.Tests` | Effect and fan-safety tests |
+| `src/RaptorSense.Helper` | Elevated service for fans, power and the light bar |
+| `tests/RaptorSense.Tests` | Effect, fan-safety and light bar protocol tests |
 | `scripts/` | Packaging, and the hardware probes used to map the laptop (`probe.ps1` is read-only) |
 | `docs/protocol.md` | Everything known about the hardware, with confidence levels |
 

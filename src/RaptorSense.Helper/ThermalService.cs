@@ -3,6 +3,7 @@ using System.Management;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text.Json;
+using RaptorSense.Hardware;
 using RaptorSense.Thermal;
 
 namespace RaptorSense.Helper;
@@ -18,6 +19,7 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
 
     readonly object firmwareLock = new();
     IGamingFirmware? firmware;
+    ILightBar? lightBar;
     FanController? fans;
     IReadOnlyList<PowerProfile> supported = [];
 
@@ -25,6 +27,7 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
     {
         using var wmi = AcerGamingWmi.Open();
         firmware = wmi;
+        lightBar = wmi;
         fans = new FanController(wmi);
         lock (firmwareLock)
         {
@@ -125,6 +128,11 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
                     case "fans" when request.Mode is FanMode.Custom:
                         fans.SetCustom(request.Cpu ?? 50, request.Gpu ?? 50);
                         log.LogInformation("Fans set to custom {Cpu}% / {Gpu}%", fans.CpuPercent, fans.GpuPercent);
+                        break;
+                    case "lightbar" when request.LightBar is { } bar && lightBar is not null:
+                        bar.ApplyTo(lightBar);
+                        log.LogInformation("Light bar set: {Mode}, colours {Colours}, brightness {Brightness}",
+                            bar.Mode?.ToString() ?? "static", string.Join(" ", bar.Colors), bar.Brightness);
                         break;
                     default:
                         return ThermalStatus.Failed($"Unknown request '{request.Command}'.");

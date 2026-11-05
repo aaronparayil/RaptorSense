@@ -26,8 +26,9 @@ sealed class ColorEditor : UserControl
     static readonly IBrush Selected = new SolidColorBrush(Color.FromRgb(0, 174, 199));
     static readonly IBrush Unselected = new SolidColorBrush(Color.FromRgb(60, 62, 70));
 
-    readonly Rgb[] colors = [Rgb.PredatorTeal, new(255, 0, 128)];
-    readonly (Border Chip, Border Fill)[] chips = new (Border, Border)[2];
+    readonly string[] names;
+    readonly Rgb[] colors;
+    readonly (Border Chip, Border Fill)[] chips;
     readonly ColorWheel wheel = new();
     readonly Slider brightness = new() { Minimum = 0, Maximum = 1, Value = 1 };
     readonly NumericUpDown red = Channel(), green = Channel(), blue = Channel();
@@ -38,16 +39,28 @@ sealed class ColorEditor : UserControl
     int target;
     bool updating;
 
-    /// <summary>Raised with 0 (colour 1) or 1 (colour 2) and the new colour.</summary>
+    /// <summary>Raised with the index of the colour being edited (0 = first chip) and its new colour.</summary>
     public event Action<int, Rgb>? ColorChanged;
 
     /// <summary>True while the eyedropper waits for a key to be clicked.</summary>
     public bool Picking => eyedropper.IsChecked == true;
 
-    public ColorEditor()
+    /// <summary>The colour of the chip being edited.</summary>
+    public Rgb CurrentColor => colors[target];
+
+    /// <param name="names">One chip per name. Defaults to the keyboard's "Colour 1" and "Colour 2".</param>
+    /// <param name="initial">Starting colours, one per name (otherwise teal, then pink).</param>
+    /// <param name="withEyedropper">The eyedropper takes a colour from the keyboard preview, so only the lighting tab has it.</param>
+    public ColorEditor(string[]? names = null, Rgb[]? initial = null, bool withEyedropper = true)
     {
+        this.names = names ?? ["Colour 1", "Colour 2"];
+        colors = initial is not null && initial.Length == this.names.Length
+            ? [.. initial]
+            : [.. this.names.Select((_, i) => i == 0 ? Rgb.PredatorTeal : new Rgb(255, 0, 128))];
+        chips = new (Border, Border)[this.names.Length];
+
         var chipRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        for (int i = 0; i < 2; i++) chipRow.Children.Add(BuildChip(i));
+        for (int i = 0; i < this.names.Length; i++) chipRow.Children.Add(BuildChip(i));
 
         wheel.Changed += () => Set(Rgb.FromHsv(wheel.Hue, wheel.Saturation, brightness.Value), wheel);
         brightness.ValueChanged += (_, e) =>
@@ -79,7 +92,7 @@ sealed class ColorEditor : UserControl
             Children = { Docked(new TextBlock { Text = "Brightness", Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center }, Dock.Left), brightness },
         });
         layout.Children.Add(swatches);
-        layout.Children.Add(eyedropper);
+        if (withEyedropper) layout.Children.Add(eyedropper);
         Content = layout;
 
         RebuildSwatches();
@@ -91,6 +104,14 @@ sealed class ColorEditor : UserControl
     {
         colors[0] = color1;
         colors[1] = color2;
+        RefreshChips();
+        ShowTarget();
+    }
+
+    /// <summary>Shows all the colours at once (one per chip), without raising <see cref="ColorChanged"/>.</summary>
+    public void SetColors(IReadOnlyList<Rgb> all)
+    {
+        for (int i = 0; i < colors.Length && i < all.Count; i++) colors[i] = all[i];
         RefreshChips();
         ShowTarget();
     }
@@ -143,7 +164,7 @@ sealed class ColorEditor : UserControl
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 8,
-                Children = { fill, new TextBlock { Text = $"Colour {index + 1}", VerticalAlignment = VerticalAlignment.Center } },
+                Children = { fill, new TextBlock { Text = names[index], VerticalAlignment = VerticalAlignment.Center } },
             },
         };
         chip.PointerPressed += (_, _) =>

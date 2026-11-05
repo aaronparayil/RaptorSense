@@ -17,12 +17,15 @@ const string Usage = """
       raptorsense thermal                  Temperatures, fan speeds and power profile (needs the helper)
       raptorsense power <profile>          quiet | balanced | performance | turbo | eco
       raptorsense fans auto | max | custom <cpu%> <gpu%>
+      raptorsense lightbar <RRGGBB> [<RRGGBB> <RRGGBB>]   Rear light bar: one colour, or left, centre, right (needs the helper)
+      raptorsense lightbar off
+      raptorsense lightbar <mode> [--color RRGGBB]        breathing | neon | rainbow | wave | ripple | scanner | strobe
 
     Options:
       --color RRGGBB      main colour
       --color2 RRGGBB     second colour (spectrum top, pulse peak)
-      --speed N           run: speed multiplier (1 = normal); builtin: 1 slowest .. 12 fastest
-      --brightness N      0..50 (default: keyboard's current level)
+      --speed N           run: speed multiplier (1 = normal); builtin: 1 slowest .. 12 fastest; lightbar mode: 0..10
+      --brightness N      0..50 (default: keyboard's current level); lightbar: 0..100 (default 100)
       --auto on|off       run: rainbow "Auto" colours instead of --color
       --overlay <id>      run: a typing effect on top, e.g. --overlay typing-lightning (or none)
       --seconds N         run: stop after N seconds
@@ -50,6 +53,7 @@ try
         case "thermal": return PrintThermal(ThermalClient.StatusAsync().GetAwaiter().GetResult());
         case "power": return SetPower(positional.FirstOrDefault());
         case "fans": return SetFans(positional);
+        case "lightbar": return SetLightBar(positional, options);
         case "profile": return RunProfile(positional.FirstOrDefault(), options);
         default:
             Console.Error.WriteLine($"Unknown command '{args[0]}'.\n\n{Usage}");
@@ -134,6 +138,31 @@ static int SetFans(List<string> args)
     if (mode == FanMode.Custom && (args.Count < 3 || !int.TryParse(args[1], out cpu) || !int.TryParse(args[2], out gpu)))
         throw new ArgumentException($"Usage: raptorsense fans custom <cpu%> <gpu%>  (at least {FanController.MinCustomPercent}%)");
     return PrintThermal(ThermalClient.SetFansAsync(mode, cpu, gpu).GetAwaiter().GetResult());
+}
+
+static int SetLightBar(List<string> args, Dictionary<string, string> options)
+{
+    const string LightBarUsage = "Usage: raptorsense lightbar <RRGGBB> [<RRGGBB> <RRGGBB>] | off | <mode> [--color RRGGBB] [--speed 0..10] [--brightness 0..100]";
+    if (args.Count == 0) throw new ArgumentException(LightBarUsage);
+
+    int brightness = options.TryGetValue("brightness", out var b) ? int.Parse(b) : LightBarProtocol.MaxBrightness;
+    var request = new LightBarRequest { Brightness = brightness };
+    if (args[0].Equals("off", StringComparison.OrdinalIgnoreCase))
+        request = request with { Colors = [Rgb.Black.ToString()] };
+    else if (Enum.GetValues<LightBarMode>().Cast<LightBarMode?>().FirstOrDefault(m => m.ToString()!.Equals(args[0], StringComparison.OrdinalIgnoreCase)) is { } mode)
+        request = request with
+        {
+            Mode = mode,
+            Colors = [(options.TryGetValue("color", out var c) ? Rgb.Parse(c) : Rgb.White).ToString()],
+            Speed = options.TryGetValue("speed", out var s) ? int.Parse(s) : LightBarProtocol.DefaultSpeed,
+        };
+    else
+        request = request with { Colors = args.Select(a => Rgb.Parse(a).ToString()).ToList() };
+
+    var status = ThermalClient.SetLightBarAsync(request).GetAwaiter().GetResult();
+    if (status.Ok) Console.WriteLine("Light bar set.");
+    else Console.Error.WriteLine(status.Error ?? ThermalClient.HelperMissing);
+    return status.Ok ? 0 : 1;
 }
 
 // CSV of every key's cell and physical rectangle, for checking the layout or drawing it elsewhere.

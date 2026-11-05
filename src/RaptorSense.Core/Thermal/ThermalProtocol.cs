@@ -1,6 +1,7 @@
 using System.IO.Pipes;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using RaptorSense.Hardware;
 
 namespace RaptorSense.Thermal;
 
@@ -21,7 +22,7 @@ public static class ThermalProtocol
 
 public sealed record ThermalRequest
 {
-    /// <summary>"status", "profile" or "fans".</summary>
+    /// <summary>"status", "profile", "fans" or "lightbar".</summary>
     public string Command { get; init; } = "status";
 
     public PowerProfile? Profile { get; init; }
@@ -31,6 +32,46 @@ public sealed record ThermalRequest
     public int? Cpu { get; init; }
 
     public int? Gpu { get; init; }
+
+    public LightBarRequest? LightBar { get; init; }
+}
+
+/// <summary>
+/// A light bar change. <see cref="Colors"/> are RRGGBB strings: one for the whole bar, or three (left, centre, right).
+/// With a <see cref="Mode"/> the bar plays that animation in the first colour; without one the colours are static.
+/// </summary>
+public sealed record LightBarRequest
+{
+    public IReadOnlyList<string> Colors { get; init; } = [];
+
+    public int Brightness { get; init; } = LightBarProtocol.MaxBrightness;
+
+    public LightBarMode? Mode { get; init; }
+
+    public int Speed { get; init; } = LightBarProtocol.DefaultSpeed;
+
+    /// <summary>Checks the request and sends it. Throws <see cref="ArgumentException"/> for anything the helper must not pass on.</summary>
+    public void ApplyTo(ILightBar bar)
+    {
+        if (Colors.Count is not (1 or 3)) throw new ArgumentException("Give one colour for the whole bar or three (left, centre, right).");
+        var colors = new List<Lighting.Rgb>(Colors.Count);
+        foreach (var text in Colors)
+        {
+            if (!Lighting.Rgb.TryParse(text, out var color)) throw new ArgumentException($"Colour must be RRGGBB, got '{text}'.");
+            colors.Add(color);
+        }
+        int brightness = Math.Clamp(Brightness, 0, LightBarProtocol.MaxBrightness);
+
+        if (Mode is { } mode)
+        {
+            if (!Enum.IsDefined(mode)) throw new ArgumentException($"Unknown light bar mode {(int)mode}.");
+            bar.SetMode(mode, colors[0], Speed, brightness);
+        }
+        else
+        {
+            bar.SetStatic(colors.Count == 1 ? [colors[0], colors[0], colors[0]] : colors, brightness);
+        }
+    }
 }
 
 public sealed record ThermalStatus
@@ -67,6 +108,9 @@ public static class ThermalClient
     public static Task<ThermalStatus> SetFansAsync(FanMode mode, int cpu = 50, int gpu = 50, CancellationToken cancel = default) =>
         SendAsync(new ThermalRequest { Command = "fans", Mode = mode, Cpu = cpu, Gpu = gpu }, cancel);
 
+    public static Task<ThermalStatus> SetLightBarAsync(LightBarRequest request, CancellationToken cancel = default) =>
+        SendAsync(new ThermalRequest { Command = "lightbar", LightBar = request }, cancel);
+
     public static async Task<ThermalStatus> SendAsync(ThermalRequest request, CancellationToken cancel = default)
     {
         try
@@ -92,5 +136,5 @@ public static class ThermalClient
     }
 
     public const string HelperMissing =
-        "The RaptorSense helper isn't running. Fans and power modes need it (see README: Fans and power modes).";
+        "The RaptorSense helper isn't running. Fans, power modes and the light bar need it (see README: Fans and power modes).";
 }

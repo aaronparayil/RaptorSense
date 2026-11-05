@@ -72,6 +72,7 @@ sealed class MainWindow : Window
             Items =
             {
                 new TabItem { Header = "Lighting", Content = lighting },
+                new TabItem { Header = "Light bar", Content = new LightBarPanel() },
                 new TabItem { Header = "Performance", Content = new PerformancePanel() },
             },
         };

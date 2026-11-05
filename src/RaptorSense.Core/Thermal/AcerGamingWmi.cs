@@ -1,16 +1,23 @@
 using System.Management;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using RaptorSense.Hardware;
+using RaptorSense.Lighting;
 
 namespace RaptorSense.Thermal;
 
 /// <summary>
 /// The AcerGamingFunction WMI class (root\WMI). Needs administrator rights, even to read.
-/// Encodings are in docs/protocol.md; each write is read back before it is reported as done.
+/// Encodings are in docs/protocol.md; each write is read back before it is reported as done
+/// (the light bar's are not: nothing in the firmware reads a zone colour back reliably).
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class AcerGamingWmi : IGamingFirmware
+public sealed class AcerGamingWmi : IGamingFirmware, ILightBar
 {
+    // The light bar only takes a colour change reliably when the whole round is sent a few times, 65 ms apart.
+    const int LightBarRounds = 3;
+    const int LightBarRoundGapMs = 65;
+
     const uint SensorCommand = 0x01;
     const byte CpuTempSensor = 0x01, CpuFanSensor = 0x02, SystemTempSensor = 0x03, GpuFanSensor = 0x06, GpuTempSensor = 0x0A;
     const uint SupportedProfilesSetting = 0x0A, ProfileSetting = 0x0B;
@@ -78,6 +85,29 @@ public sealed class AcerGamingWmi : IGamingFirmware
         Settle(() => GetFanModes() == (mode, mode), $"The firmware did not confirm the fans switching to {mode}.");
     }
 
+    public void SetStatic(IReadOnlyList<Rgb> zones, int brightness)
+    {
+        if (zones.Count != LightBarProtocol.Zones) throw new ArgumentException($"The light bar has {LightBarProtocol.Zones} zones.", nameof(zones));
+        CommitLightBar(LightBarProtocol.StaticBacklight(brightness), () =>
+        {
+            for (int zone = 0; zone < LightBarProtocol.Zones; zone++) Set("SetGamingRgbKb", LightBarProtocol.ZoneColor(zone, zones[zone]));
+        });
+    }
+
+    public void SetMode(LightBarMode mode, Rgb color, int speed, int brightness) =>
+        CommitLightBar(LightBarProtocol.ModeBacklight(mode, color, speed, brightness), null);
+
+    void CommitLightBar(byte[] backlight, Action? zoneColors)
+    {
+        for (int round = 0; round < LightBarRounds; round++)
+        {
+            if (round > 0) Thread.Sleep(LightBarRoundGapMs);
+            Set("SetGamingLED", LightBarProtocol.Trigger);
+            Set("SetGamingKBBacklight", backlight);
+            zoneColors?.Invoke();
+        }
+    }
+
     // The firmware is busy for a moment after a change and fails reads with "Generic failure" meanwhile,
     // so read back for up to ~1.5 s and tolerate errors until then (TrueSense found the same on Linux).
     static void Settle(Func<bool> confirmed, string failure)
@@ -102,11 +132,14 @@ public sealed class AcerGamingWmi : IGamingFirmware
         return output;
     }
 
-    void Set(string method, ulong input)
+    // input is a ulong or a byte[], whichever the method takes.
+    void Set(string method, object input)
     {
         ulong status = Invoke(method, input) & 0xFF;
-        if (status != 0) throw new FirmwareException($"{method}(0x{input:X}) failed with status {status}.");
+        if (status != 0) throw new FirmwareException($"{method}({Describe(input)}) failed with status {status}.");
     }
+
+    static string Describe(object input) => input is byte[] bytes ? Convert.ToHexString(bytes) : $"0x{input:X}";
 
     // Every WMI failure leaves here as a FirmwareException: the fan safety rules count those as sensor failures.
     ulong Invoke(string method, object input)
@@ -120,7 +153,7 @@ public sealed class AcerGamingWmi : IGamingFirmware
         }
         catch (Exception e) when (e is ManagementException or COMException)
         {
-            throw new FirmwareException($"{method}(0x{input:X}) was refused: {e.Message.Trim()}");
+            throw new FirmwareException($"{method}({Describe(input)}) was refused: {e.Message.Trim()}");
         }
     }
 
