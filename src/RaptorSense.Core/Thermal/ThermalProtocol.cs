@@ -53,24 +53,42 @@ public sealed record LightBarRequest
     /// <summary>Checks the request and sends it. Throws <see cref="ArgumentException"/> for anything the helper must not pass on.</summary>
     public void ApplyTo(ILightBar bar)
     {
-        if (Colors.Count is not (1 or 3)) throw new ArgumentException("Give one colour for the whole bar or three (left, centre, right).");
-        var colors = new List<Lighting.Rgb>(Colors.Count);
-        foreach (var text in Colors)
-        {
-            if (!Lighting.Rgb.TryParse(text, out var color)) throw new ArgumentException($"Colour must be RRGGBB, got '{text}'.");
-            colors.Add(color);
-        }
+        var zones = ParseZones();
+        if (Mode is { } mode && !Enum.IsDefined(mode)) throw new ArgumentException($"Unknown light bar mode {(int)mode}.");
         int brightness = Math.Clamp(Brightness, 0, LightBarProtocol.MaxBrightness);
 
-        if (Mode is { } mode)
+        if (Mode is { } animation) bar.SetMode(animation, zones[0], Speed, brightness);
+        else bar.SetStatic(zones, brightness);
+    }
+
+    /// <summary>
+    /// The colours as one per zone (a single colour fills the bar), or false if the request is malformed.
+    /// For settings read from a profile file, which people edit by hand.
+    /// </summary>
+    public bool TryGetZones(out Lighting.Rgb[] zones)
+    {
+        try
         {
-            if (!Enum.IsDefined(mode)) throw new ArgumentException($"Unknown light bar mode {(int)mode}.");
-            bar.SetMode(mode, colors[0], Speed, brightness);
+            zones = ParseZones();
+            return Mode is not { } mode || Enum.IsDefined(mode);
         }
-        else
+        catch (ArgumentException)
         {
-            bar.SetStatic(colors.Count == 1 ? [colors[0], colors[0], colors[0]] : colors, brightness);
+            zones = [];
+            return false;
         }
+    }
+
+    Lighting.Rgb[] ParseZones()
+    {
+        if (Colors.Count is not (1 or 3)) throw new ArgumentException("Give one colour for the whole bar or three (left, centre, right).");
+        var zones = new Lighting.Rgb[LightBarProtocol.Zones];
+        for (int zone = 0; zone < zones.Length; zone++)
+        {
+            string text = Colors[Colors.Count == 1 ? 0 : zone];
+            if (!Lighting.Rgb.TryParse(text, out zones[zone])) throw new ArgumentException($"Colour must be RRGGBB, got '{text}'.");
+        }
+        return zones;
     }
 }
 

@@ -1,5 +1,6 @@
 using RaptorSense.Layout;
 using RaptorSense.Lighting;
+using RaptorSense.Thermal;
 
 namespace RaptorSense.Profiles;
 
@@ -29,10 +30,17 @@ public sealed record Profile
     /// <summary>Painted keys by label (see <see cref="KeyMap"/>), as RRGGBB. Keys not listed are off.</summary>
     public Dictionary<string, string> Keys { get; init; } = [];
 
-    /// <summary>Snapshot of what the engine and the painted layout show now.</summary>
-    public static Profile Capture(string name, EffectEngine engine) => new()
+    /// <summary>
+    /// The rear light bar, or null to leave it alone. Null in profiles saved before the light bar was supported, and
+    /// until the light bar has been set from RaptorSense, so a profile never overrides what Acer's own app set.
+    /// </summary>
+    public LightBarRequest? LightBar { get; init; }
+
+    /// <summary>Snapshot of what the engine and the painted layout show now, plus the light bar if it has been set.</summary>
+    public static Profile Capture(string name, EffectEngine engine, LightBarRequest? lightBar = null) => new()
     {
         Name = name,
+        LightBar = lightBar,
         Effect = engine.Effect.Id,
         Color = engine.Settings.Color.ToString(),
         Color2 = engine.Settings.Color2.ToString(),

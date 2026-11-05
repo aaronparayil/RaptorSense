@@ -120,8 +120,10 @@ and `LIGHTBAR_REVERSE_ENGINEERING.md`), checked on this unit. Parameter sizes he
   Modes: breathing 1, neon 2, rainbow 3, wave 4, ripple 5, scanner 6, strobe 7. One colour for the whole bar.
   **Confirmed on Windows (2026-11-05):** breathing, neon, rainbow, wave, ripple and scanner, at speed 5 and brightness 100
   (the owner watched the bar; the per-mode look was not written down). Strobe was not tried (rapid flashing).
-  The speed range (RaptorSense clamps it to 0-10) and speeds other than 5 are unchecked. Static mode `0xFF` is documented
-  by jma-studio as not working on this chassis.
+  **Speed, confirmed (2026-11-05):** with wave, 0, 2, 5, 8 and 10 were all accepted, and 10 looked clearly faster than 0,
+  so **a higher number is faster on the bar** (the opposite of the keyboard's built-in effects, where 0 is fastest).
+  The in-between values were not compared one by one, other modes were not tried at other speeds, and values above 10
+  were not tried; RaptorSense clamps to 0-10. Static mode `0xFF` is documented by jma-studio as not working on this chassis.
 - **Timing** (2026-11-05, WMI from a .NET process, helper-less): one static change of 3 rounds takes 0.4-0.5 s, an
   animation change about 0.3 s. A single round is roughly 90 ms, so live per-frame effects on the bar top out near 10 updates a second.
 - No handshake or mutex is needed. COM objects are thread-affine, so use one WMI instance per thread.

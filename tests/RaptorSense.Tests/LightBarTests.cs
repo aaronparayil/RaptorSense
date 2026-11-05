@@ -1,5 +1,6 @@
 using RaptorSense.Hardware;
 using RaptorSense.Lighting;
+using RaptorSense.Profiles;
 using RaptorSense.Thermal;
 using Xunit;
 
@@ -103,6 +104,51 @@ public sealed class LightBarTests
         Assert.Throws<ArgumentException>(() => new LightBarRequest { Colors = ["FFFFFF"], Mode = (LightBarMode)99 }.ApplyTo(bar));
         Assert.Null(bar.Zones);
         Assert.Null(bar.Mode);
+    }
+
+    [Fact]
+    public void ProfileKeepsTheLightBarThroughJsonAndWritesReadableModeNames()
+    {
+        var profile = new Profile
+        {
+            Name = "night",
+            LightBar = new LightBarRequest { Colors = ["FF0000", "00FF00", "0000FF"], Brightness = 30, Mode = LightBarMode.Ripple, Speed = 8 },
+        };
+        var json = System.Text.Json.JsonSerializer.Serialize(profile);
+        Assert.Contains("\"Ripple\"", json);
+
+        var back = System.Text.Json.JsonSerializer.Deserialize<Profile>(json)!;
+        Assert.Equal(["FF0000", "00FF00", "0000FF"], back.LightBar!.Colors);
+        Assert.Equal((30, LightBarMode.Ripple, 8), (back.LightBar.Brightness, back.LightBar.Mode, back.LightBar.Speed));
+    }
+
+    [Fact]
+    public void ProfilesSavedBeforeTheLightBarExistedLeaveItAlone()
+    {
+        var old = """{ "Name": "WASD", "Effect": "static", "Color": "00AEC7", "Keys": { "W": "FF0000" } }""";
+        Assert.Null(System.Text.Json.JsonSerializer.Deserialize<Profile>(old)!.LightBar);
+    }
+
+    [Fact]
+    public void AHandEditedBadLightBarIsRejectedInsteadOfCrashing()
+    {
+        var json = """{ "Name": "x", "LightBar": { "Colors": ["nope"], "Brightness": 50 } }""";
+        var profile = System.Text.Json.JsonSerializer.Deserialize<Profile>(json)!;
+        Assert.False(profile.LightBar!.TryGetZones(out var zones));
+        Assert.Empty(zones);
+    }
+
+    [Fact]
+    public void TryGetZonesFillsTheBarFromOneColourAndKeepsThreeApart()
+    {
+        Assert.True(new LightBarRequest { Colors = ["00AEC7"] }.TryGetZones(out var one));
+        Assert.Equal([new Rgb(0, 0xAE, 0xC7), new Rgb(0, 0xAE, 0xC7), new Rgb(0, 0xAE, 0xC7)], one);
+
+        Assert.True(new LightBarRequest { Colors = ["FF0000", "00FF00", "0000FF"] }.TryGetZones(out var three));
+        Assert.Equal([new Rgb(255, 0, 0), new Rgb(0, 255, 0), new Rgb(0, 0, 255)], three);
+
+        Assert.False(new LightBarRequest { Colors = ["FF0000", "00FF00"] }.TryGetZones(out _));
+        Assert.False(new LightBarRequest { Colors = ["FF0000"], Mode = (LightBarMode)42 }.TryGetZones(out _));
     }
 
     [Fact]

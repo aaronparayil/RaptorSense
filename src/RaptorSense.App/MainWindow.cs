@@ -25,6 +25,7 @@ sealed class MainWindow : Window
     readonly CheckBox autoColor = new() { Content = "Auto (rainbow colours)" };
     readonly ComboBox overlayPicker = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ColorEditor colorEditor = new();
+    readonly LightBarPanel lightBar = new();
     readonly Slider speed = new() { Minimum = 0.1, Maximum = 4 };
     readonly Slider brightness = new() { Minimum = 0, Maximum = Ph16Keyboard.MaxBrightness, IsEnabled = false };
     readonly ComboBox profileList = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Saved profiles" };
@@ -72,7 +73,7 @@ sealed class MainWindow : Window
             Items =
             {
                 new TabItem { Header = "Lighting", Content = lighting },
-                new TabItem { Header = "Light bar", Content = new LightBarPanel() },
+                new TabItem { Header = "Light bar", Content = lightBar },
                 new TabItem { Header = "Performance", Content = new PerformancePanel() },
             },
         };
@@ -390,6 +391,7 @@ sealed class MainWindow : Window
         overlayPicker.SelectedIndex = overlay is null ? 0 : OverlayEffects.ToList().IndexOf(overlay) + 1;
         engine.Overlay = overlay;
         ChooseEffect(engine.Effect);   // also sets up the key hook or audio capture the effect needs
+        lightBar.Load(profile.LightBar, send: true);   // null leaves the bar as it is
         profileName.Text = profile.Name;
     }
 
@@ -397,7 +399,7 @@ sealed class MainWindow : Window
     {
         var name = profileName.Text?.Trim();
         if (string.IsNullOrEmpty(name)) { Notify("Type a name for the profile first."); return; }
-        ProfileStore.Save(Profile.Capture(name, engine));
+        ProfileStore.Save(Profile.Capture(name, engine, lightBar.Current));
         RefreshProfileList();
         profileList.SelectedItem = name;
         TrayStateChanged?.Invoke();
@@ -537,7 +539,7 @@ sealed class MainWindow : Window
 
     void SaveLast()
     {
-        try { ProfileStore.SaveLast(Profile.Capture("", engine)); }
+        try { ProfileStore.SaveLast(Profile.Capture("", engine, lightBar.Current)); }
         catch (IOException) { }
     }
 

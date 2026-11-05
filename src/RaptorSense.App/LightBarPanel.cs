@@ -33,6 +33,29 @@ sealed class LightBarPanel : UserControl
     readonly Button copyToAll = new() { Content = "Use this colour on all zones" };
     bool busy;
 
+    /// <summary>
+    /// What the light bar was last asked to show, for saving in profiles. Null until something has been applied
+    /// or loaded, so a profile saved before then leaves the bar alone.
+    /// </summary>
+    public LightBarRequest? Current { get; private set; }
+
+    /// <summary>
+    /// Shows the settings from a profile and, with <paramref name="send"/>, applies them. Does nothing for null or a
+    /// request that doesn't make sense (profile files are edited by hand).
+    /// </summary>
+    public void Load(LightBarRequest? request, bool send)
+    {
+        if (request is null || !request.TryGetZones(out var loaded)) return;
+
+        Array.Copy(loaded, zones, zones.Length);
+        editor.SetColors(zones);
+        mode.SelectedIndex = request.Mode is { } animation ? Array.IndexOf(Enum.GetValues<LightBarMode>(), animation) + 1 : 0;
+        brightness.Value = request.Brightness;
+        speed.Value = request.Speed;
+        Current = request;
+        if (send) _ = Send(request);
+    }
+
     public LightBarPanel()
     {
         editor = new ColorEditor(ZoneNames, zones, withEyedropper: false);
@@ -102,6 +125,7 @@ sealed class LightBarPanel : UserControl
     {
         if (busy) return;
         busy = true;
+        Current = request;   // what the panel was told to show, whether or not the helper is there to carry it out
         apply.IsEnabled = off.IsEnabled = false;
         result.Text = "Sending…";
         try

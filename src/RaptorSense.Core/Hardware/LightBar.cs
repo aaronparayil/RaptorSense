@@ -1,8 +1,10 @@
+using System.Text.Json.Serialization;
 using RaptorSense.Lighting;
 
 namespace RaptorSense.Hardware;
 
 /// <summary>The light bar's own animations. Values are the firmware's (docs/protocol.md, "Light bar").</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]   // readable in profile files: "Mode": "Wave"
 public enum LightBarMode : byte
 {
     Breathing = 1, Neon = 2, Rainbow = 3, Wave = 4, Ripple = 5, Scanner = 6, Strobe = 7,

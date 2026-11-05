@@ -104,6 +104,12 @@ static int RunProfile(string? name, Dictionary<string, string> options)
     using var engine = new EffectEngine(Ph16Keyboard.TryOpen);
     profile.ApplyTo(engine);
     ApplySettings(engine, options);   // command-line options override the saved values
+
+    if (profile.LightBar is { } lightBar && lightBar.TryGetZones(out _))
+    {
+        var status = ThermalClient.SetLightBarAsync(lightBar).GetAwaiter().GetResult();
+        if (!status.Ok) Console.Error.WriteLine($"Light bar not set: {status.Error ?? ThermalClient.HelperMissing}");
+    }
     return RunEngine(engine, options);
 }
 
