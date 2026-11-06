@@ -62,6 +62,7 @@ Lighting works without this. See [Fans and power modes](#fans-and-power-modes) f
 | Power profiles, fans (Auto / Max / Custom) and live temperatures | Works; needs fan control installed |
 | Rear light bar: a colour per zone, brightness, and its 6 built-in animations | Works; needs fan control installed. No live effects or music sync on it yet |
 | Battery: charge cycles and health, from Windows' battery driver | Works |
+| Automations: when an app is open, or on battery or plugged in, switch the lighting profile, power mode and fans, then put them back | Works; power mode and fans need fan control installed |
 | PREDATOR key | Planned |
 | Linux | Planned |
 
@@ -70,6 +71,19 @@ Profiles are readable JSON files in `%APPDATA%\RaptorSense\profiles`. Painted ke
 
 Acer's lighting service, PredatorSense and Razer Chroma can also drive the keyboard. RaptorSense re-sends its
 frame every second, so it wins, but close PredatorSense while you use it.
+
+## Automations
+
+The **Automations** tab holds rules such as "while VALORANT is open, use my gaming profile, Turbo and Max fans" or
+"on battery, use Eco and a dim profile".
+
+- When a rule ends, everything goes back to how it was before it started, including anything you changed by hand in between.
+- If two rules set the same thing, the higher one in the list wins. Each setting is decided on its own, so a lower rule can still set what the higher one leaves alone.
+- An app counts as open from when it is running until it closes, so switching to another window doesn't end the rule.
+- Quitting RaptorSense also ends the rules and puts the power mode and fans back. If it crashes, or Windows shuts down before that finishes, they can stay as the rule set them.
+- The fan safety rules still apply: everything goes through the helper.
+
+Rules are saved in `%APPDATA%\RaptorSense\automations.json`.
 
 ## Fans and power modes
 
@@ -123,6 +137,10 @@ looks at characters and never records or stores anything. The hook exists only w
 See `src/RaptorSense.Core/Input/WindowsKeyHook.cs`.
 
 Music effects read the audio your PC is playing to measure its loudness per frequency. Nothing is recorded.
+
+Automations that name an app need to know which program is in front. RaptorSense reads only the program's name, compares
+it with your rules and forgets it. It doesn't read window titles, or keep a list of what you run. This watching exists only
+while such a rule is switched on. See `src/RaptorSense.Core/Automation/ForegroundAppWatcher.cs`.
 
 ## Build from source
 

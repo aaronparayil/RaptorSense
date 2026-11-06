@@ -100,6 +100,10 @@ sealed class App : Application
         pause.Click += (_, _) => window.OutputEnabled = !window.OutputEnabled;
         menu.Add(pause);
 
+        var automations = new NativeMenuItem("Automations") { ToggleType = MenuItemToggleType.CheckBox, IsChecked = window.AutomationsEnabled };
+        automations.Click += (_, _) => window.AutomationsEnabled = !window.AutomationsEnabled;
+        menu.Add(automations);
+
         if (Autostart.IsSupported)
         {
             var autostart = new NativeMenuItem("Start with Windows") { ToggleType = MenuItemToggleType.CheckBox, IsChecked = window.StartWithWindows };

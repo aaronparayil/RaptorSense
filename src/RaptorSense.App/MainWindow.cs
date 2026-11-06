@@ -6,16 +6,18 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using RaptorSense.Audio;
+using RaptorSense.Automation;
 using RaptorSense.Hardware;
 using RaptorSense.Input;
 using RaptorSense.Layout;
 using RaptorSense.Lighting;
 using RaptorSense.Profiles;
+using RaptorSense.Thermal;
 using IEffect = RaptorSense.Lighting.IEffect;
 
 namespace RaptorSense.App;
 
-sealed class MainWindow : Window
+sealed class MainWindow : Window, IAutomationTarget
 {
     readonly EffectEngine engine = new(Ph16Keyboard.TryOpen);
     readonly Frame preview = new();
@@ -26,6 +28,7 @@ sealed class MainWindow : Window
     readonly ComboBox overlayPicker = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ColorEditor colorEditor = new();
     readonly LightBarPanel lightBar = new();
+    readonly AutomationRunner automations;
     readonly Slider speed = new() { Minimum = 0.1, Maximum = 4 };
     readonly Slider brightness = new() { Minimum = 0, Maximum = Ph16Keyboard.MaxBrightness, IsEnabled = false };
     readonly ComboBox profileList = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Saved profiles" };
@@ -67,6 +70,9 @@ sealed class MainWindow : Window
         lighting.Children.Add(hint);
         lighting.Children.Add(new Viewbox { Margin = new Thickness(24), Child = BuildKeyboard() });
 
+        automations = new AutomationRunner(this);
+        automations.EnabledChanged += () => TrayStateChanged?.Invoke();
+
         var tabs = new TabControl
         {
             Margin = new Thickness(8, 4, 0, 0),
@@ -75,6 +81,7 @@ sealed class MainWindow : Window
                 new TabItem { Header = "Lighting", Content = lighting },
                 new TabItem { Header = "Light bar", Content = lightBar },
                 new TabItem { Header = "Performance", Content = new PerformancePanel() },
+                new TabItem { Header = "Automations", Content = new AutomationsPanel(automations) },
             },
         };
         var root = new DockPanel();
@@ -89,6 +96,31 @@ sealed class MainWindow : Window
         engine.Start();
         uiTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(33), DispatcherPriority.Render, (_, _) => RefreshPreview());
         uiTimer.Start();
+        automations.Start();
+    }
+
+    // ---- Automations ----
+
+    Profile IAutomationTarget.CaptureLighting() => Profile.Capture("", engine, lightBar.Current);
+
+    Profile? IAutomationTarget.LoadProfile(string name) => ProfileStore.Load(name);
+
+    void IAutomationTarget.ApplyLighting(Profile profile)
+    {
+        ApplyProfile(profile);
+        Notify(profile.Name.Length > 0 ? $"Automation: lighting profile '{profile.Name}'." : "Automation ended: your lighting is back.");
+    }
+
+    Task<ThermalStatus> IAutomationTarget.GetStatusAsync() => ThermalClient.StatusAsync();
+
+    Task<ThermalStatus> IAutomationTarget.SetPowerAsync(PowerProfile profile) => ThermalClient.SetProfileAsync(profile);
+
+    Task<ThermalStatus> IAutomationTarget.SetFansAsync(FanMode mode, int cpuPercent, int gpuPercent) => ThermalClient.SetFansAsync(mode, cpuPercent, gpuPercent);
+
+    public bool AutomationsEnabled
+    {
+        get => automations.Settings.Enabled;
+        set => automations.Update(automations.Settings with { Enabled = value });
     }
 
     // ---- Keyboard preview and painting ----
@@ -531,6 +563,7 @@ sealed class MainWindow : Window
         if (shutDown) return;
         shutDown = true;
         SaveLast();
+        automations.Dispose();
         uiTimer.Stop();
         keyHook?.Dispose();
         engine.Dispose();
@@ -539,7 +572,8 @@ sealed class MainWindow : Window
 
     void SaveLast()
     {
-        try { ProfileStore.SaveLast(Profile.Capture("", engine, lightBar.Current)); }
+        // While a rule is showing its own lighting, the user's setup is what it will go back to.
+        try { ProfileStore.SaveLast(automations.LightingBefore ?? Profile.Capture("", engine, lightBar.Current)); }
         catch (IOException) { }
     }
 
