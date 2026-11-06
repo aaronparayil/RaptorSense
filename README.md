@@ -61,6 +61,7 @@ Lighting works without this. See [Fans and power modes](#fans-and-power-modes) f
 | Start with Windows (no admin needed), starts hidden with your last setup | Works |
 | Power profiles, fans (Auto / Max / Custom) and live temperatures | Works; needs fan control installed |
 | Rear light bar: a colour per zone, brightness, and its 6 built-in animations | Works; needs fan control installed. No live effects or music sync on it yet |
+| Battery: charge cycles and health, from Windows' battery driver | Works |
 | PREDATOR key | Planned |
 | Linux | Planned |
 
@@ -98,6 +99,7 @@ raptorsense run rainbow
 raptorsense run spectrum --color 00AEC7 --color2 FF0080
 raptorsense builtin wave
 raptorsense profile "WASD gaming"
+raptorsense battery
 raptorsense thermal
 raptorsense power turbo
 raptorsense fans custom 60 70

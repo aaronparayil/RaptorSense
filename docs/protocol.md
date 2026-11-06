@@ -129,6 +129,15 @@ and `LIGHTBAR_REVERSE_ENGINEERING.md`), checked on this unit. Parameter sizes he
 - No handshake or mutex is needed. COM objects are thread-affine, so use one WMI instance per thread.
 - `GetGamingLED*` (ids 4, 11, 13) read all zeros or an error status on this laptop; the bar does not use them for reads.
 
+## Battery: Windows battery driver
+
+**Confirmed on Windows (2026-11-06), PH16-71, BIOS V1.18, battery AP21A8T**, without administrator rights:
+`IOCTL_BATTERY_QUERY_INFORMATION` with level `BatteryInformation` returns the cycle count, design capacity and full-charge
+capacity in mWh. `root\WMI` `BatteryCycleCount` and `BatteryFullChargedCapacity` return the same cycle count and full-charge
+capacity, but `BatteryStaticData`, the WMI class with the design capacity, fails with "Generic failure" here, so RaptorSense
+uses the driver call. Battery wear doesn't go through `AcerGamingFunction`, so it should work on any Windows laptop whose
+battery reports these values.
+
 ## USB HID: Chicony keyboard `04F2:0117`
 
 | Interface | Usage page | Role |

@@ -14,6 +14,7 @@ const string Usage = """
       raptorsense builtin <name> [options] Switch to one of the keyboard's own effects
       raptorsense profiles                 List saved profiles
       raptorsense profile <name> [options] Run a saved profile until Ctrl+C (options override it)
+      raptorsense battery                  Charge cycles and battery health
       raptorsense thermal                  Temperatures, fan speeds and power profile (needs the helper)
       raptorsense power <profile>          quiet | balanced | performance | turbo | eco
       raptorsense fans auto | max | custom <cpu%> <gpu%>
@@ -50,6 +51,7 @@ try
         case "builtin": return BuiltIn(positional.FirstOrDefault() ?? "wave", options);
         case "profiles": return ListProfiles();
         case "layout": return PrintLayout();
+        case "battery": return PrintBattery();
         case "thermal": return PrintThermal(ThermalClient.StatusAsync().GetAwaiter().GetResult());
         case "power": return SetPower(positional.FirstOrDefault());
         case "fans": return SetFans(positional);
@@ -111,6 +113,20 @@ static int RunProfile(string? name, Dictionary<string, string> options)
         if (!status.Ok) Console.Error.WriteLine($"Light bar not set: {status.Error ?? ThermalClient.HelperMissing}");
     }
     return RunEngine(engine, options);
+}
+
+static int PrintBattery()
+{
+    if (WindowsBattery.TryRead() is not { } battery)
+    {
+        Console.Error.WriteLine("No battery found, or it could not be read.");
+        return 1;
+    }
+    Console.WriteLine($"Charge cycles: {battery.CycleCount?.ToString() ?? "not reported"}");
+    Console.WriteLine($"Health: {(battery.HealthPercent is { } health ? $"{health}%" : "not reported")}");
+    if (battery.FullChargeWattHours is { } now) Console.WriteLine($"Full charge now: {now:N1} Wh");
+    if (battery.DesignWattHours is { } design) Console.WriteLine($"Full charge when new: {design:N1} Wh");
+    return 0;
 }
 
 static int PrintThermal(ThermalStatus status)

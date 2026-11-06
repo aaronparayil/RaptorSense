@@ -4,11 +4,12 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using RaptorSense.Hardware;
 using RaptorSense.Thermal;
 
 namespace RaptorSense.App;
 
-/// <summary>Temperatures, fan speeds, power profile and fan control, through the elevated helper.</summary>
+/// <summary>Temperatures, fan speeds, power profile and fan control through the elevated helper, and battery wear (no helper needed).</summary>
 sealed class PerformancePanel : UserControl
 {
     static readonly IBrush Accent = new SolidColorBrush(Color.FromRgb(0, 174, 199));
@@ -26,6 +27,8 @@ sealed class PerformancePanel : UserControl
     readonly Button apply = new() { Content = "Apply custom speeds" };
     readonly TextBlock safety = new() { Foreground = Brushes.Orange, TextWrapping = TextWrapping.Wrap, IsVisible = false };
     readonly StackPanel controls = new() { Spacing = 10 };
+    readonly TextBlock batteryCycles = Value(), batteryHealth = Value(), batteryNow = Value(), batteryNew = Value();
+    readonly StackPanel batterySection = new() { Spacing = 10, IsVisible = false };
     readonly DispatcherTimer timer;
     IReadOnlyList<PowerProfile> shownProfiles = [];
     bool busy, slidersLoaded, choosingCustom;
@@ -64,12 +67,31 @@ sealed class PerformancePanel : UserControl
         });
         controls.Children.Add(safety);
 
+        var batteryTiles = new UniformGrid { Columns = 4 };
+        batteryTiles.Children.Add(Tile("Charge cycles", batteryCycles));
+        batteryTiles.Children.Add(Tile("Health", batteryHealth));
+        batteryTiles.Children.Add(Tile("Full charge now", batteryNow));
+        batteryTiles.Children.Add(Tile("Full charge when new", batteryNew));
+        batterySection.Children.Add(Heading("Battery"));
+        batterySection.Children.Add(batteryTiles);
+        batterySection.Children.Add(new TextBlock
+        {
+            Text = "Health compares what a full charge holds now with what it held when new.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.6,
+            FontSize = 12,
+        });
+
         var page = new StackPanel { Spacing = 14, Margin = new Thickness(24), MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
         page.Children.Add(helperState);
         page.Children.Add(tiles);
         page.Children.Add(systemTemp);
         page.Children.Add(controls);
+        page.Children.Add(batterySection);
         Content = new ScrollViewer { Content = page };
+
+        // These numbers change over days, so reading them when the tab opens is enough.
+        AttachedToVisualTree += (_, _) => ShowBattery();
 
         controls.IsEnabled = false;
         UpdateCustomEnabled();
@@ -150,6 +172,18 @@ sealed class PerformancePanel : UserControl
             profiles.Children.Add(button);
         }
         shownProfiles = supported;
+    }
+
+    void ShowBattery()
+    {
+        var battery = WindowsBattery.TryRead();
+        batterySection.IsVisible = battery is not null;
+        if (battery is not { } b) return;
+
+        batteryCycles.Text = b.CycleCount?.ToString() ?? "-";
+        batteryHealth.Text = b.HealthPercent is { } health ? $"{health}%" : "-";
+        batteryNow.Text = b.FullChargeWattHours is { } now ? $"{now:N1} Wh" : "-";
+        batteryNew.Text = b.DesignWattHours is { } design ? $"{design:N1} Wh" : "-";
     }
 
     void UpdateCustomEnabled() => cpuSpeed.IsEnabled = gpuSpeed.IsEnabled = apply.IsEnabled = custom.IsChecked == true;
