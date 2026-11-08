@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using RaptorSense.Thermal;
 
 namespace RaptorSense.Automation;
@@ -21,7 +22,8 @@ public sealed record AutomationRule
 
     public FanMode? Fans { get; init; }
 
-    /// <summary>The name Windows knows the program by: no spaces around it and no ".exe".</summary>
+    /// <summary>The name Windows knows the program by: no spaces around it and no ".exe". Worked out from <see cref="App"/>, so not saved.</summary>
+    [JsonIgnore]
     public string AppName
     {
         get

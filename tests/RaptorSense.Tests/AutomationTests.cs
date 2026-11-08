@@ -286,7 +286,9 @@ public sealed class AutomationTests
 
             Assert.False(loaded.Enabled);
             Assert.Equal(rule, Assert.Single(loaded.Rules));
-            Assert.Contains("\"Turbo\"", File.ReadAllText(path));   // readable by people
+            var text = File.ReadAllText(path);
+            Assert.Contains("\"Turbo\"", text);   // readable by people
+            Assert.DoesNotContain("AppName", text);   // worked out from App, not a setting
         }
         finally { File.Delete(path); }
     }
