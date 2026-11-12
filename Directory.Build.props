@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <Version>1.5.0</Version>
+    <Version>1.6.0</Version>
     <Authors>aaronparayil</Authors>
     <Product>RaptorSense</Product>
     <Copyright>Copyright (C) 2026 aaronparayil and RaptorSense contributors. GPL-3.0-or-later.</Copyright>
