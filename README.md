@@ -1,14 +1,50 @@
+<div align="center">
+
 # RaptorSense
 
-A free, open-source alternative to PredatorSense for Acer Predator laptops: **per-key RGB** with custom animations,
-music-reactive lighting and typing effects, plus **fan and power control**.
+**A free, open-source alternative to PredatorSense for Acer Predator laptops.**<br>
+Per-key RGB with your own animations, music and typing effects, plus fan and power control.
 
-Created by [aaronparayil](https://github.com/aaronparayil). Free and open source, forever.
+[![Latest release](https://img.shields.io/github/v/release/aaronparayil/RaptorSense?label=release&color=a78bfa)](https://github.com/aaronparayil/RaptorSense/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/aaronparayil/RaptorSense/total?color=38bdf8)](https://github.com/aaronparayil/RaptorSense/releases)
+[![Licence: GPL v3 or later](https://img.shields.io/badge/licence-GPL--3.0--or--later-a78bfa)](LICENSE)
+![Runs on Windows](https://img.shields.io/badge/runs%20on-Windows-38bdf8)
 
-![RaptorSense on a Predator Helios 16: typing effects, a rainbow wave and more, matching on the screen and the real keyboard](docs/demo.gif)
+[**Download**](https://github.com/aaronparayil/RaptorSense/releases/latest) ·
+[Will it work on my laptop?](#will-it-work-on-my-laptop) ·
+[Install](#install) ·
+[Features](#features) ·
+[Privacy](#privacy) ·
+[Build from source](#build-from-source)
+
+<img src="docs/screenshot.png" alt="The Lighting tab: a rainbow wave on the keyboard preview, with colours, speed, profiles and the list of effects around it" width="920">
+
+</div>
 
 > Unofficial. Not affiliated with or endorsed by Acer. "Predator" and "PredatorSense" are Acer trademarks,
 > used here only to describe compatibility.
+
+Created by [aaronparayil](https://github.com/aaronparayil). Free and open source, forever.
+
+## What you get
+
+- **Lighting that follows the real keys.** 20 animated and static effects, 2 that move to your music and 11 that react
+  to typing, all drawn on a live preview of your keyboard at 60 fps. Paint single keys by hand, pick two colours or
+  let it run a rainbow.
+- **Your own animations.** Paint frames, set how long each one stays and fades, and play the loop on the keyboard.
+  Start from a ready-made one, undo freely, and share animations as files.
+- **Fans and power.** Power profiles, fan speeds (Auto, Max or your own), live temperatures, the rear light bar,
+  and battery cycles and health.
+- **Automations.** Rules such as "while this game is open, use my gaming profile, Turbo and Max fans", which put
+  everything back when they end.
+- **Light on the laptop.** No admin rights for lighting, no accounts, no telemetry. It sits in the tray and stops
+  drawing its window while that is closed.
+
+## See it in action
+
+![Typing effects, a rainbow wave and more, matching on the screen and the real keyboard of a Predator Helios 16](docs/demo.gif)
+
+Recorded on an earlier version: the effects are the same, the window has a new look since.
 
 ## Will it work on my laptop?
 
@@ -22,10 +58,11 @@ Linux is planned.
 
 RaptorSense comes with no warranty (see the [licence](LICENSE)). If you try it on another model, please
 [open an issue](https://github.com/aaronparayil/RaptorSense/issues) and say how it went, whether it worked or not.
+The [probe](#other-laptops) helps add new models.
 
 ## Install
 
-1. Download the zip from [Releases](https://github.com/aaronparayil/RaptorSense/releases). You don't need to install .NET.
+1. Download the zip from [Releases](https://github.com/aaronparayil/RaptorSense/releases/latest). You don't need to install .NET.
 2. Extract it to a folder you'll keep, such as `Documents\RaptorSense`.
 3. Run `RaptorSense.exe`. Close PredatorSense first, because both try to drive the keyboard.
 
@@ -35,6 +72,9 @@ If you'd rather not trust a download, [build it yourself](#build-from-source).
 **For fan and power control**, double-click `Install fan control.cmd` once and accept the administrator prompt.
 Lighting works without this. See [Fans and power modes](#fans-and-power-modes) for what it installs.
 
+**To update:** quit RaptorSense from the tray, then extract the new zip over your old folder. Your profiles,
+animations and rules are kept. Coming from 1.2 or later, you don't need to install fan control again.
+
 **To uninstall:**
 
 1. If you installed fan control, double-click `Remove fan control.cmd`.
@@ -42,8 +82,6 @@ Lighting works without this. See [Fans and power modes](#fans-and-power-modes) f
 3. Quit from the tray and delete the folder. Your profiles are in `%APPDATA%\RaptorSense`; delete that too if you don't want them.
 
 ## Features
-
-![The app, showing the keyboard preview, typing effects and colour controls](docs/screenshot.png)
 
 | Feature | State |
 |---|---|
@@ -58,6 +96,7 @@ Lighting works without this. See [Fans and power modes](#fans-and-power-modes) f
 | Colour wheel with saved swatches and an eyedropper | Works |
 | Profiles: save, load, delete; the app restores your last setup | Works |
 | Live preview of the real key layout | Works |
+| A choice of nine background colours for the window | Works |
 | Tray icon: runs in the background, with profiles, pause and quit | Works |
 | Start with Windows (no admin needed), starts hidden with your last setup | Works |
 | Power profiles, fans (Auto / Max / Custom) and live temperatures | Works; needs fan control installed |
@@ -67,13 +106,29 @@ Lighting works without this. See [Fans and power modes](#fans-and-power-modes) f
 | PREDATOR key | Planned |
 | Linux | Planned |
 
-Profiles are readable JSON files in `%APPDATA%\RaptorSense\profiles`. Painted keys are stored by name
-(`"W": "FF0000"`), so profiles can be shared and edited by hand.
+## Lighting
+
+The **Lighting** tab is the one in the picture at the top. The keyboard in the middle shows what the real one is
+doing, and the name of the effect is above it.
+
+- Pick an effect from the list on the right. A ♪ marks the ones that follow your music, a ⌨ the ones that react to typing.
+- **Colours** has two colours, a wheel, saved swatches and an eyedropper that takes a colour from any key in the preview.
+  Colour 1 is also the paint brush: click or drag over keys to paint them, right-click to erase.
+- **Adjust** has speed, brightness and the typing overlay, which draws a typing effect on top of any other effect.
+- **Profiles** save the effect, colours, speed, brightness and light bar under a name. The app also restores your
+  last setup when it starts.
+
+The round **i** button at the top right opens a small panel with the keyboard connection, the frame rates, a choice
+of background colours for the window, and the version. Profiles are readable JSON files in
+`%APPDATA%\RaptorSense\profiles`. Painted keys are stored by name (`"W": "FF0000"`), so profiles can be shared and
+edited by hand.
 
 Acer's lighting service, PredatorSense and Razer Chroma can also drive the keyboard. RaptorSense re-sends its
 frame every second, so it wins, but close PredatorSense while you use it.
 
 ## Animations
+
+<img src="docs/animations.png" alt="The Animations tab: a band of colour sweeping across the keyboard, with the row of frames below and the frame and brush controls on the right" width="920">
 
 The **Animations** tab builds your own key animations. An animation is a row of frames: paint each one on the
 keyboard, then set how long it stays and how long it takes to fade into the next. The last frame fades back into
