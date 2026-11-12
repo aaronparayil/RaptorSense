@@ -36,6 +36,9 @@ public sealed record AnimationFrame
         }
         return new AnimationFrame { Hold = hold, Fade = fade, Keys = keys };
     }
+
+    /// <summary>A time from a file, made safe to use: a real number from 0 to <paramref name="max"/> seconds.</summary>
+    public static double CleanSeconds(double seconds, double max) => double.IsFinite(seconds) ? Math.Clamp(seconds, 0, max) : 0;
 }
 
 /// <summary>
@@ -53,6 +56,18 @@ public sealed record KeyAnimation
     /// <summary>Turns the frames into colour arrays once, so playing costs one blend of 128 colours per frame drawn.</summary>
     public CompiledAnimation Compile() =>
         new(Name ?? "", (Frames ?? []).OfType<AnimationFrame>().Take(MaxFrames).Select(f => (f.ToCells(), f.Hold, f.Fade)).ToList());
+
+    /// <summary>
+    /// The same animation with only what RaptorSense understands: known keys, valid colours, times in range and at most
+    /// <see cref="MaxFrames"/> frames. Used for files that come from somewhere else.
+    /// </summary>
+    public KeyAnimation Cleaned() => this with
+    {
+        Name = Name ?? "",
+        Frames = (Frames ?? []).OfType<AnimationFrame>().Take(MaxFrames)
+            .Select(f => AnimationFrame.FromCells(f.ToCells(), AnimationFrame.CleanSeconds(f.Hold, AnimationFrame.MaxHold), AnimationFrame.CleanSeconds(f.Fade, AnimationFrame.MaxFade)))
+            .ToList(),
+    };
 }
 
 /// <summary>An animation ready to play: immutable, so the editor can swap in a new one while the engine draws.</summary>
@@ -78,8 +93,8 @@ public sealed class CompiledAnimation
             var cells = new Rgb[Frame.CellCount];
             frames[i].Cells.AsSpan(0, Math.Min(frames[i].Cells.Length, Frame.CellCount)).CopyTo(cells);
             this.frames[i] = cells;
-            fades[i] = Clean(frames[i].Fade, AnimationFrame.MaxFade);
-            holds[i] = Math.Max(Clean(frames[i].Hold, AnimationFrame.MaxHold), MinFrameSeconds - fades[i]);
+            fades[i] = AnimationFrame.CleanSeconds(frames[i].Fade, AnimationFrame.MaxFade);
+            holds[i] = Math.Max(AnimationFrame.CleanSeconds(frames[i].Hold, AnimationFrame.MaxHold), MinFrameSeconds - fades[i]);
             starts[i] = at;
             at += holds[i] + fades[i];
         }
@@ -122,8 +137,6 @@ public sealed class CompiledAnimation
         if (index < 0 || index >= Count) return;
         for (int cell = 0; cell < Frame.CellCount; cell++) target[cell] = frames[index][cell];
     }
-
-    static double Clean(double seconds, double max) => double.IsFinite(seconds) ? Math.Clamp(seconds, 0, max) : 0;
 }
 
 /// <summary>Plays the animation built in the Animations tab.</summary>

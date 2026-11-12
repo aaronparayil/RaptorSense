@@ -30,6 +30,9 @@ sealed class KeyboardView : UserControl
     /// <summary>Raised for every key the pointer presses or drags over: the key, and true for the right (erase) button.</summary>
     public event Action<Key, bool>? KeyPainted;
 
+    /// <summary>Raised when a button goes down on the keyboard, before any <see cref="KeyPainted"/> for that drag.</summary>
+    public event Action? StrokeStarted;
+
     public KeyboardView()
     {
         var canvas = new Canvas { Width = PhysicalLayout.Width, Height = PhysicalLayout.Height, Background = Brushes.Transparent };
@@ -71,7 +74,7 @@ sealed class KeyboardView : UserControl
 
         // Handled on the canvas, not the keys: the pressed element captures the pointer, so a drag would
         // never reach the other keys. Hit-testing by position paints every key the pointer crosses.
-        canvas.PointerPressed += (_, e) => PaintAt(canvas, e);
+        canvas.PointerPressed += (_, e) => { StrokeStarted?.Invoke(); PaintAt(canvas, e); };
         canvas.PointerMoved += (_, e) => PaintAt(canvas, e);
         Content = new Viewbox { Child = canvas };
     }

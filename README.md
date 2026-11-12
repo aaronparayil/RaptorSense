@@ -54,7 +54,7 @@ Lighting works without this. See [Fans and power modes](#fans-and-power-modes) f
 | Typing overlay: layer a typing effect over another effect, such as lightning on key presses over Aurora | Works |
 | The keyboard's 13 built-in effects, which keep running when RaptorSense is closed | Works |
 | Key painting: click or drag keys in the preview, right-click to erase | Works |
-| Animation builder: paint frames, set how long each stays and fades, and play your own key animations | Works |
+| Animation builder: paint frames, set how long each stays and fades, and play your own key animations. Starter animations, undo, and import/export to share them | Works |
 | Colour wheel with saved swatches and an eyedropper | Works |
 | Profiles: save, load, delete; the app restores your last setup | Works |
 | Live preview of the real key layout | Works |
@@ -82,13 +82,20 @@ the first, so it loops.
 - While you edit, the keyboard shows the frame you're painting. **Play on the keyboard** runs the whole loop.
 - The arrow buttons copy the frame moved one key left, right, up or down. Paint a column once and press ▶ a few
   times to make it slide across the keyboard.
+- **From a starter** gives you a ready-made animation in the brush colour (sweep, pulse, ripple, waterfall or
+  rainbow drift) to change into your own. **Use the keyboard's current lighting** copies what the keyboard shows
+  right now into the frame.
+- **Undo** and **Redo** (Ctrl+Z, Ctrl+Y) step back through your changes. A whole drag of the brush is one step.
+- **Export** saves an animation as a file to share, and **Import** adds files other people shared. An import never
+  replaces an animation you already have: one with the same name gets a number.
 - Every change saves by itself. Pick **Your animation** on the Lighting tab to use one any time; the speed and
   brightness there apply to it, a typing overlay plays on top, and a saved profile remembers which animation it uses.
 - Playing costs about as much as a painted layout: one blend of 128 colours per frame, and nothing is sent to the
   keyboard while a frame holds still.
 
 Animations are readable JSON files in `%APPDATA%\RaptorSense\animations`, with keys stored by name like profiles.
-They hold only colours and times, never code, so a shared animation can't do anything else.
+They hold only colours and times, never code, so a shared animation can't do anything else. On import, anything
+RaptorSense doesn't recognise is dropped.
 
 ## Automations
 
