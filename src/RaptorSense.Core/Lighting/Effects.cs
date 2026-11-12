@@ -8,10 +8,13 @@ public static class Effects
     /// <summary>The one painted layout the UI edits. Declared before <see cref="All"/>, which includes it.</summary>
     public static PaintedEffect Painted { get; } = new();
 
+    /// <summary>Plays the animation from the Animations tab. Declared before <see cref="All"/>, which includes it.</summary>
+    public static AnimationEffect Animation { get; } = new();
+
     public static IReadOnlyList<IEffect> All { get; } =
     [
         // Basic
-        new StaticEffect(), Painted, new GradientEffect(), new BreathingEffect(),
+        new StaticEffect(), Painted, Animation, new GradientEffect(), new BreathingEffect(),
         // Animated
         new RainbowWaveEffect(), new ColorWaveEffect(), new NeonEffect(), new SnakeEffect(),
         new RadarEffect(), new SpotlightEffect(), new HeartbeatEffect(), new AuroraEffect(),

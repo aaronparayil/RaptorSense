@@ -54,6 +54,7 @@ Lighting works without this. See [Fans and power modes](#fans-and-power-modes) f
 | Typing overlay: layer a typing effect over another effect, such as lightning on key presses over Aurora | Works |
 | The keyboard's 13 built-in effects, which keep running when RaptorSense is closed | Works |
 | Key painting: click or drag keys in the preview, right-click to erase | Works |
+| Animation builder: paint frames, set how long each stays and fades, and play your own key animations | Works |
 | Colour wheel with saved swatches and an eyedropper | Works |
 | Profiles: save, load, delete; the app restores your last setup | Works |
 | Live preview of the real key layout | Works |
@@ -71,6 +72,23 @@ Profiles are readable JSON files in `%APPDATA%\RaptorSense\profiles`. Painted ke
 
 Acer's lighting service, PredatorSense and Razer Chroma can also drive the keyboard. RaptorSense re-sends its
 frame every second, so it wins, but close PredatorSense while you use it.
+
+## Animations
+
+The **Animations** tab builds your own key animations. An animation is a row of frames: paint each one on the
+keyboard, then set how long it stays and how long it takes to fade into the next. The last frame fades back into
+the first, so it loops.
+
+- While you edit, the keyboard shows the frame you're painting. **Play on the keyboard** runs the whole loop.
+- The arrow buttons copy the frame moved one key left, right, up or down. Paint a column once and press ▶ a few
+  times to make it slide across the keyboard.
+- Every change saves by itself. Pick **Your animation** on the Lighting tab to use one any time; the speed and
+  brightness there apply to it, a typing overlay plays on top, and a saved profile remembers which animation it uses.
+- Playing costs about as much as a painted layout: one blend of 128 colours per frame, and nothing is sent to the
+  keyboard while a frame holds still.
+
+Animations are readable JSON files in `%APPDATA%\RaptorSense\animations`, with keys stored by name like profiles.
+They hold only colours and times, never code, so a shared animation can't do anything else.
 
 ## Automations
 
@@ -113,6 +131,8 @@ raptorsense run rainbow
 raptorsense run spectrum --color 00AEC7 --color2 FF0080
 raptorsense builtin wave
 raptorsense profile "WASD gaming"
+raptorsense animations
+raptorsense animation "My sweep" --speed 1.5
 raptorsense battery
 raptorsense thermal
 raptorsense power turbo

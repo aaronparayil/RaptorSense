@@ -13,7 +13,7 @@ public sealed class EffectTests
     }
 
     // Effects that legitimately stay dark without input (music, typing) or are painted by the user.
-    static readonly HashSet<string> DarkWithoutInput = ["spectrum", "pulse", "ripple", "custom"];
+    static readonly HashSet<string> DarkWithoutInput = ["spectrum", "pulse", "ripple", "custom", "animation"];
 
     [Theory]
     [MemberData(nameof(AllEffects))]

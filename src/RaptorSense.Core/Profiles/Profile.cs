@@ -30,6 +30,9 @@ public sealed record Profile
     /// <summary>Painted keys by label (see <see cref="KeyMap"/>), as RRGGBB. Keys not listed are off.</summary>
     public Dictionary<string, string> Keys { get; init; } = [];
 
+    /// <summary>Name of the key animation that plays when <see cref="Effect"/> is "animation" (see <see cref="AnimationStore"/>).</summary>
+    public string? Animation { get; init; }
+
     /// <summary>
     /// The rear light bar, or null to leave it alone. Null in profiles saved before the light bar was supported, and
     /// until the light bar has been set from RaptorSense, so a profile never overrides what Acer's own app set.
@@ -42,6 +45,7 @@ public sealed record Profile
         Name = name,
         LightBar = lightBar,
         Effect = engine.Effect.Id,
+        Animation = engine.Effect == Lighting.Effects.Animation ? Lighting.Effects.Animation.Animation?.Name : null,
         Color = engine.Settings.Color.ToString(),
         Color2 = engine.Settings.Color2.ToString(),
         Speed = engine.Settings.Speed,
@@ -68,7 +72,15 @@ public sealed record Profile
             if (KeyMap.Find(label) is { } key && Rgb.TryParse(hex, out var color)) Effects.Painted[key.Cell] = color;
         }
 
-        engine.Effect = Lighting.Effects.Find(Effect) ?? Lighting.Effects.Painted;
+        var effect = Lighting.Effects.Find(Effect) ?? Lighting.Effects.Painted;
+        if (effect == Lighting.Effects.Animation)
+        {
+            // A missing animation (deleted, or a profile shared without it) shows the painted keys instead of nothing.
+            var animation = string.IsNullOrWhiteSpace(Animation) ? null : AnimationStore.Load(Animation);
+            if (animation is null) effect = Lighting.Effects.Painted;
+            else Lighting.Effects.Animation.Show(animation.Compile(), fromStart: true);
+        }
+        engine.Effect = effect;
         engine.Overlay = Overlay is null ? null : Lighting.Effects.Find(Overlay) is { WorksAsOverlay: true } top ? top : null;
     }
 }

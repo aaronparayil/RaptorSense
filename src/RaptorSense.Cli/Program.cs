@@ -14,6 +14,8 @@ const string Usage = """
       raptorsense builtin <name> [options] Switch to one of the keyboard's own effects
       raptorsense profiles                 List saved profiles
       raptorsense profile <name> [options] Run a saved profile until Ctrl+C (options override it)
+      raptorsense animations               List the key animations made in the app
+      raptorsense animation <name> [options] Play a key animation until Ctrl+C
       raptorsense battery                  Charge cycles and battery health
       raptorsense thermal                  Temperatures, fan speeds and power profile (needs the helper)
       raptorsense power <profile>          quiet | balanced | performance | turbo | eco
@@ -57,6 +59,8 @@ try
         case "fans": return SetFans(positional);
         case "lightbar": return SetLightBar(positional, options);
         case "profile": return RunProfile(positional.FirstOrDefault(), options);
+        case "animations": return ListAnimations();
+        case "animation": return RunAnimation(positional.FirstOrDefault(), options);
         default:
             Console.Error.WriteLine($"Unknown command '{args[0]}'.\n\n{Usage}");
             return 2;
@@ -113,6 +117,24 @@ static int RunProfile(string? name, Dictionary<string, string> options)
         if (!status.Ok) Console.Error.WriteLine($"Light bar not set: {status.Error ?? ThermalClient.HelperMissing}");
     }
     return RunEngine(engine, options);
+}
+
+static int RunAnimation(string? name, Dictionary<string, string> options)
+{
+    if (name is null) throw new ArgumentException("Which animation? Try: raptorsense animations");
+    var animation = AnimationStore.Load(name) ?? throw new ArgumentException($"No animation named '{name}'. Try: raptorsense animations");
+    Effects.Animation.Show(animation.Compile(), fromStart: true);
+    using var engine = new EffectEngine(Ph16Keyboard.TryOpen) { Effect = Effects.Animation };
+    ApplySettings(engine, options);
+    return RunEngine(engine, options);
+}
+
+static int ListAnimations()
+{
+    var names = AnimationStore.List();
+    if (names.Count == 0) Console.WriteLine($"No animations yet. Make one in the app's Animations tab; they are stored in {AnimationStore.DefaultFolder}");
+    foreach (var name in names) Console.WriteLine($"  {name}");
+    return 0;
 }
 
 static int PrintBattery()

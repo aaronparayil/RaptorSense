@@ -14,6 +14,7 @@ using RaptorSense.Lighting;
 using RaptorSense.Profiles;
 using RaptorSense.Thermal;
 using IEffect = RaptorSense.Lighting.IEffect;
+using Key = RaptorSense.Layout.Key;
 
 namespace RaptorSense.App;
 
@@ -21,7 +22,7 @@ sealed class MainWindow : Window, IAutomationTarget
 {
     readonly EffectEngine engine = new(Ph16Keyboard.TryOpen);
     readonly Frame preview = new();
-    readonly Dictionary<int, (SolidColorBrush Fill, TextBlock Label)> keys = [];
+    readonly KeyboardView keyboard = new() { Margin = new Thickness(24) };
     readonly TextBlock status = new() { Margin = new Thickness(16, 10), Opacity = 0.8 };
     readonly Dictionary<IEffect, ToggleButton> effectTiles = [];
     readonly CheckBox autoColor = new() { Content = "Auto (rainbow colours)" };
@@ -68,7 +69,8 @@ sealed class MainWindow : Window, IAutomationTarget
         };
         DockPanel.SetDock(hint, Dock.Top);
         lighting.Children.Add(hint);
-        lighting.Children.Add(new Viewbox { Margin = new Thickness(24), Child = BuildKeyboard() });
+        keyboard.KeyPainted += PaintKey;
+        lighting.Children.Add(keyboard);
 
         automations = new AutomationRunner(this);
         automations.EnabledChanged += () => TrayStateChanged?.Invoke();
@@ -79,6 +81,7 @@ sealed class MainWindow : Window, IAutomationTarget
             Items =
             {
                 new TabItem { Header = "Lighting", Content = lighting },
+                new TabItem { Header = "Animations", Content = new AnimationsPanel(engine, () => ChooseEffect(Effects.Animation)) },
                 new TabItem { Header = "Light bar", Content = lightBar },
                 new TabItem { Header = "Performance", Content = new PerformancePanel() },
                 new TabItem { Header = "Automations", Content = new AutomationsPanel(automations) },
@@ -125,89 +128,20 @@ sealed class MainWindow : Window, IAutomationTarget
 
     // ---- Keyboard preview and painting ----
 
-    // Key caps show the symbols printed on them; anything not listed shows its key-map label.
-    static readonly Dictionary<string, string> CapText = new()
+    void PaintKey(Key hit, bool erase)
     {
-        ["`"] = "~\n`", ["-"] = "_\n-", ["="] = "+\n=", ["["] = "{\n[", ["]"] = "}\n]", ["\\"] = "|\n\\",
-        [";"] = ":\n;", ["'"] = "\"\n'", [","] = "<\n,", ["."] = ">\n.", ["/"] = "?\n/",
-        ["Bksp"] = "Backspace", ["Caps"] = "Caps Lock", ["RShift"] = "Shift", ["RCtrl"] = "Ctrl",
-        ["Up"] = "▲", ["Down"] = "▼", ["Left"] = "◀", ["Right"] = "▶",
-        ["Prev"] = "⏮", ["Play"] = "⏯", ["Next"] = "⏭", ["Power"] = "⏻",
-        ["Num/"] = "/", ["Num*"] = "*", ["Num-"] = "-", ["Num+"] = "+", ["NumEnt"] = "Enter", ["Num."] = ".",
-        ["Num0"] = "0", ["Num1"] = "1", ["Num2"] = "2", ["Num3"] = "3", ["Num4"] = "4",
-        ["Num5"] = "5", ["Num6"] = "6", ["Num7"] = "7", ["Num8"] = "8", ["Num9"] = "9",
-    };
-
-    Canvas BuildKeyboard()
-    {
-        var canvas = new Canvas { Width = PhysicalLayout.Width, Height = PhysicalLayout.Height, Background = Brushes.Transparent };
-        foreach (var key in KeyMap.Keys)
-        {
-            if (PhysicalLayout.For(key.Label) is not { } rect) continue;
-            var fill = new SolidColorBrush(Colors.Black);
-            var text = CapText.GetValueOrDefault(key.Label, key.Label);
-            // Shrink long labels to fit the key's width (about 0.62 em per character) instead of wrapping.
-            int longest = text.Split('\n').Max(line => line.Length);
-            double fontSize = Math.Clamp((rect.Width - 10) / (longest * 0.62), 8, rect.Height < 40 ? 10 : 13);
-            var label = new TextBlock
-            {
-                Text = text,
-                FontSize = fontSize,
-                TextAlignment = TextAlignment.Center,
-                TextWrapping = TextWrapping.NoWrap,
-                LineHeight = fontSize * 1.3,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            var view = new Border
-            {
-                Width = rect.Width,
-                Height = rect.Height,
-                CornerRadius = new CornerRadius(7),
-                Background = fill,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(60, 62, 70)),
-                BorderThickness = new Thickness(1),
-                Child = label,
-                Cursor = new Cursor(StandardCursorType.Hand),
-            };
-            ToolTip.SetTip(view, $"{key.Label} (cell {key.Cell})");
-            Canvas.SetLeft(view, rect.X);
-            Canvas.SetTop(view, rect.Y);
-            canvas.Children.Add(view);
-            keys[key.Cell] = (fill, label);
-        }
-
-        // Handled on the canvas, not the keys: the pressed element captures the pointer, so a drag would
-        // never reach the other keys. Hit-testing by position paints every key the pointer crosses.
-        canvas.PointerPressed += (_, e) => PaintAt(canvas, e);
-        canvas.PointerMoved += (_, e) => PaintAt(canvas, e);
-        return canvas;
-    }
-
-    void PaintAt(Canvas canvas, PointerEventArgs e)
-    {
-        var point = e.GetCurrentPoint(canvas);
-        bool paint = point.Properties.IsLeftButtonPressed, erase = point.Properties.IsRightButtonPressed;
-        if (!paint && !erase) return;
-
-        var hit = KeyMap.Keys.FirstOrDefault(k => PhysicalLayout.For(k.Label)?.Contains(point.Position.X, point.Position.Y) == true);
-        if (hit is null) return;   // between keys
         int cell = hit.Cell;
-
-        if (colorEditor.Picking && paint)
+        if (colorEditor.Picking && !erase)
         {
             engine.CopyLatestFrame(preview);
             colorEditor.Pick(preview[cell]);   // takes what the key shows right now, from any effect
             Notify($"Picked #{preview[cell]} from {hit.Label}.");
-            e.Handled = true;
             return;
         }
 
         if (engine.Effect != Effects.Painted) StartPainting();
         Effects.Painted[cell] = erase ? Rgb.Black : engine.Settings.Color;
-        e.Handled = true;
     }
-
     /// <summary>Switches to the painted layout, starting from what the keyboard shows now so nothing jumps.</summary>
     void StartPainting()
     {
@@ -234,7 +168,16 @@ sealed class MainWindow : Window, IAutomationTarget
                     Margin = new Thickness(0, 0, 6, 6),
                     Padding = new Thickness(10, 7),
                 };
-                tile.Click += (_, _) => ChooseEffect(effect);
+                tile.Click += (_, _) =>
+                {
+                    if (effect == Effects.Animation && !EnsureAnimation())
+                    {
+                        ChooseEffect(engine.Effect);   // undoes the tile's own toggle
+                        Notify("Build an animation in the Animations tab first.");
+                        return;
+                    }
+                    ChooseEffect(effect);
+                };
                 effectTiles[effect] = tile;
                 grid.Children.Add(tile);
             }
@@ -260,6 +203,19 @@ sealed class MainWindow : Window, IAutomationTarget
             }
         }
         return picker;
+    }
+
+    /// <summary>Makes sure "Your animation" has something to play: the one last used, or else the first saved.</summary>
+    static bool EnsureAnimation()
+    {
+        if (Effects.Animation.Animation is not null) return true;
+        foreach (var name in AnimationStore.List())
+        {
+            if (AnimationStore.Load(name) is not { } animation) continue;
+            Effects.Animation.Show(animation.Compile(), fromStart: true);
+            return true;
+        }
+        return false;
     }
 
     /// <summary>Highlights the effect's tile and switches the engine to it.</summary>
@@ -481,12 +437,7 @@ sealed class MainWindow : Window, IAutomationTarget
     void RefreshPreview()
     {
         engine.CopyLatestFrame(preview);
-        foreach (var (cell, view) in keys)
-        {
-            var c = preview[cell];
-            view.Fill.Color = ToColor(c);
-            view.Label.Foreground = 0.299 * c.R + 0.587 * c.G + 0.114 * c.B > 140 ? Brushes.Black : Brushes.White;
-        }
+        keyboard.Show(preview.Cells);
 
         if (!brightnessSynced && engine.Brightness >= 0)
         {
@@ -596,6 +547,4 @@ sealed class MainWindow : Window, IAutomationTarget
         control.Margin = new Thickness(8, 0, 0, 0);
         return control;
     }
-
-    static Color ToColor(Rgb c) => Color.FromRgb(c.R, c.G, c.B);
 }
