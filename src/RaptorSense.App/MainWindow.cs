@@ -1,5 +1,8 @@
 ﻿using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Chrome;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -22,12 +25,24 @@ sealed class MainWindow : Window, IAutomationTarget
 {
     readonly EffectEngine engine = new(Ph16Keyboard.TryOpen);
     readonly Frame preview = new();
-    readonly KeyboardView keyboard = new() { Margin = new Thickness(24) };
-    readonly TextBlock status = new() { Margin = new Thickness(16, 10), Opacity = 0.8 };
+    // The strip along the top holds the window's title, the tabs and its own buttons, and drags the window.
+    const double TopBarHeight = 64;
+
+    // Room for the window's own minimise, maximise and close buttons at the right of the strip.
+    const double CaptionButtonsWidth = 146;
+
+    readonly KeyboardView keyboard = new();
+    // Connection and frame rates: only shown, and only kept up to date, while the info panel is open.
+    readonly TextBlock status = new() { FontSize = 13, TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock frameRates = new() { FontSize = 13, Foreground = Look.Muted };
+    readonly TextBlock toastText = new() { FontSize = 13 };
+    readonly Border toast;
+    bool infoOpen;
+    readonly TextBlock effectTitle = new() { FontSize = 30, FontWeight = FontWeight.SemiBold };
     readonly Dictionary<IEffect, ToggleButton> effectTiles = [];
     readonly CheckBox autoColor = new() { Content = "Auto (rainbow colours)" };
     readonly ComboBox overlayPicker = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
-    readonly ColorEditor colorEditor = new();
+    readonly ColorEditor colorEditor = new(wide: true);
     readonly LightBarPanel lightBar = new();
     readonly AutomationRunner automations;
     readonly Slider speed = new() { Minimum = 0.1, Maximum = 4 };
@@ -40,7 +55,6 @@ sealed class MainWindow : Window, IAutomationTarget
     IAudioSpectrum? audio;
     IKeyPressSource? keyHook;
     bool brightnessSynced;
-    string? notice;
     DateTime noticeUntil;
     bool shutDown;
 
@@ -49,35 +63,36 @@ sealed class MainWindow : Window, IAutomationTarget
 
     public MainWindow()
     {
-        Title = $"{AppInfo.Name} {AppInfo.Version}";
+        Title = AppInfo.Name;   // the version is in the info panel
         Icon = App.Icon;
         Width = 1500;
-        Height = 640;
-        MinWidth = 900;
-        MinHeight = 480;
-        Background = new SolidColorBrush(Color.FromRgb(16, 17, 20));
-
-        var lighting = new DockPanel();
-        var controls = BuildControls();
-        DockPanel.SetDock(controls, Dock.Right);
-        lighting.Children.Add(controls);
-        var hint = new TextBlock
+        Height = 900;
+        MinWidth = 1280;
+        MinHeight = 720;
+        // Open in the middle of the screen, and no bigger than the screen has room for.
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        if (Screens.Primary is { } screen)
         {
-            Text = "Click or drag over keys to paint them with colour 1 · right-click to erase",
-            Opacity = 0.6,
-            Margin = new Thickness(24, 16, 24, 0),
-        };
-        DockPanel.SetDock(hint, Dock.Top);
-        lighting.Children.Add(hint);
-        keyboard.KeyPainted += PaintKey;
-        lighting.Children.Add(keyboard);
+            Width = Math.Max(MinWidth, Math.Min(Width, screen.WorkingArea.Width / screen.Scaling - 40));
+            Height = Math.Max(MinHeight, Math.Min(Height, screen.WorkingArea.Height / screen.Scaling - 40));
+        }
+        Background = Look.WindowBackground;
+        Foreground = Look.Text;
+        FontFamily = Look.Font;
+        // The tabs sit where the title bar would be; the window keeps its own minimise, maximise and close buttons.
+        ExtendClientAreaToDecorationsHint = true;
+        ExtendClientAreaTitleBarHeightHint = TopBarHeight;
+
+        var lighting = BuildLighting();
 
         automations = new AutomationRunner(this);
         automations.EnabledChanged += () => TrayStateChanged?.Invoke();
 
         var tabs = new TabControl
         {
-            Margin = new Thickness(8, 4, 0, 0),
+            Margin = new Thickness(0, (TopBarHeight - 40) / 2, 0, 0),
+            Padding = new Thickness(0),
+            Background = null,   // nothing to hit between the tabs, so the strip behind them can move the window
             Items =
             {
                 new TabItem { Header = "Lighting", Content = lighting },
@@ -87,11 +102,46 @@ sealed class MainWindow : Window, IAutomationTarget
                 new TabItem { Header = "Automations", Content = new AutomationsPanel(automations) },
             },
         };
-        var root = new DockPanel();
-        DockPanel.SetDock(status, Dock.Bottom);
-        root.Children.Add(status);
-        root.Children.Add(tabs);
-        Content = root;
+
+        // Behind the tabs: the empty parts of the top strip are the window's title bar. Windows then moves the window,
+        // maximises it on a double-click and offers its snap layouts, exactly as it does for any other title bar.
+        var dragStrip = new Border { Height = TopBarHeight, VerticalAlignment = VerticalAlignment.Top, Background = Brushes.Transparent };
+        WindowDecorationProperties.SetElementRole(dragStrip, WindowDecorationsElementRole.TitleBar);
+
+        var info = new Button
+        {
+            Content = "i",
+            Width = 30,
+            Height = 30,
+            Padding = new Thickness(0),
+            CornerRadius = new CornerRadius(15),
+            FontWeight = FontWeight.SemiBold,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, (TopBarHeight - 30) / 2, CaptionButtonsWidth + 12, 0),
+            Flyout = BuildInfoFlyout(),
+        };
+        ToolTip.SetTip(info, "Connection and app details");
+        AutomationProperties.SetName(info, "Info");
+
+        toast = new Border
+        {
+            Background = Look.Popup,
+            BorderBrush = Look.KeyBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(20),
+            Padding = new Thickness(18, 10),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 0, 22),
+            IsVisible = false,
+            IsHitTestVisible = false,
+            Child = toastText,
+        };
+
+        Content = new Grid { Children = { dragStrip, tabs, info, toast } };
 
         ApplyProfile(ProfileStore.LoadLast() ?? new Profile());
         RefreshProfileList();
@@ -166,7 +216,7 @@ sealed class MainWindow : Window, IAutomationTarget
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = HorizontalAlignment.Left,
                     Margin = new Thickness(0, 0, 6, 6),
-                    Padding = new Thickness(10, 7),
+                    Padding = new Thickness(14, 8),
                 };
                 tile.Click += (_, _) =>
                 {
@@ -222,68 +272,140 @@ sealed class MainWindow : Window, IAutomationTarget
     void ChooseEffect(IEffect effect)
     {
         foreach (var (e, tile) in effectTiles) tile.IsChecked = e == effect;
+        effectTitle.Text = effect.Name;
         SelectEffect(effect);
     }
 
-    // ---- Side panel ----
+    // ---- Lighting page ----
 
-    Control BuildControls()
+    /// <summary>
+    /// The keyboard is the centrepiece, with what plays on it named above. Colours, speed and profiles sit in cards
+    /// below it; the effects and the rarely changed keyboard settings scroll in a column on the right.
+    /// </summary>
+    Control BuildLighting()
     {
-        var panel = new StackPanel { Spacing = 8, Width = 360, Margin = new Thickness(0, 16, 20, 16) };
+        keyboard.KeyPainted += PaintKey;
 
-        panel.Children.Add(Heading("Effect"));
-        panel.Children.Add(BuildEffectPicker());
-        panel.Children.Add(Heading("Typing overlay"));
-        panel.Children.Add(BuildOverlayPicker());
-
-        panel.Children.Add(Heading("Colours"));
-        panel.Children.Add(new TextBlock
+        var hint = new TextBlock
         {
-            Text = "Colour 1 is also the paint brush; typing effects use colour 2.",
-            TextWrapping = TextWrapping.Wrap,
-            FontSize = 12,
-            Opacity = 0.65,
-        });
+            Text = "Click or drag over keys to paint them with colour 1 · right-click to erase",
+            Foreground = Look.Muted,
+            FontSize = 13,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 4, 6),
+        };
+        DockPanel.SetDock(hint, Dock.Right);
+        var header = new DockPanel
+        {
+            Margin = new Thickness(4, 0, 0, 14),
+            Children =
+            {
+                hint,
+                new StackPanel
+                {
+                    Children = { new TextBlock { Text = "Now playing on your keyboard", Foreground = Look.Muted, FontSize = 13 }, effectTitle },
+                },
+            },
+        };
+
+        var keyboardWell = new Border
+        {
+            Background = Look.Well,
+            BorderBrush = Look.WellBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(24),
+            Padding = new Thickness(22),
+            Child = keyboard,
+        };
+
+        var cards = new Grid { ColumnDefinitions = new ColumnDefinitions("1.9*,*,*"), Margin = new Thickness(0, 16, 0, 0) };
+        cards.Children.Add(BuildColourCard());
+        cards.Children.Add(InColumn(BuildAdjustCard(), 1));
+        cards.Children.Add(InColumn(BuildProfilesCard(), 2));
+
+        var main = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
+        main.Children.Add(header);
+        main.Children.Add(InRow(keyboardWell, 1));
+        main.Children.Add(InRow(cards, 2));
+
+        var side = new StackPanel { Spacing = 16, Width = 372 };
+        side.Children.Add(Look.Card(BuildEffectPicker(), "Effects"));
+        side.Children.Add(BuildKeyboardCard());
+        var sideScroll = new ScrollViewer { Content = side, Margin = new Thickness(16, 0, 0, 0) };
+
+        var page = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(28, 12, 28, 24) };
+        page.Children.Add(main);
+        page.Children.Add(InColumn(sideScroll, 1));
+        return page;
+    }
+
+    Control BuildColourCard()
+    {
         colorEditor.ColorChanged += (index, color) =>
         {
             if (index == 0) engine.Settings.Color = color;
             else engine.Settings.Color2 = color;
         };
-        panel.Children.Add(colorEditor);
         autoColor.IsCheckedChanged += (_, _) => engine.Settings.AutoColor = autoColor.IsChecked == true;
-        panel.Children.Add(autoColor);
 
         var fill = new Button { Content = "Fill all keys" };
         fill.Click += (_, _) => { StartPainting(); Effects.Painted.Fill(engine.Settings.Color); };
         var clear = new Button { Content = "Clear" };
         clear.Click += (_, _) => { StartPainting(); Effects.Painted.Fill(Rgb.Black); };
-        panel.Children.Add(Row(fill, clear));
 
-        panel.Children.Add(Heading("Speed"));
+        var content = new StackPanel { Spacing = 10 };
+        content.Children.Add(colorEditor);
+        content.Children.Add(Row(autoColor, fill, clear));
+        content.Children.Add(Look.Note("Colour 1 is also the paint brush; typing effects use colour 2."));
+        return Look.Card(content, "Colours");
+    }
+
+    Control BuildAdjustCard()
+    {
         speed.ValueChanged += (_, e) => engine.Settings.Speed = e.NewValue;
-        panel.Children.Add(speed);
-
-        panel.Children.Add(Heading("Brightness"));
         brightness.ValueChanged += (_, e) => { if (brightnessSynced) engine.Brightness = (int)Math.Round(e.NewValue); };
-        panel.Children.Add(brightness);
 
-        panel.Children.Add(Heading("Profiles"));
+        var content = new StackPanel { Spacing = 4 };
+        content.Children.Add(Caption("Speed"));
+        content.Children.Add(speed);
+        content.Children.Add(Caption("Brightness"));
+        content.Children.Add(brightness);
+        content.Children.Add(Caption("Typing overlay"));
+        content.Children.Add(BuildOverlayPicker());
+        var card = Look.Card(content, "Adjust");
+        card.Margin = new Thickness(16, 0, 0, 0);
+        return card;
+    }
+
+    Control BuildProfilesCard()
+    {
         var load = new Button { Content = "Load" };
         load.Click += (_, _) => LoadSelectedProfile();
         var delete = new Button { Content = "Delete" };
         delete.Click += (_, _) => DeleteSelectedProfile();
-        panel.Children.Add(profileList);
-        panel.Children.Add(Row(load, delete));
         var save = new Button { Content = "Save" };
         save.Click += (_, _) => SaveProfile();
-        panel.Children.Add(new DockPanel { Children = { Docked(save, Dock.Right), profileName } });
+
+        var content = new StackPanel { Spacing = 10 };
+        content.Children.Add(profileList);
+        content.Children.Add(Row(load, delete));
+        content.Children.Add(new DockPanel { Children = { Docked(save, Dock.Right), profileName } });
+        content.Children.Add(Look.Note("A profile keeps the effect, colours, speed, brightness and light bar."));
+        var card = Look.Card(content, "Profiles");
+        card.Margin = new Thickness(16, 0, 0, 0);
+        return card;
+    }
+
+    Control BuildKeyboardCard()
+    {
+        var content = new StackPanel { Spacing = 8 };
 
         output.IsCheckedChanged += (_, _) =>
         {
             engine.OutputEnabled = output.IsChecked == true;
             TrayStateChanged?.Invoke();
         };
-        panel.Children.Add(output);
+        content.Children.Add(output);
 
         if (Autostart.IsSupported)
         {
@@ -294,22 +416,87 @@ sealed class MainWindow : Window, IAutomationTarget
                 catch (Exception e) { Notify($"Could not change Start with Windows: {e.Message}"); }
                 TrayStateChanged?.Invoke();
             };
-            panel.Children.Add(autostart);
+            content.Children.Add(autostart);
         }
 
         var handBack = new Button { Content = "Hand back: keyboard's own rainbow wave" };
         handBack.Click += (_, _) => HandBack();
-        panel.Children.Add(handBack);
+        content.Children.Add(handBack);
 
-        panel.Children.Add(new TextBlock
+        return Look.Card(content, "Keyboard");
+    }
+
+    /// <summary>
+    /// What the "i" button opens: the keyboard connection and frame rates, the window's background colour, and who
+    /// made the app.
+    /// </summary>
+    Flyout BuildInfoFlyout()
+    {
+        var panel = new StackPanel { Spacing = 6, Width = 346 };
+        // A flyout is its own little window, so it doesn't inherit the main window's font and text colour.
+        TextElement.SetFontFamily(panel, Look.Font);
+        TextElement.SetForeground(panel, Look.Text);
+        panel.Children.Add(Look.Heading("Keyboard"));
+        panel.Children.Add(status);
+        panel.Children.Add(frameRates);
+
+        var backgroundHeading = Look.Heading("Background");
+        backgroundHeading.Margin = new Thickness(0, 10, 0, 0);
+        panel.Children.Add(backgroundHeading);
+        bool backgroundChanged = false;
+        var presets = new WrapPanel();
+        foreach (var (name, color) in Look.BackgroundPresets)
         {
-            Text = $"{AppInfo.Name} {AppInfo.Version}\nCreated by {AppInfo.Author}\nFree and open source ({AppInfo.Licence})",
-            FontSize = 11,
-            Opacity = 0.55,
-            Margin = new Thickness(0, 12, 0, 0),
-        });
+            var preset = new Button
+            {
+                Width = 32,
+                Height = 32,
+                Padding = new Thickness(0),
+                Margin = new Thickness(0, 0, 6, 0),
+                CornerRadius = new CornerRadius(16),
+                Content = new Border
+                {
+                    Width = 22,
+                    Height = 22,
+                    CornerRadius = new CornerRadius(11),
+                    Background = new SolidColorBrush(Look.Brightened(color)),   // the real colours are too dark to tell apart
+                    BorderBrush = Look.KeyBorder,
+                    BorderThickness = new Thickness(1),
+                },
+            };
+            ToolTip.SetTip(preset, name);
+            AutomationProperties.SetName(preset, name + " background");
+            preset.Click += (_, _) =>
+            {
+                Look.SetBackground(color);
+                Background = Look.WindowBackground;
+                backgroundChanged = true;
+            };
+            presets.Children.Add(preset);
+        }
+        panel.Children.Add(presets);
 
-        return new ScrollViewer { Content = panel };
+        var about = Look.Heading("About");
+        about.Margin = new Thickness(0, 10, 0, 0);
+        panel.Children.Add(about);
+        panel.Children.Add(Look.Note($"{AppInfo.Name} {AppInfo.Version}\nCreated by {AppInfo.Author}\nFree and open source ({AppInfo.Licence})"));
+
+        var flyout = new Flyout { Content = panel, Placement = PlacementMode.BottomEdgeAlignedRight };
+        flyout.Opened += (_, _) => { infoOpen = true; ShowEngineStatus(); };
+        flyout.Closed += (_, _) =>
+        {
+            infoOpen = false;
+            if (!backgroundChanged) return;
+            backgroundChanged = false;
+            Look.SaveBackground();
+        };
+        return flyout;
+    }
+
+    void ShowEngineStatus()
+    {
+        status.Text = engine.Status;
+        frameRates.Text = $"{engine.RenderFps:N0} fps rendered, {engine.SendFps:N0} fps sent";
     }
 
     void SelectEffect(IEffect effect)
@@ -444,17 +631,16 @@ sealed class MainWindow : Window, IAutomationTarget
             brightness.Value = engine.Brightness;
             brightness.IsEnabled = brightnessSynced = true;
         }
-        status.Text = DateTime.UtcNow < noticeUntil
-            ? notice
-            : $"{engine.Status}   ·   {engine.RenderFps:N0} fps rendered, {engine.SendFps:N0} fps sent";
+        if (infoOpen) ShowEngineStatus();
+        if (toast.IsVisible && DateTime.UtcNow >= noticeUntil) toast.IsVisible = false;
     }
 
-    /// <summary>Shows a message in the status bar for a few seconds instead of the live engine status.</summary>
+    /// <summary>Shows a message at the bottom of the window for a few seconds.</summary>
     void Notify(string message)
     {
-        notice = message;
+        toastText.Text = message;
+        toast.IsVisible = true;
         noticeUntil = DateTime.UtcNow.AddSeconds(3);
-        status.Text = message;
     }
 
     // ---- Tray integration ----
@@ -532,7 +718,19 @@ sealed class MainWindow : Window, IAutomationTarget
     // Get-Content/Set-Content without -Encoding utf8 garbles these).
     static string DisplayName(IEffect e) => e.UsesAudio ? $"{e.Name}  ♪" : e.UsesKeys ? $"{e.Name}  ⌨" : e.Name;
 
-    static TextBlock Heading(string text) => new() { Text = text, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 6, 0, 0) };
+    static TextBlock Caption(string text) => new() { Text = text, Foreground = Look.Muted, FontSize = 13, Margin = new Thickness(0, 4, 0, 0) };
+
+    static Control InColumn(Control control, int column)
+    {
+        Grid.SetColumn(control, column);
+        return control;
+    }
+
+    static Control InRow(Control control, int row)
+    {
+        Grid.SetRow(control, row);
+        return control;
+    }
 
     static StackPanel Row(params Control[] children)
     {

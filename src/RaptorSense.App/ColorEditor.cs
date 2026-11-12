@@ -23,8 +23,8 @@ sealed class ColorEditor : UserControl
         new(0, 90, 255), new(140, 0, 255), new(255, 0, 128), Rgb.White,
     ];
 
-    static readonly IBrush Selected = new SolidColorBrush(Color.FromRgb(0, 174, 199));
-    static readonly IBrush Unselected = new SolidColorBrush(Color.FromRgb(60, 62, 70));
+    static readonly IBrush Selected = Look.Accent;
+    static readonly IBrush Unselected = Look.Unselected;
 
     readonly string[] names;
     readonly Rgb[] colors;
@@ -51,7 +51,8 @@ sealed class ColorEditor : UserControl
     /// <param name="names">One chip per name. Defaults to the keyboard's "Colour 1" and "Colour 2".</param>
     /// <param name="initial">Starting colours, one per name (otherwise teal, then pink).</param>
     /// <param name="withEyedropper">The eyedropper takes a colour from the keyboard preview, so only the lighting tab has it.</param>
-    public ColorEditor(string[]? names = null, Rgb[]? initial = null, bool withEyedropper = true)
+    /// <param name="wide">Lays the wheel, the numbers and the swatches side by side instead of in one column.</param>
+    public ColorEditor(string[]? names = null, Rgb[]? initial = null, bool withEyedropper = true, bool wide = false)
     {
         this.names = names ?? ["Colour 1", "Colour 2"];
         colors = initial is not null && initial.Length == this.names.Length
@@ -80,19 +81,36 @@ sealed class ColorEditor : UserControl
         numbers.Children.Add(Labelled("B", blue));
         numbers.Children.Add(Labelled("#", hex));
 
-        var picker = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-        picker.Children.Add(wheel);
-        picker.Children.Add(numbers);
-
-        var layout = new StackPanel { Spacing = 8 };
-        layout.Children.Add(chipRow);
-        layout.Children.Add(picker);
-        layout.Children.Add(new DockPanel
+        var brightnessRow = new DockPanel
         {
             Children = { Docked(new TextBlock { Text = "Brightness", Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center }, Dock.Left), brightness },
-        });
-        layout.Children.Add(swatches);
-        if (withEyedropper) layout.Children.Add(eyedropper);
+        };
+        var layout = new StackPanel { Spacing = 8 };
+        layout.Children.Add(chipRow);
+        if (wide)
+        {
+            wheel.Width = wheel.Height = 150;
+            numbers.Margin = new Thickness(14, 0, 20, 0);
+            var rest = new StackPanel { Spacing = 10, VerticalAlignment = VerticalAlignment.Center, Children = { brightnessRow, swatches } };
+            if (withEyedropper)
+            {
+                eyedropper.HorizontalAlignment = HorizontalAlignment.Left;
+                rest.Children.Add(eyedropper);
+            }
+            Grid.SetColumn(numbers, 1);
+            Grid.SetColumn(rest, 2);
+            layout.Children.Add(new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"), Children = { wheel, numbers, rest } });
+        }
+        else
+        {
+            var picker = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+            picker.Children.Add(wheel);
+            picker.Children.Add(numbers);
+            layout.Children.Add(picker);
+            layout.Children.Add(brightnessRow);
+            layout.Children.Add(swatches);
+            if (withEyedropper) layout.Children.Add(eyedropper);
+        }
         Content = layout;
 
         RebuildSwatches();
@@ -156,9 +174,9 @@ sealed class ColorEditor : UserControl
         var fill = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(11) };
         var chip = new Border
         {
-            CornerRadius = new CornerRadius(8),
+            CornerRadius = new CornerRadius(18),
             BorderThickness = new Thickness(2),
-            Padding = new Thickness(8, 5),
+            Padding = new Thickness(8, 5, 12, 5),
             Cursor = new Cursor(StandardCursorType.Hand),
             Child = new StackPanel
             {

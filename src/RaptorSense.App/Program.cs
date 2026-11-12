@@ -1,8 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Styling;
-using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
 
 namespace RaptorSense.App;
@@ -50,11 +48,9 @@ sealed class App : Application
 
     // Loaded on first use: a WindowIcon needs Avalonia's platform services, which exist only once the app has started.
     public static WindowIcon Icon => icon ??= new(typeof(App).Assembly.GetManifestResourceStream("RaptorSense.icon.png")!);
-
     public override void Initialize()
     {
-        Styles.Add(new FluentTheme());
-        RequestedThemeVariant = ThemeVariant.Dark;
+        Look.Install(this);
     }
 
     public override void OnFrameworkInitializationCompleted()

@@ -12,12 +12,9 @@ namespace RaptorSense.App;
 /// <summary>Temperatures, fan speeds, power profile and fan control through the elevated helper, and battery wear (no helper needed).</summary>
 sealed class PerformancePanel : UserControl
 {
-    static readonly IBrush Accent = new SolidColorBrush(Color.FromRgb(0, 174, 199));
-    static readonly IBrush TileBackground = new SolidColorBrush(Color.FromRgb(28, 30, 36));
-
-    readonly TextBlock helperState = new() { TextWrapping = TextWrapping.Wrap, Opacity = 0.8 };
+    readonly TextBlock helperState = new() { TextWrapping = TextWrapping.Wrap, Foreground = Look.Muted, Margin = new Thickness(4, 0, 0, 0) };
     readonly TextBlock cpuTemp = Value(), gpuTemp = Value(), cpuFan = Value(), gpuFan = Value();
-    readonly TextBlock systemTemp = new() { Opacity = 0.6 };
+    readonly TextBlock systemTemp = new() { Foreground = Look.Muted, Margin = new Thickness(4, 0, 0, 0) };
     readonly WrapPanel profiles = new();
     readonly RadioButton auto = new() { Content = "Auto", GroupName = "fans" };
     readonly RadioButton max = new() { Content = "Max", GroupName = "fans" };
@@ -25,17 +22,18 @@ sealed class PerformancePanel : UserControl
     readonly Slider cpuSpeed = SpeedSlider(), gpuSpeed = SpeedSlider();
     readonly TextBlock cpuSpeedText = new(), gpuSpeedText = new();
     readonly Button apply = new() { Content = "Apply custom speeds" };
-    readonly TextBlock safety = new() { Foreground = Brushes.Orange, TextWrapping = TextWrapping.Wrap, IsVisible = false };
-    readonly StackPanel controls = new() { Spacing = 10 };
+    readonly TextBlock safety = new() { Foreground = Look.Warning, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+    readonly StackPanel controls = new() { Spacing = 16 };
     readonly TextBlock batteryCycles = Value(), batteryHealth = Value(), batteryNow = Value(), batteryNew = Value();
-    readonly StackPanel batterySection = new() { Spacing = 10, IsVisible = false };
+    readonly StackPanel batteryContent = new() { Spacing = 12 };
+    readonly Border batterySection;
     readonly DispatcherTimer timer;
     IReadOnlyList<PowerProfile> shownProfiles = [];
     bool busy, slidersLoaded, choosingCustom;
 
     public PerformancePanel()
     {
-        var tiles = new UniformGrid { Columns = 4 };
+        var tiles = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -12, -12) };   // takes back the last tile's gap
         tiles.Children.Add(Tile("CPU", cpuTemp));
         tiles.Children.Add(Tile("GPU", gpuTemp));
         tiles.Children.Add(Tile("CPU fan", cpuFan));
@@ -48,46 +46,39 @@ sealed class PerformancePanel : UserControl
         gpuSpeed.ValueChanged += (_, e) => gpuSpeedText.Text = $"GPU fan {e.NewValue:N0}%";
         apply.Click += async (_, _) => { await SendFans(FanMode.Custom); choosingCustom = false; };
 
-        controls.Children.Add(Heading("Power profile"));
-        controls.Children.Add(profiles);
-        controls.Children.Add(Heading("Fans"));
-        controls.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Children = { auto, max, custom } });
-        controls.Children.Add(cpuSpeedText);
-        controls.Children.Add(cpuSpeed);
-        controls.Children.Add(gpuSpeedText);
-        controls.Children.Add(gpuSpeed);
-        controls.Children.Add(apply);
-        controls.Children.Add(new TextBlock
-        {
-            Text = $"Custom speeds are at least {FanController.MinCustomPercent}%. At {FanController.HotC} °C the fans go to Max until " +
-                   $"everything is below {FanController.CoolC} °C, and they return to Auto when the helper stops.",
-            TextWrapping = TextWrapping.Wrap,
-            Opacity = 0.6,
-            FontSize = 12,
-        });
-        controls.Children.Add(safety);
+        var fans = new StackPanel { Spacing = 10 };
+        fans.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Children = { auto, max, custom } });
+        fans.Children.Add(cpuSpeedText);
+        fans.Children.Add(cpuSpeed);
+        fans.Children.Add(gpuSpeedText);
+        fans.Children.Add(gpuSpeed);
+        fans.Children.Add(apply);
+        fans.Children.Add(Look.Note(
+            $"Custom speeds are at least {FanController.MinCustomPercent}%. At {FanController.HotC} °C the fans go to Max until " +
+            $"everything is below {FanController.CoolC} °C, and they return to Auto when the helper stops."));
+        fans.Children.Add(safety);
+        controls.Children.Add(Look.Card(profiles, "Power profile"));
+        controls.Children.Add(Look.Card(fans, "Fans"));
 
-        var batteryTiles = new UniformGrid { Columns = 4 };
+        var batteryTiles = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, -12, -12) };
         batteryTiles.Children.Add(Tile("Charge cycles", batteryCycles));
         batteryTiles.Children.Add(Tile("Health", batteryHealth));
         batteryTiles.Children.Add(Tile("Full charge now", batteryNow));
         batteryTiles.Children.Add(Tile("Full charge when new", batteryNew));
-        batterySection.Children.Add(Heading("Battery"));
-        batterySection.Children.Add(batteryTiles);
-        batterySection.Children.Add(new TextBlock
-        {
-            Text = "Health compares what a full charge holds now with what it held when new.",
-            TextWrapping = TextWrapping.Wrap,
-            Opacity = 0.6,
-            FontSize = 12,
-        });
+        batteryContent.Children.Add(batteryTiles);
+        batteryContent.Children.Add(Look.Note("Health compares what a full charge holds now with what it held when new."));
+        batterySection = Look.Card(batteryContent, "Battery");
+        batterySection.IsVisible = false;
+        batterySection.Margin = new Thickness(16, 0, 0, 0);
+        batterySection.VerticalAlignment = VerticalAlignment.Top;
+        Grid.SetColumn(batterySection, 1);
 
-        var page = new StackPanel { Spacing = 14, Margin = new Thickness(24), MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
+        // Readings across the top; what you can change on the left, the battery on the right.
+        var page = new StackPanel { Spacing = 14, Margin = new Thickness(28, 12, 28, 16), MaxWidth = 1180 };
         page.Children.Add(helperState);
         page.Children.Add(tiles);
         page.Children.Add(systemTemp);
-        page.Children.Add(controls);
-        page.Children.Add(batterySection);
+        page.Children.Add(new Grid { ColumnDefinitions = new ColumnDefinitions("1.4*,*"), Children = { controls, batterySection } });
         Content = new ScrollViewer { Content = page };
 
         // These numbers change over days, so reading them when the tab opens is enough.
@@ -142,7 +133,7 @@ sealed class PerformancePanel : UserControl
 
         if (!shownProfiles.SequenceEqual(status.SupportedProfiles)) BuildProfileButtons(status.SupportedProfiles);
         foreach (var button in profiles.Children.OfType<Button>())
-            button.Background = (PowerProfile)button.Tag! == status.Profile ? Accent : null;
+            Look.SetSelected(button, (PowerProfile)button.Tag! == status.Profile);
 
         if (!slidersLoaded)
         {
@@ -194,12 +185,12 @@ sealed class PerformancePanel : UserControl
 
     static Control Tile(string title, TextBlock value) => new Border
     {
-        Background = TileBackground,
-        CornerRadius = new CornerRadius(10),
-        Padding = new Thickness(16, 12),
-        Margin = new Thickness(0, 0, 12, 0),
-        Child = new StackPanel { Children = { new TextBlock { Text = title, Opacity = 0.7 }, value } },
+        Background = Look.CardFill,
+        BorderBrush = Look.CardBorder,
+        BorderThickness = new Thickness(1),
+        CornerRadius = new CornerRadius(16),
+        Padding = new Thickness(18, 14),
+        Margin = new Thickness(0, 0, 12, 12),
+        Child = new StackPanel { Children = { new TextBlock { Text = title, Foreground = Look.Muted, FontSize = 13 }, value } },
     };
-
-    static TextBlock Heading(string text) => new() { Text = text, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 8, 0, 0) };
 }

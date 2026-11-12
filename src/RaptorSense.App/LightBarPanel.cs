@@ -25,9 +25,9 @@ sealed class LightBarPanel : UserControl
     readonly TextBlock brightnessText = new(), speedText = new();
     readonly TextBlock animationNote = new()
     {
-        Text = "Animations use the Left colour for the whole bar.", Opacity = 0.6, FontSize = 12, TextWrapping = TextWrapping.Wrap,
+        Text = "Animations use the Left colour for the whole bar.", Foreground = Look.Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap,
     };
-    readonly TextBlock result = new() { TextWrapping = TextWrapping.Wrap, Opacity = 0.8 };
+    readonly TextBlock result = new() { TextWrapping = TextWrapping.Wrap, Foreground = Look.Muted };
     readonly Button apply = new() { Content = "Apply" };
     readonly Button off = new() { Content = "Off" };
     readonly Button copyToAll = new() { Content = "Use this colour on all zones" };
@@ -76,28 +76,39 @@ sealed class LightBarPanel : UserControl
         off.Click += async (_, _) => await Send(new LightBarRequest { Colors = [Rgb.Black.ToString()], Brightness = (int)brightness.Value });
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { apply, off } };
-        var page = new StackPanel { Spacing = 12, Margin = new Thickness(24), MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
+
+        var colours = new StackPanel { Spacing = 12 };
+        colours.Children.Add(editor);
+        colours.Children.Add(copyToAll);
+
+        var settings = new StackPanel { Spacing = 10 };
+        settings.Children.Add(new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 10,
+            Children = { new TextBlock { Text = "Mode", VerticalAlignment = VerticalAlignment.Center, Foreground = Look.Muted }, mode },
+        });
+        settings.Children.Add(animationNote);
+        settings.Children.Add(brightnessText);
+        settings.Children.Add(brightness);
+        settings.Children.Add(speedText);
+        settings.Children.Add(speed);
+        settings.Children.Add(buttons);
+        settings.Children.Add(result);
+        var settingsCard = Look.Card(settings, "Mode and brightness");
+        settingsCard.Margin = new Thickness(16, 0, 0, 0);
+        settingsCard.VerticalAlignment = VerticalAlignment.Top;
+        Grid.SetColumn(settingsCard, 1);
+
+        var page = new StackPanel { Spacing = 14, Margin = new Thickness(28, 12, 28, 16), MaxWidth = 900 };
         page.Children.Add(new TextBlock
         {
             Text = "The rear light bar goes through the RaptorSense helper (see README: Fans and power modes). Pick a colour for each zone, then Apply.",
             TextWrapping = TextWrapping.Wrap,
-            Opacity = 0.8,
+            Foreground = Look.Muted,
+            Margin = new Thickness(4, 0, 0, 0),
         });
-        page.Children.Add(new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 10,
-            Children = { new TextBlock { Text = "Mode", VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 }, mode },
-        });
-        page.Children.Add(editor);
-        page.Children.Add(copyToAll);
-        page.Children.Add(animationNote);
-        page.Children.Add(brightnessText);
-        page.Children.Add(brightness);
-        page.Children.Add(speedText);
-        page.Children.Add(speed);
-        page.Children.Add(buttons);
-        page.Children.Add(result);
+        page.Children.Add(new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), Children = { Look.Card(colours, "Zone colours"), settingsCard } });
         Content = new ScrollViewer { Content = page };
 
         UpdateEnabled();

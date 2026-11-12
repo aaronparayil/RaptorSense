@@ -54,13 +54,14 @@ sealed class KeyboardView : UserControl
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             };
+            if (text.Any(ch => ch >= 0x2000)) label.FontFamily = Look.Symbols;   // arrows and media keys
             var view = new Border
             {
                 Width = rect.Width,
                 Height = rect.Height,
-                CornerRadius = new CornerRadius(7),
+                CornerRadius = new CornerRadius(10),
                 Background = fill,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(60, 62, 70)),
+                BorderBrush = Look.KeyBorder,
                 BorderThickness = new Thickness(1),
                 Child = label,
                 Cursor = new Cursor(StandardCursorType.Hand),

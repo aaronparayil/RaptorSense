@@ -14,8 +14,6 @@ sealed class AutomationsPanel : UserControl
 {
     const string NoChange = "No change";
 
-    static readonly IBrush Accent = new SolidColorBrush(Color.FromRgb(0, 174, 199));
-    static readonly IBrush CardBackground = new SolidColorBrush(Color.FromRgb(28, 30, 36));
     static readonly string[] TriggerNames = ["An app is open", "On battery", "Plugged in"];
     static readonly AutomationTrigger[] Triggers = [AutomationTrigger.AppOpen, AutomationTrigger.OnBattery, AutomationTrigger.PluggedIn];
     static readonly PowerProfile[] PowerModes = Enum.GetValues<PowerProfile>();
@@ -23,8 +21,8 @@ sealed class AutomationsPanel : UserControl
 
     readonly AutomationRunner runner;
     readonly ToggleSwitch master = new() { OnContent = "Automations on", OffContent = "Automations off" };
-    readonly StackPanel cards = new() { Spacing = 10 };
-    readonly TextBlock problem = new() { Foreground = Brushes.Orange, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+    readonly StackPanel cards = new() { Spacing = 12 };
+    readonly TextBlock problem = new() { Foreground = Look.Warning, TextWrapping = TextWrapping.Wrap, IsVisible = false };
     readonly List<TextBlock> activeTags = [];
 
     public AutomationsPanel(AutomationRunner runner)
@@ -45,26 +43,24 @@ sealed class AutomationsPanel : UserControl
             Rebuild();
         };
 
-        var page = new StackPanel { Spacing = 12, Margin = new Thickness(24), MaxWidth = 1000, HorizontalAlignment = HorizontalAlignment.Left };
-        page.Children.Add(new TextBlock
+        var intro = new StackPanel { Spacing = 10 };
+        intro.Children.Add(new TextBlock
         {
             Text = "Rules change your lighting, power mode and fans by themselves. When a rule ends, everything goes back to how it " +
                    "was before it started, including anything you changed by hand in between. If two rules set the same thing, the higher one wins.",
             TextWrapping = TextWrapping.Wrap,
-            Opacity = 0.8,
+            Foreground = Look.Muted,
         });
-        page.Children.Add(master);
+        intro.Children.Add(master);
+
+        var page = new StackPanel { Spacing = 14, Margin = new Thickness(28, 12, 28, 16), MaxWidth = 1100 };
+        page.Children.Add(Look.Card(intro, "Automations"));
         page.Children.Add(cards);
         page.Children.Add(add);
         page.Children.Add(problem);
-        page.Children.Add(new TextBlock
-        {
-            Text = "An app counts as open from when it is running until it closes, so switching to another window doesn't end the rule. " +
-                   "Power mode and fans need fan control installed. RaptorSense only looks for the apps you name here, and nothing leaves your laptop.",
-            TextWrapping = TextWrapping.Wrap,
-            Opacity = 0.6,
-            FontSize = 12,
-        });
+        page.Children.Add(Look.Note(
+            "An app counts as open from when it is running until it closes, so switching to another window doesn't end the rule. " +
+            "Power mode and fans need fan control installed. RaptorSense only looks for the apps you name here, and nothing leaves your laptop."));
         Content = new ScrollViewer { Content = page };
 
         runner.Changed += ShowState;
@@ -78,7 +74,7 @@ sealed class AutomationsPanel : UserControl
         activeTags.Clear();
         var rules = runner.Settings.Rules;
         for (int i = 0; i < rules.Count; i++) cards.Children.Add(Card(i, rules[i]));
-        if (rules.Count == 0) cards.Children.Add(new TextBlock { Text = "No rules yet.", Opacity = 0.6 });
+        if (rules.Count == 0) cards.Children.Add(new TextBlock { Text = "No rules yet.", Foreground = Look.Muted, Margin = new Thickness(4, 0, 0, 0) });
         ShowState();
     }
 
@@ -107,7 +103,7 @@ sealed class AutomationsPanel : UserControl
         var power = Picker(PowerModes, rule.Power);
         var fans = Picker(FanModes, rule.Fans);
 
-        var active = new TextBlock { Text = "Active now", Foreground = Accent, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
+        var active = new TextBlock { Text = "Active now", Foreground = Look.Accent, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
         activeTags.Add(active);
 
         var up = new Button { Content = "Up", IsEnabled = index > 0 };
@@ -159,17 +155,11 @@ sealed class AutomationsPanel : UserControl
         actions.Children.Add(Labelled("Power mode", power));
         actions.Children.Add(Labelled("Fans", fans));
 
-        return new Border
+        return Look.Card(new StackPanel
         {
-            Background = CardBackground,
-            CornerRadius = new CornerRadius(10),
-            Padding = new Thickness(16, 12),
-            Child = new StackPanel
-            {
-                Spacing = 10,
-                Children = { new DockPanel { Children = { buttons, when } }, actions },
-            },
-        };
+            Spacing = 12,
+            Children = { new DockPanel { Children = { buttons, when } }, actions },
+        });
     }
 
     void Replace(int index, Func<AutomationRule, AutomationRule> change)

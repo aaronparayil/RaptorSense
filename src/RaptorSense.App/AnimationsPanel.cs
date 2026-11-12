@@ -29,8 +29,8 @@ sealed class AnimationsPanel : UserControl
         public EditFrame Copy() => new() { Cells = (Rgb[])Cells.Clone(), Hold = Hold, Fade = Fade };
     }
 
-    static readonly IBrush Accent = new SolidColorBrush(Color.FromRgb(0, 174, 199));
-    static readonly IBrush Unselected = new SolidColorBrush(Color.FromRgb(45, 47, 54));
+    static readonly IBrush Accent = Look.Accent;
+    static readonly IBrush Unselected = Look.Unselected;
     static readonly FilePickerFileType AnimationFile = new("RaptorSense animation") { Patterns = ["*.json"] };
 
     // Undo keeps whole copies of the frames, so it is capped by how many frames it holds in total (about 2 MB).
@@ -38,19 +38,19 @@ sealed class AnimationsPanel : UserControl
 
     readonly EffectEngine engine;
     readonly Action useAnimation;
-    readonly KeyboardView keyboard = new() { Margin = new Thickness(24, 12, 24, 12) };
+    readonly KeyboardView keyboard = new();
     readonly ComboBox picker = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Your animations" };
     readonly TextBox nameBox = new() { PlaceholderText = "Name" };
     readonly Button deleteAnimation = new() { Content = "Delete" };
     readonly Button exportAnimation = new() { Content = "Export" }, copyAnimation = new() { Content = "Make a copy" };
     readonly Button undoButton = new() { Content = "Undo" }, redoButton = new() { Content = "Redo" };
-    readonly ToggleButton play = new() { Content = "▶  Play on the keyboard", HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly ToggleButton play = new() { Content = "▶  Play on the keyboard", FontFamily = Look.Symbols, HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly NumericUpDown hold = Seconds(AnimationFrame.MaxHold), fade = Seconds(AnimationFrame.MaxFade);
     readonly ColorEditor brush = new(["Brush"], [Rgb.PredatorTeal], withEyedropper: false);
     readonly StackPanel strip = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     readonly ScrollViewer stripScroll;
-    readonly TextBlock summary = new() { Opacity = 0.7, Margin = new Thickness(24, 0, 24, 6) };
-    readonly TextBlock problem = new() { Foreground = Brushes.Orange, TextWrapping = TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(24, 0, 24, 4) };
+    readonly TextBlock summary = new() { Foreground = Look.Muted, Margin = new Thickness(4, 12, 0, 8) };
+    readonly TextBlock problem = new() { Foreground = Look.Warning, TextWrapping = TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(4, 10, 0, 0) };
     readonly Control editor;
     readonly DispatcherTimer saveTimer, playTimer;
     readonly Frame live = new();
@@ -94,30 +94,44 @@ sealed class AnimationsPanel : UserControl
             Content = strip,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Padding = new Thickness(24, 0, 24, 12),
+            Padding = new Thickness(0, 0, 0, 10),
         };
 
         var controls = BuildControls(out editor);
-        DockPanel.SetDock(controls, Dock.Right);
+        Grid.SetColumn(controls, 1);
         var hint = new TextBlock
         {
             Text = "Click or drag over keys to paint the selected frame with the brush · right-click to erase",
-            Opacity = 0.6,
-            Margin = new Thickness(24, 16, 24, 0),
+            Foreground = Look.Muted,
+            FontSize = 13,
+            Margin = new Thickness(4, 4, 0, 12),
         };
         DockPanel.SetDock(hint, Dock.Top);
         DockPanel.SetDock(stripScroll, Dock.Bottom);
         DockPanel.SetDock(summary, Dock.Bottom);
         DockPanel.SetDock(problem, Dock.Bottom);   // above the frame strip, where it is always in view
 
-        var page = new DockPanel();
-        page.Children.Add(controls);
-        page.Children.Add(hint);
-        page.Children.Add(stripScroll);
-        page.Children.Add(summary);
-        page.Children.Add(problem);
-        page.Children.Add(keyboard);
-        Content = page;
+        var well = new Border
+        {
+            Background = Look.Well,
+            BorderBrush = Look.WellBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(24),
+            Padding = new Thickness(22),
+            Child = keyboard,
+        };
+        var main = new DockPanel();
+        main.Children.Add(hint);
+        main.Children.Add(stripScroll);
+        main.Children.Add(summary);
+        main.Children.Add(problem);
+        main.Children.Add(well);
+        Content = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(28, 12, 28, 24),
+            Children = { main, controls },
+        };
 
         AttachedToVisualTree += (_, _) => Opened();
         DetachedFromVisualTree += (_, _) => Closed();
@@ -128,7 +142,7 @@ sealed class AnimationsPanel : UserControl
 
     Control BuildControls(out Control editorPart)
     {
-        var panel = new StackPanel { Spacing = 8, Width = 360, Margin = new Thickness(0, 16, 20, 16) };
+        var panel = new StackPanel { Spacing = 8, Width = 340 };
 
         panel.Children.Add(Heading("Animation"));
         panel.Children.Add(picker);
@@ -192,7 +206,7 @@ sealed class AnimationsPanel : UserControl
         var moves = Row();
         foreach (var (arrow, direction) in new[] { ("◀", KeyShift.Direction.Left), ("▶", KeyShift.Direction.Right), ("▲", KeyShift.Direction.Up), ("▼", KeyShift.Direction.Down) })
         {
-            var button = new Button { Content = arrow, Width = 44, HorizontalContentAlignment = HorizontalAlignment.Center };
+            var button = new Button { Content = arrow, Width = 48, FontFamily = Look.Symbols, HorizontalContentAlignment = HorizontalAlignment.Center };
             ToolTip.SetTip(button, "Adds a new frame after this one with every lit key moved one key over. Press it again to keep going.");
             button.Click += (_, _) =>
             {
@@ -228,7 +242,7 @@ sealed class AnimationsPanel : UserControl
 
         panel.Children.Add(edit);
         editorPart = edit;
-        return new ScrollViewer { Content = panel };
+        return new ScrollViewer { Content = Look.Card(panel), Margin = new Thickness(16, 0, 0, 0) };
     }
 
     // ---- Opening, saving, naming ----
@@ -759,8 +773,8 @@ sealed class AnimationsPanel : UserControl
     {
         const double ThumbWidth = 150;
         static readonly double Scale = ThumbWidth / PhysicalLayout.Width;
-        static readonly IBrush Off = new ImmutableSolidColorBrush(Color.FromRgb(34, 36, 42));
-        static readonly IBrush Back = new ImmutableSolidColorBrush(Color.FromRgb(12, 13, 16));
+        static readonly IBrush Off = new ImmutableSolidColorBrush(Color.FromRgb(40, 39, 74));
+        static readonly IBrush Back = new ImmutableSolidColorBrush(Look.GroundColor);
         static readonly (int Cell, Rect Rect)[] KeyRects = KeyMap.Keys
             .Select(k => (k.Cell, Rect: PhysicalLayout.For(k.Label)))
             .Where(k => k.Rect is not null)
