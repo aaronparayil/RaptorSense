@@ -83,10 +83,12 @@ public sealed class FanController(IGamingFirmware firmware)
                 }
             }
 
-            // Re-apply when the firmware has reset the fans, e.g. after sleep.
-            if (++ticks % VerifyEveryTicks == 0 && changedByUs)
+            // Re-apply when the firmware has reset the fans, e.g. after sleep. It resets them to Auto, so while Auto
+            // is what is wanted there is nothing to check, and asking is not free: on the PH16-71 the firmware stalls
+            // the whole machine for about 6 ms to answer.
+            var expected = SafetyOverride ? FanMode.Max : RequestedMode;
+            if (++ticks % VerifyEveryTicks == 0 && changedByUs && expected != FanMode.Auto)
             {
-                var expected = SafetyOverride ? FanMode.Max : RequestedMode;
                 var (cpu, gpu) = firmware.GetFanModes();
                 if (cpu != expected || gpu != expected)
                 {

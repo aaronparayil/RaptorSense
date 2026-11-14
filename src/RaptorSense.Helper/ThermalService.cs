@@ -17,11 +17,17 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
     const int MaxRequestChars = 4096;
     static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(2);
 
+    // Asking the firmware for the power profile stalls the whole machine for about 6 ms (measured on a PH16-71).
+    // The app asks for a status every second while its Performance tab shows, so replies reuse the answer this long.
+    static readonly TimeSpan ProfileMaxAge = TimeSpan.FromSeconds(5);
+
     readonly object firmwareLock = new();
     IGamingFirmware? firmware;
     ILightBar? lightBar;
     FanController? fans;
     IReadOnlyList<PowerProfile> supported = [];
+    PowerProfile? knownProfile;
+    long profileReadAt;
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
@@ -117,6 +123,7 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
                         break;
                     case "profile" when request.Profile is { } profile:
                         firmware.SetProfile(profile);
+                        knownProfile = null;   // read it back for the reply
                         log.LogInformation("Power profile set to {Profile}", profile);
                         break;
                     case "fans" when request.Mode is FanMode.Auto:
@@ -152,13 +159,24 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
         Ok = true,
         Error = error,
         Reading = fans!.LastReading ?? Try(firmware!.ReadSensors),
-        Profile = Try(firmware!.GetProfile),
+        Profile = CurrentProfile(),
         SupportedProfiles = supported,
         FanMode = fans.RequestedMode,
         CpuPercent = fans.CpuPercent,
         GpuPercent = fans.GpuPercent,
         SafetyOverride = fans.SafetyOverride,
     };
+
+    // Called with the firmware lock held. A failed read is not kept, so the next reply tries again.
+    PowerProfile? CurrentProfile()
+    {
+        if (knownProfile is null || Environment.TickCount64 - profileReadAt >= ProfileMaxAge.TotalMilliseconds)
+        {
+            knownProfile = Try(firmware!.GetProfile);
+            profileReadAt = Environment.TickCount64;
+        }
+        return knownProfile;
+    }
 
     // The firmware fails reads for a moment after a change; the status reply shouldn't fail with it.
     static T? Try<T>(Func<T> read) where T : struct

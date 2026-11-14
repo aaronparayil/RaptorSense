@@ -22,7 +22,13 @@ public sealed class FanControllerTests
         public IReadOnlyList<PowerProfile> SupportedProfiles() => [PowerProfile.Quiet, PowerProfile.Balanced];
         public PowerProfile GetProfile() => PowerProfile.Balanced;
         public void SetProfile(PowerProfile profile) { }
-        public (FanMode Cpu, FanMode Gpu) GetFanModes() => (Cpu, Gpu);
+        public int FanModeReads;
+
+        public (FanMode Cpu, FanMode Gpu) GetFanModes()
+        {
+            FanModeReads++;
+            return (Cpu, Gpu);
+        }
 
         public void SetFanMode(FanMode mode)
         {
@@ -152,6 +158,24 @@ public sealed class FanControllerTests
         for (int i = 0; i < 5; i++) fans.Tick();
         Assert.Equal(FanMode.Custom, fw.Cpu);
         Assert.Equal(70, fw.GpuPercent);
+    }
+
+    [Fact]
+    public void The_firmware_is_not_asked_about_the_fans_while_auto_is_wanted()
+    {
+        var firmware = new FakeFirmware();
+        var fans = new FanController(firmware);
+        for (int i = 0; i < 20; i++) fans.Tick();
+        Assert.Equal(0, firmware.FanModeReads);   // never changed by us
+
+        fans.SetMax();
+        for (int i = 0; i < 20; i++) fans.Tick();
+        int whileMax = firmware.FanModeReads;
+        Assert.InRange(whileMax, 3, 5);   // every fifth check while it has something to keep in place
+
+        fans.SetAuto();
+        for (int i = 0; i < 20; i++) fans.Tick();
+        Assert.Equal(whileMax, firmware.FanModeReads);   // back on Auto: asking costs a stall and changes nothing
     }
 
     [Fact]

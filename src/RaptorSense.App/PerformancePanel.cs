@@ -81,21 +81,36 @@ sealed class PerformancePanel : UserControl
         page.Children.Add(new Grid { ColumnDefinitions = new ColumnDefinitions("1.4*,*"), Children = { controls, batterySection } });
         Content = new ScrollViewer { Content = page };
 
-        // These numbers change over days, so reading them when the tab opens is enough.
-        AttachedToVisualTree += (_, _) => ShowBattery();
-
         controls.IsEnabled = false;
         UpdateCustomEnabled();
-        timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, async (_, _) => await Refresh());
-        timer.Start();
+        // Not the constructor that takes a callback: that one starts the timer straight away.
+        timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
+        timer.Tick += async (_, _) => await Refresh();
+
+        // The timer runs only while this tab is the one showing. The battery numbers change over days, so reading
+        // them when the tab opens is enough.
+        AttachedToVisualTree += async (_, _) =>
+        {
+            ShowBattery();
+            timer.Start();
+            await Refresh();
+        };
+        DetachedFromVisualTree += (_, _) => timer.Stop();
     }
 
     bool updating;
 
+    /// <summary>
+    /// True while someone can see this tab: it is the selected one and the window is neither minimised nor hidden in
+    /// the tray. (IsEffectivelyVisible can't tell: it stays true for a tab that isn't showing.)
+    /// </summary>
+    bool OnScreen => TopLevel.GetTopLevel(this) is Window { IsVisible: true, WindowState: not WindowState.Minimized };
+
     async Task Refresh()
     {
-        // Only talk to the helper while this tab is on screen.
-        if (busy || !IsEffectivelyVisible) return;
+        // Only talk to the helper while this tab is on screen. Every answer makes the firmware stall the whole
+        // machine for a few milliseconds, and once a second that is enough to make video slip behind its sound.
+        if (busy || !OnScreen) return;
         busy = true;
         try { Show(await ThermalClient.StatusAsync()); }
         finally { busy = false; }
