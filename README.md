@@ -32,7 +32,8 @@ Created by [aaronparayil](https://github.com/aaronparayil). Free and open source
   to typing, all drawn on a live preview of your keyboard at 60 fps. Paint single keys by hand, pick two colours or
   let it run a rainbow.
 - **Your own animations.** Paint frames, set how long each one stays and fades, and play the loop on the keyboard.
-  Start from a ready-made one, undo freely, and share animations as files.
+  Start from a ready-made one, undo freely, and share animations as files. An animation can follow your music too:
+  step on the beat, speed up when it gets loud, or pulse with the bass.
 - **Fans and power.** Power profiles, fan speeds (Auto, Max or your own), live temperatures, the rear light bar,
   and battery cycles and health.
 - **Automations.** Rules such as "while this game is open, use my gaming profile, Turbo and Max fans", which put
@@ -93,6 +94,7 @@ animations and rules are kept. Coming from 1.2 or later, you don't need to insta
 | The keyboard's 13 built-in effects, which keep running when RaptorSense is closed | Works |
 | Key painting: click or drag keys in the preview, right-click to erase | Works |
 | Animation builder: paint frames, set how long each stays and fades, and play your own key animations. Starter animations, undo, and import/export to share them | Works |
+| Animations that follow the music: one frame per beat, faster when it's louder, or brighter with the bass | Works |
 | Colour wheel with saved swatches and an eyedropper | Works |
 | Profiles: save, load, delete; the app restores your last setup | Works |
 | Live preview of the real key layout | Works |
@@ -135,6 +137,12 @@ keyboard, then set how long it stays and how long it takes to fade into the next
 the first, so it loops.
 
 - While you edit, the keyboard shows the frame you're painting. **Play on the keyboard** runs the whole loop.
+- **With music** makes the animation follow whatever the laptop is playing. **Step on the beat** moves one frame on
+  every beat of the bass, so "Stays for" isn't used and "Then fades" is how long each change takes. **Faster when
+  louder** plays the loop slowly when it's quiet and speeds it up with the music. **Pulse with the bass** keeps the
+  animation's own times and makes it brighter with the bass. The choice is saved in the animation, so it travels
+  with an exported file. RaptorSense listens to your PC's audio output, never the microphone, and only while a
+  music effect or such an animation is in use.
 - The arrow buttons copy the frame moved one key left, right, up or down. Paint a column once and press ▶ a few
   times to make it slide across the keyboard.
 - **From a starter** gives you a ready-made animation in the brush colour (sweep, pulse, ripple, waterfall or
@@ -149,7 +157,8 @@ the first, so it loops.
   keyboard while a frame holds still.
 
 Animations are readable JSON files in `%APPDATA%\RaptorSense\animations`, with keys stored by name like profiles.
-They hold only colours and times, never code, so a shared animation can't do anything else. On import, anything
+They hold only colours and times (plus one word, `beat`, `speed` or `pulse`, if the animation follows the music),
+never code, so a shared animation can't do anything else. On import, anything
 RaptorSense doesn't recognise is dropped.
 
 ## Automations
@@ -218,7 +227,8 @@ pressed: it reads the physical scan code, turns it into a lighting cell, and pas
 looks at characters and never records or stores anything. The hook exists only while a typing effect is selected.
 See `src/RaptorSense.Core/Input/WindowsKeyHook.cs`.
 
-Music effects read the audio your PC is playing to measure its loudness per frequency. Nothing is recorded.
+Music effects, and animations set to follow the music, read the audio your PC is playing to measure its loudness
+per frequency. Nothing is recorded, and it stops listening when no such effect is in use.
 
 Automations that name an app need to know which program is in front. RaptorSense reads only the program's name, compares
 it with your rules and forgets it. It doesn't read window titles, or keep a list of what you run. This watching exists only

@@ -501,14 +501,26 @@ sealed class MainWindow : Window, IAutomationTarget
 
     void SelectEffect(IEffect effect)
     {
-        if (effect.UsesAudio && audio is null && OperatingSystem.IsWindows())
+        engine.Effect = effect;
+        UpdateAudio();
+        UpdateKeyHook();
+    }
+
+    // Audio capture only exists while the effect follows the music ("Your animation" does only if the animation asks).
+    void UpdateAudio()
+    {
+        bool needed = engine.Effect.UsesAudio;
+        if (needed && audio is null && OperatingSystem.IsWindows())
         {
             try { audio = new LoopbackSpectrum(); engine.Audio = audio; }
             catch (Exception e) { Notify($"Could not capture audio: {e.Message}"); }
         }
-
-        engine.Effect = effect;
-        UpdateKeyHook();
+        else if (!needed && audio is not null)
+        {
+            engine.Audio = null;
+            audio.Dispose();
+            audio = null;
+        }
     }
 
     // The key hook only exists while the effect or the typing overlay reacts to key presses.

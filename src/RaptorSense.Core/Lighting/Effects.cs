@@ -221,6 +221,8 @@ public sealed class RippleEffect : IEffect
 /// <summary>Whole keyboard pulses with the bass, shifting from colour 1 to colour 2 on hits.</summary>
 public sealed class BassPulseEffect : IEffect
 {
+    const int BandCount = 16;
+
     public string Id => "pulse";
     public string Name => "Bass pulse";
     public string Category => EffectCategory.Music;
@@ -228,6 +230,7 @@ public sealed class BassPulseEffect : IEffect
 
     public void Render(Frame frame, in EffectContext ctx)
     {
+        ctx.Audio?.GetBands(BandCount);   // Bass comes from the latest analysis, so ask for one
         double bass = ctx.Audio?.Bass ?? 0;
         var color = Rgb.Lerp(ctx.Settings.Color, ctx.Settings.Color2, bass);
         frame.Fill(color.Scale(0.12 + 0.88 * bass));

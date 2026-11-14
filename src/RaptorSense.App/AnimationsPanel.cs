@@ -33,6 +33,14 @@ sealed class AnimationsPanel : UserControl
     static readonly IBrush Unselected = Look.Unselected;
     static readonly FilePickerFileType AnimationFile = new("RaptorSense animation") { Patterns = ["*.json"] };
 
+    static readonly (MusicReaction Reaction, string Label, string Note)[] MusicChoices =
+    [
+        (MusicReaction.None, "Off", ""),
+        (MusicReaction.Beat, "Step on the beat", "Each beat moves to the next frame. \"Stays for\" isn't used, and \"Then fades\" is how long the change takes."),
+        (MusicReaction.Speed, "Faster when louder", "Plays slowly when it's quiet and faster the louder the music gets."),
+        (MusicReaction.Pulse, "Pulse with the bass", "Plays at its own times and gets brighter with the bass."),
+    ];
+
     // Undo keeps whole copies of the frames, so it is capped by how many frames it holds in total (about 2 MB).
     const int MaxUndoSteps = 100, MaxUndoFrames = 5000;
 
@@ -45,6 +53,8 @@ sealed class AnimationsPanel : UserControl
     readonly Button exportAnimation = new() { Content = "Export" }, copyAnimation = new() { Content = "Make a copy" };
     readonly Button undoButton = new() { Content = "Undo" }, redoButton = new() { Content = "Redo" };
     readonly ToggleButton play = new() { Content = "▶  Play on the keyboard", FontFamily = Look.Symbols, HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly ComboBox musicPicker = new() { Width = 190, ItemsSource = MusicChoices.Select(c => c.Label).ToList(), SelectedIndex = 0 };
+    readonly TextBlock musicNote = new() { TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = 0.65, IsVisible = false };
     readonly NumericUpDown hold = Seconds(AnimationFrame.MaxHold), fade = Seconds(AnimationFrame.MaxFade);
     readonly ColorEditor brush = new(["Brush"], [Rgb.PredatorTeal], withEyedropper: false);
     readonly StackPanel strip = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -61,6 +71,7 @@ sealed class AnimationsPanel : UserControl
     DateTime lastMergeAt;
     bool strokeOpen;
     string? current;
+    MusicReaction music;
     int selected;
     bool loading, deleteArmed;
 
@@ -88,6 +99,7 @@ sealed class AnimationsPanel : UserControl
         hold.ValueChanged += (_, e) => SetTime(e.NewValue, isHold: true);
         fade.ValueChanged += (_, e) => SetTime(e.NewValue, isHold: false);
         play.IsCheckedChanged += (_, _) => { if (!loading) SetPlaying(play.IsChecked == true); };
+        musicPicker.SelectionChanged += (_, _) => { if (!loading) SetMusic(MusicChoices[Math.Max(musicPicker.SelectedIndex, 0)].Reaction); };
 
         stripScroll = new ScrollViewer
         {
@@ -175,6 +187,9 @@ sealed class AnimationsPanel : UserControl
 
         var edit = new StackPanel { Spacing = 8 };
         edit.Children.Add(play);
+        ToolTip.SetTip(musicPicker, "Makes this animation follow the music the laptop is playing. It never listens to the microphone.");
+        edit.Children.Add(Labelled("With music", musicPicker));
+        edit.Children.Add(musicNote);
         ToolTip.SetTip(undoButton, "Ctrl+Z");
         ToolTip.SetTip(redoButton, "Ctrl+Y");
         undoButton.Click += (_, _) => Undo();
@@ -263,7 +278,11 @@ sealed class AnimationsPanel : UserControl
         play.IsChecked = false;
         loading = false;
         // Leaving the tab mid-edit: the keyboard goes on to play the animation instead of freezing on one frame.
-        if (ShowingThis && Effects.Animation.PinnedFrame >= 0) Effects.Animation.Show(Compile(), fromStart: true);
+        if (ShowingThis && Effects.Animation.PinnedFrame >= 0)
+        {
+            Effects.Animation.Show(Compile(), fromStart: true);
+            EnsureAudio();
+        }
     }
 
     bool ShowingThis => engine.Effect == Effects.Animation && current is not null && Effects.Animation.Animation?.Name == current;
@@ -292,6 +311,8 @@ sealed class AnimationsPanel : UserControl
         foreach (var frame in animation.Cleaned().Frames)
             frames.Add(new EditFrame { Cells = frame.ToCells(), Hold = frame.Hold, Fade = frame.Fade });
         if (frames.Count == 0) frames.Add(new EditFrame());
+        music = MusicReactions.Parse(animation.Music);
+        ShowMusic();
         ForgetHistory();
     }
 
@@ -386,6 +407,7 @@ sealed class AnimationsPanel : UserControl
     KeyAnimation ToAnimation() => new()
     {
         Name = current ?? "",
+        Music = MusicReactions.ToText(music),
         Frames = frames.Select(f => AnimationFrame.FromCells(f.Cells, f.Hold, f.Fade)).ToList(),
     };
 
@@ -500,6 +522,39 @@ sealed class AnimationsPanel : UserControl
         if (isHold) frames[selected].Hold = (double)seconds;
         else frames[selected].Fade = (double)seconds;
         Edited();
+    }
+
+    /// <summary>Changes how the animation follows the music. What the keyboard is doing (playing or one still frame) carries on.</summary>
+    void SetMusic(MusicReaction reaction)
+    {
+        if (current is null || reaction == music) return;
+        music = reaction;
+        ShowMusic();
+        ShowSelected();
+        if (ShowingThis)
+        {
+            Effects.Animation.Show(Compile(), Effects.Animation.PinnedFrame);
+            useAnimation();   // starts listening, or stops when nothing needs it any more
+        }
+        saveTimer.Stop();
+        saveTimer.Start();
+    }
+
+    void ShowMusic()
+    {
+        int index = Math.Max(Array.FindIndex(MusicChoices, c => c.Reaction == music), 0);
+        bool was = loading;
+        loading = true;
+        musicPicker.SelectedIndex = index;
+        loading = was;
+        musicNote.Text = MusicChoices[index].Note;
+        musicNote.IsVisible = music != MusicReaction.None;
+    }
+
+    /// <summary>A music animation that plays needs the app listening; one frame held still for editing doesn't.</summary>
+    void EnsureAudio()
+    {
+        if (engine.Effect == Effects.Animation && Effects.Animation.UsesAudio && engine.Audio is null) useAnimation();
     }
 
     void ApplyTimesToAll()
@@ -649,6 +704,7 @@ sealed class AnimationsPanel : UserControl
         {
             Effects.Animation.Show(Compile(), fromStart: true);
             if (engine.Effect != Effects.Animation) useAnimation();
+            else EnsureAudio();
             if (!engine.OutputEnabled) Problem("The keyboard is set to Preview only, so it plays here but not on the keys.");
             foreach (var (card, _, _) in thumbs) card.BorderBrush = Unselected;
             playTimer.Start();
@@ -671,7 +727,7 @@ sealed class AnimationsPanel : UserControl
         for (int i = 0; i < thumbs.Count; i++) thumbs[i].Card.BorderBrush = i == selected ? Accent : Unselected;
     }
 
-    CompiledAnimation Compile() => new(current ?? "", frames.Select(f => (f.Cells, f.Hold, f.Fade)).ToList());
+    CompiledAnimation Compile() => new(current ?? "", frames.Select(f => (f.Cells, f.Hold, f.Fade)).ToList(), music);
 
     void ShowSelected()
     {
@@ -683,8 +739,9 @@ sealed class AnimationsPanel : UserControl
         loading = false;
         if (any)
         {
-            double length = Compile().Length;
-            summary.Text = $"Frame {selected + 1} of {frames.Count}   ·   one loop takes {length:0.##} s at normal speed";
+            summary.Text = music == MusicReaction.Beat
+                ? $"Frame {selected + 1} of {frames.Count}   ·   one frame per beat"
+                : $"Frame {selected + 1} of {frames.Count}   ·   one loop takes {Compile().Length:0.##} s at normal speed";
         }
     }
 

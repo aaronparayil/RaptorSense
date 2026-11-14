@@ -1,6 +1,39 @@
+using System.Text.Json.Serialization;
+using RaptorSense.Audio;
 using RaptorSense.Layout;
 
 namespace RaptorSense.Lighting;
+
+/// <summary>How an animation follows the music the computer is playing.</summary>
+public enum MusicReaction
+{
+    /// <summary>It doesn't: frames play at their own times.</summary>
+    None,
+
+    /// <summary>Each beat moves to the next frame.</summary>
+    Beat,
+
+    /// <summary>It plays faster the louder the music is.</summary>
+    Speed,
+
+    /// <summary>It plays at its own times and its brightness follows the bass.</summary>
+    Pulse,
+}
+
+public static class MusicReactions
+{
+    /// <summary>Reads the word stored in an animation file. Anything unknown means no reaction.</summary>
+    public static MusicReaction Parse(string? text) => text?.Trim().ToLowerInvariant() switch
+    {
+        "beat" => MusicReaction.Beat,
+        "speed" => MusicReaction.Speed,
+        "pulse" => MusicReaction.Pulse,
+        _ => MusicReaction.None,
+    };
+
+    /// <summary>The word to store, or null for no reaction (so files without one stay as they were).</summary>
+    public static string? ToText(MusicReaction reaction) => reaction == MusicReaction.None ? null : reaction.ToString().ToLowerInvariant();
+}
 
 /// <summary>One picture of an animation: painted keys, how long it stays, and how long it takes to fade into the next.</summary>
 public sealed record AnimationFrame
@@ -53,9 +86,13 @@ public sealed record KeyAnimation
 
     public IReadOnlyList<AnimationFrame> Frames { get; init; } = [];
 
+    /// <summary>How it follows the music: "beat", "speed" or "pulse" (see <see cref="MusicReaction"/>). Left out when it doesn't.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Music { get; init; }
+
     /// <summary>Turns the frames into colour arrays once, so playing costs one blend of 128 colours per frame drawn.</summary>
     public CompiledAnimation Compile() =>
-        new(Name ?? "", (Frames ?? []).OfType<AnimationFrame>().Take(MaxFrames).Select(f => (f.ToCells(), f.Hold, f.Fade)).ToList());
+        new(Name ?? "", (Frames ?? []).OfType<AnimationFrame>().Take(MaxFrames).Select(f => (f.ToCells(), f.Hold, f.Fade)).ToList(), MusicReactions.Parse(Music));
 
     /// <summary>
     /// The same animation with only what RaptorSense understands: known keys, valid colours, times in range and at most
@@ -64,6 +101,7 @@ public sealed record KeyAnimation
     public KeyAnimation Cleaned() => this with
     {
         Name = Name ?? "",
+        Music = MusicReactions.ToText(MusicReactions.Parse(Music)),
         Frames = (Frames ?? []).OfType<AnimationFrame>().Take(MaxFrames)
             .Select(f => AnimationFrame.FromCells(f.ToCells(), AnimationFrame.CleanSeconds(f.Hold, AnimationFrame.MaxHold), AnimationFrame.CleanSeconds(f.Fade, AnimationFrame.MaxFade)))
             .ToList(),
@@ -79,9 +117,10 @@ public sealed class CompiledAnimation
     readonly Rgb[][] frames;
     readonly double[] starts, holds, fades;
 
-    public CompiledAnimation(string name, IReadOnlyList<(Rgb[] Cells, double Hold, double Fade)> frames)
+    public CompiledAnimation(string name, IReadOnlyList<(Rgb[] Cells, double Hold, double Fade)> frames, MusicReaction music = MusicReaction.None)
     {
         Name = name;
+        Music = music;
         int count = frames.Count;
         this.frames = new Rgb[count][];
         starts = new double[count];
@@ -102,6 +141,8 @@ public sealed class CompiledAnimation
     }
 
     public string Name { get; }
+
+    public MusicReaction Music { get; }
 
     public int Count => frames.Length;
 
@@ -137,19 +178,59 @@ public sealed class CompiledAnimation
         if (index < 0 || index >= Count) return;
         for (int cell = 0; cell < Frame.CellCount; cell++) target[cell] = frames[index][cell];
     }
+
+    /// <summary>Seconds frame <paramref name="index"/> takes to fade into the next.</summary>
+    public double FadeOf(int index) => index >= 0 && index < Count ? fades[index] : 0;
+
+    /// <summary>Draws the colours in <paramref name="from"/> turning into frame <paramref name="index"/>: 0 is all <paramref name="from"/>, 1 is the frame.</summary>
+    public void RenderBlend(Frame target, ReadOnlySpan<Rgb> from, int index, double blend)
+    {
+        if (index < 0 || index >= Count) return;
+        var to = frames[index];
+        if (blend >= 1 || from.Length < Frame.CellCount)
+        {
+            for (int cell = 0; cell < Frame.CellCount; cell++) target[cell] = to[cell];
+            return;
+        }
+        blend = Math.Max(blend, 0);
+        for (int cell = 0; cell < Frame.CellCount; cell++)
+            target[cell] = from[cell] == to[cell] ? to[cell] : Rgb.Lerp(from[cell], to[cell], blend);
+    }
 }
 
-/// <summary>Plays the animation built in the Animations tab.</summary>
+/// <summary>
+/// Plays the animation built in the Animations tab. An animation can follow the music: step on each beat, play
+/// faster when it is louder, or pulse with the bass (see <see cref="MusicReaction"/>).
+/// </summary>
 public sealed class AnimationEffect : IEffect
 {
+    const int Bands = 16;
+
+    /// <summary>With <see cref="MusicReaction.Speed"/>: how fast it plays in silence and at full level, as a multiple of normal.</summary>
+    public const double SlowestRate = 0.25, FastestRate = 2.5;
+
+    /// <summary>With <see cref="MusicReaction.Pulse"/>: the brightness left when there is no bass.</summary>
+    public const double DimmestPulse = 0.2;
+
+    // How quickly the speed follows the level, so it surges with the music instead of twitching.
+    const double LevelSeconds = 0.15;
+
     // Written by the UI thread, read by the engine thread.
     volatile CompiledAnimation? animation;
     volatile int pinned = -1;
     volatile bool restart = true;
-    double startedAt;
+
+    // Engine thread only.
+    readonly BeatDetector beats = new();
+    readonly Rgb[] shown = new Rgb[Frame.CellCount], from = new Rgb[Frame.CellCount];
+    double position, lastTime, level, sinceStep, stepFade;
+    int step;
 
     public string Id => "animation";
     public string Name => "Your animation";
+
+    /// <summary>True while the animation it shows follows the music, so audio capture is needed.</summary>
+    public bool UsesAudio => animation is { Music: not MusicReaction.None };
 
     /// <summary>What plays, or null for nothing (all keys off).</summary>
     public CompiledAnimation? Animation => animation;
@@ -172,10 +253,63 @@ public sealed class AnimationEffect : IEffect
     {
         var current = animation;
         if (current is null) return;
-        if (restart) { startedAt = ctx.Time; restart = false; }
+        if (restart)
+        {
+            restart = false;
+            position = 0;
+            step = 0;
+            stepFade = 0;
+            lastTime = ctx.Time;
+            beats.Reset();
+        }
+        double elapsed = Math.Max(ctx.Time - lastTime, 0);   // already scaled by the speed setting
+        lastTime = ctx.Time;
+
         int still = pinned;
-        if (still >= 0) current.RenderFrame(frame, still);
-        else current.Render(frame, ctx.Time - startedAt);
+        if (still >= 0) { current.RenderFrame(frame, still); return; }
+        if (current.Count == 0) return;
+
+        // Without audio capture (another system, or it could not start) it simply plays at its own times.
+        var audio = ctx.Audio;
+        switch (audio is null ? MusicReaction.None : current.Music)
+        {
+            case MusicReaction.Beat:
+                audio!.GetBands(Bands);
+                step %= current.Count;   // the editor may have swapped in a shorter animation
+                if (beats.Update(audio.Bass, ctx.DeltaTime))
+                {
+                    // Fade from whatever is on the keys now, so a beat landing mid-fade never jumps.
+                    stepFade = current.FadeOf(step);
+                    shown.CopyTo(from, 0);
+                    step = (step + 1) % current.Count;
+                    sinceStep = 0;
+                }
+                else sinceStep += elapsed;
+                current.RenderBlend(frame, from, step, stepFade <= 0 ? 1 : sinceStep / stepFade);
+                for (int cell = 0; cell < Frame.CellCount; cell++) shown[cell] = frame[cell];
+                break;
+
+            case MusicReaction.Speed:
+                audio!.GetBands(Bands);
+                level += (audio.Level - level) * (1 - Math.Exp(-ctx.DeltaTime / LevelSeconds));
+                position += elapsed * (SlowestRate + (FastestRate - SlowestRate) * Math.Clamp(level, 0, 1));
+                current.Render(frame, position);
+                break;
+
+            case MusicReaction.Pulse:
+                audio!.GetBands(Bands);
+                position += elapsed;
+                current.Render(frame, position);
+                double brightness = DimmestPulse + (1 - DimmestPulse) * Math.Clamp(audio.Bass, 0, 1);
+                for (int cell = 0; cell < Frame.CellCount; cell++)
+                    if (frame[cell] != Rgb.Black) frame[cell] = frame[cell].Scale(brightness);
+                break;
+
+            default:
+                position += elapsed;
+                current.Render(frame, position);
+                break;
+        }
     }
 }
 

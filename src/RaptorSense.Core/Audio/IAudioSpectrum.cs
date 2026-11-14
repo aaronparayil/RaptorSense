@@ -8,4 +8,7 @@ public interface IAudioSpectrum : IDisposable
 
     /// <summary>Bass level 0..1, from the most recent <see cref="GetBands"/> call.</summary>
     float Bass { get; }
+
+    /// <summary>Overall level 0..1, from the most recent <see cref="GetBands"/> call.</summary>
+    float Level { get; }
 }
