@@ -29,10 +29,20 @@ static class Program
         using var showRequests = OperatingSystem.IsWindows() ? new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName) : null;
         App.ShowRequests = showRequests;
         App.StartHidden = args.Contains(Autostart.MinimizedArgument);
-        return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
+        return BuildAvaloniaApp(AppearanceSettings.UseGraphicsCard).StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
     }
 
-    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace();
+    /// <summary>
+    /// The window is drawn on the processor unless <paramref name="useGraphicsCard"/>. Drawing with the graphics
+    /// card costs about 100 MB of memory for as long as the app runs, even in the tray with no window to draw, and
+    /// this window is small, flat and usually closed. The price is more processor time while the window is open and
+    /// something on it moves.
+    /// </summary>
+    public static AppBuilder BuildAvaloniaApp(bool useGraphicsCard = false)
+    {
+        var builder = AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace();
+        return useGraphicsCard ? builder : builder.With(new Win32PlatformOptions { RenderingMode = [Win32RenderingMode.Software] });
+    }
 }
 
 sealed class App : Application

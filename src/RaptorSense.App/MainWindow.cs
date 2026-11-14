@@ -476,6 +476,15 @@ sealed class MainWindow : Window, IAutomationTarget
         }
         panel.Children.Add(presets);
 
+        var drawingHeading = Look.Heading("Drawing");
+        drawingHeading.Margin = new Thickness(0, 10, 0, 0);
+        panel.Children.Add(drawingHeading);
+        var graphicsCard = new CheckBox { Content = "Draw this window with the graphics card", IsChecked = AppearanceSettings.UseGraphicsCard };
+        graphicsCard.IsCheckedChanged += (_, _) => AppearanceSettings.UseGraphicsCard = graphicsCard.IsChecked == true;
+        panel.Children.Add(graphicsCard);
+        panel.Children.Add(Look.Note("Off keeps memory low. On can be smoother on a very large screen, but uses about 100 MB more. " +
+                                     "It changes the next time RaptorSense starts."));
+
         var about = Look.Heading("About");
         about.Margin = new Thickness(0, 10, 0, 0);
         panel.Children.Add(about);
@@ -635,6 +644,7 @@ sealed class MainWindow : Window, IAutomationTarget
 
     void RefreshPreview()
     {
+        if (WindowState == WindowState.Minimized) return;   // nothing of it is on screen
         engine.CopyLatestFrame(preview);
         keyboard.Show(preview.Cells);
 
@@ -686,9 +696,19 @@ sealed class MainWindow : Window, IAutomationTarget
             e.Cancel = true;
             SaveLast();
             Hide();
+            ReleaseMemorySoon();
         }
         base.OnClosing(e);
     }
+
+    /// <summary>
+    /// With the window out of sight, hands back the memory that showing it needed: one full, compacting collection
+    /// a moment after it closes. It runs only then, never while the app just sits in the tray.
+    /// </summary>
+    void ReleaseMemorySoon() => DispatcherTimer.RunOnce(() =>
+    {
+        if (!IsVisible) GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+    }, TimeSpan.FromSeconds(2));
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {

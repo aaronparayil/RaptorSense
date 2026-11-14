@@ -78,8 +78,6 @@ static class Look
     // The brightest the middle of the background may be: any brighter and the light text gets hard to read.
     const double MaxGlow = 0.42;
 
-    static string BackgroundPath => Path.Combine(RaptorSense.Profiles.ProfileStore.Root, "appearance.json");
-
     /// <summary>The background colour as the user chose it (before it is toned down).</summary>
     public static Color Background { get; private set; } = DefaultBackground;
 
@@ -104,26 +102,12 @@ static class Look
     /// <summary>Uses the background saved last time, if there is one.</summary>
     public static void LoadBackground()
     {
-        try
-        {
-            if (!File.Exists(BackgroundPath)) return;
-            var saved = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(BackgroundPath));
-            if (saved is not null && saved.TryGetValue("Background", out var hex) && RaptorSense.Lighting.Rgb.TryParse(hex, out var c))
-                SetBackground(Color.FromRgb(c.R, c.G, c.B));
-        }
-        catch (Exception e) when (e is System.Text.Json.JsonException or IOException or UnauthorizedAccessException) { }
+        if (AppearanceSettings.Get("Background") is { } hex && RaptorSense.Lighting.Rgb.TryParse(hex, out var c))
+            SetBackground(Color.FromRgb(c.R, c.G, c.B));
     }
 
-    public static void SaveBackground()
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(BackgroundPath)!);
-            var hex = new RaptorSense.Lighting.Rgb(Background.R, Background.G, Background.B).ToString();
-            File.WriteAllText(BackgroundPath, System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> { ["Background"] = hex }));
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
-    }
+    public static void SaveBackground() =>
+        AppearanceSettings.Set("Background", new RaptorSense.Lighting.Rgb(Background.R, Background.G, Background.B).ToString());
 
     static IBrush BackgroundBrush(Color glow) => new RadialGradientBrush
     {

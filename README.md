@@ -39,7 +39,8 @@ Created by [aaronparayil](https://github.com/aaronparayil). Free and open source
 - **Automations.** Rules such as "while this game is open, use my gaming profile, Turbo and Max fans", which put
   everything back when they end.
 - **Light on the laptop.** No admin rights for lighting, no accounts, no telemetry. It sits in the tray and stops
-  drawing its window while that is closed.
+  drawing its window while that is closed. It doesn't use the graphics card, and needs about 35 MB of memory when
+  it starts in the tray (about 70 MB once the window has been opened).
 
 ## See it in action
 
@@ -121,7 +122,13 @@ doing, and the name of the effect is above it.
   last setup when it starts.
 
 The round **i** button at the top right opens a small panel with the keyboard connection, the frame rates, a choice
-of background colours for the window, and the version. Profiles are readable JSON files in
+of background colours for the window, and the version. It also has a **Drawing** switch. RaptorSense draws its
+window on the processor, which keeps memory low and leaves the graphics card alone; while the window is open with
+an effect playing, that takes about 40% of one processor core on the Helios 16. Switching it on draws the window
+with the graphics card: lighter on the processor and smoother on a very large screen, for about 100 MB more
+memory. It changes the next time RaptorSense starts.
+
+Profiles are readable JSON files in
 `%APPDATA%\RaptorSense\profiles`. Painted keys are stored by name (`"W": "FF0000"`), so profiles can be shared and
 edited by hand.
 
