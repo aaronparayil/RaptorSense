@@ -36,8 +36,9 @@ Created by [aaronparayil](https://github.com/aaronparayil). Free and open source
   step on the beat, speed up when it gets loud, or pulse with the bass.
 - **Fans and power.** Power profiles, fan speeds (Auto, Max or your own), live temperatures, the rear light bar,
   and battery cycles and health.
-- **Automations.** Rules such as "while this game is open, use my gaming profile, Turbo and Max fans", which put
-  everything back when they end.
+- **Automations.** Rules such as "while this game is open, use my gaming profile, Turbo and Max fans", "while
+  sound is playing, use my music profile" or "lights off after five minutes untouched", which put everything back
+  when they end.
 - **Light on the laptop.** No admin rights for lighting, no accounts, no telemetry. It sits in the tray and stops
   drawing its window while that is closed. It doesn't use the graphics card, and needs about 35 MB of memory when
   it starts in the tray (about 70 MB once the window has been opened).
@@ -105,7 +106,7 @@ animations and rules are kept. Coming from 1.2 or later, you don't need to insta
 | Power profiles, fans (Auto / Max / Custom) and live temperatures | Works; needs fan control installed |
 | Rear light bar: a colour per zone, brightness, and its 6 built-in animations | Works; needs fan control installed. No live effects or music sync on it yet |
 | Battery: charge cycles and health, from Windows' battery driver | Works |
-| Automations: when an app is open, or on battery or plugged in, switch the lighting profile, power mode and fans, then put them back | Works; power mode and fans need fan control installed |
+| Automations: when an app is open, on battery or plugged in, while sound is playing, after some minutes untouched, or while the screen is off, switch the lighting profile, power mode and fans, then put them back | Works; power mode and fans need fan control installed. The screen-off rule has not been tried on a real screen yet |
 | PREDATOR key | Planned |
 | Linux | Planned |
 
@@ -172,6 +173,21 @@ RaptorSense doesn't recognise is dropped.
 
 The **Automations** tab holds rules such as "while VALORANT is open, use my gaming profile, Turbo and Max fans" or
 "on battery, use Eco and a dim profile".
+
+A rule can start when:
+
+- **An app is open**, **On battery** or **Plugged in**.
+- **Sound is playing.** Pair it with a profile that uses a music effect, and the keyboard dances while something
+  plays and goes back to your usual lighting when it stops. Sound counts as playing after three seconds of it, so
+  a notification chime doesn't count, and as stopped after fifteen seconds of silence, so the gap between two songs
+  doesn't end it. The volume setting makes no difference.
+- **Nothing is touched for** a number of minutes: no key, mouse or touchpad use. A film you are only watching
+  counts as untouched. The rule ends within a quarter of a second of you coming back.
+- **The screen is off**, which follows the screen timeout you set in Windows.
+
+Under **Lighting profile**, **Lights off** turns every key dark without you having to save a profile for it. It
+leaves the brightness setting and the light bar alone; to switch the light bar off too, save a profile with the
+bar off and pick that instead.
 
 - When a rule ends, everything goes back to how it was before it started, including anything you changed by hand in between.
 - If two rules set the same thing, the higher one in the list wins. Each setting is decided on its own, so a lower rule can still set what the higher one leaves alone.
@@ -240,6 +256,12 @@ per frequency. Nothing is recorded, and it stops listening when no such effect i
 Automations that name an app need to know which program is in front. RaptorSense reads only the program's name, compares
 it with your rules and forgets it. It doesn't read window titles, or keep a list of what you run. This watching exists only
 while such a rule is switched on. See `src/RaptorSense.Core/Automation/ForegroundAppWatcher.cs`.
+
+A "Sound is playing" rule reads one number twice a second: how loud the PC's sound output is, from the meter Windows
+keeps for its volume mixer. It doesn't listen to the sound, and can't tell what is playing or which app plays it.
+A "Nothing is touched" rule asks Windows how long ago a key or the mouse was last used; it doesn't see which key,
+and nothing is hooked. Both exist only while such a rule is switched on. See
+`src/RaptorSense.Core/Audio/OutputMeter.cs` and `src/RaptorSense.Core/Automation/InputIdle.cs`.
 
 ## Build from source
 

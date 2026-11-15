@@ -29,6 +29,9 @@ public sealed class AutomationController(IAutomationTarget target)
 {
     const int DefaultFanPercent = 50;   // only used if a hand-edited rule asks for Custom
 
+    /// <summary>Every key dark. The brightness and the light bar are left as they are.</summary>
+    static readonly Profile LightsOff = new() { Name = AutomationRule.LightsOff, Effect = "static", Color = "000000" };
+
     AutomationOutcome desired, applied;
     bool running;
     PowerProfile? powerBefore;
@@ -86,7 +89,7 @@ public sealed class AutomationController(IAutomationTarget target)
             return;
         }
 
-        if (target.LoadProfile(wanted) is not { } profile)
+        if ((target.LoadProfile(wanted) ?? (wanted == AutomationRule.LightsOff ? LightsOff : null)) is not { } profile)
         {
             LastProblem = $"The profile '{wanted}' no longer exists.";
             return;

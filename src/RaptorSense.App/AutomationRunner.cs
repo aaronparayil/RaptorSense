@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Avalonia.Threading;
+using RaptorSense.Audio;
 using RaptorSense.Automation;
 using RaptorSense.Profiles;
 
@@ -7,19 +8,26 @@ namespace RaptorSense.App;
 
 /// <summary>
 /// Watches what the rules depend on and applies them. To stay light it only watches what the current rules need, gets
-/// told about changes by Windows, and only checks whether an app has closed while one of the named apps is open.
+/// told about changes by Windows where it can, only checks whether an app has closed while one of the named apps is
+/// open, and only looks at the idle time when a rule could be about to start or end.
 /// </summary>
 sealed class AutomationRunner : IDisposable
 {
     static readonly TimeSpan ClosedAppCheck = TimeSpan.FromSeconds(5);
+    static readonly TimeSpan SoundCheck = TimeSpan.FromMilliseconds(500);
     static readonly TimeSpan QuitWait = TimeSpan.FromSeconds(2);
 
     readonly AutomationController controller;
     readonly AppTracker tracker = new(IsRunning);
-    readonly DispatcherTimer closedApps;
+    readonly DispatcherTimer closedApps, soundTimer, idleTimer;
+    readonly SoundDetector sound = new();
     ForegroundAppWatcher? foreground;
     PowerSourceWatcher? powerSource;
-    bool onBattery;
+    ScreenWatcher? screen;
+    OutputMeter? meter;
+    List<TimeSpan> idleLimits = [];
+    TimeSpan idle;
+    bool onBattery, screenOff;
     string? saveProblem;
 
     public AutomationRunner(IAutomationTarget target)
@@ -31,11 +39,15 @@ sealed class AutomationRunner : IDisposable
             if (tracker.Sweep()) Evaluate();
         });
         closedApps.Stop();
+        soundTimer = new DispatcherTimer(SoundCheck, DispatcherPriority.Background, (_, _) => CheckSound());
+        soundTimer.Stop();
+        idleTimer = new DispatcherTimer(IdleSchedule.WhileIdle, DispatcherPriority.Background, (_, _) => CheckIdle());
+        idleTimer.Stop();
     }
 
     public AutomationSettings Settings { get; private set; } = AutomationStore.Load();
 
-    public AutomationState State => new(tracker.Open, onBattery);
+    public AutomationState State => new(tracker.Open, onBattery, sound.Playing, idle, screenOff);
 
     /// <summary>The lighting to save as the user's own setup while a rule is showing its lighting, or null.</summary>
     public Profile? LightingBefore => controller.LightingBefore;
@@ -73,6 +85,9 @@ sealed class AutomationRunner : IDisposable
         var rules = Settings.Enabled ? Settings.Rules.Where(r => r.Enabled).ToList() : [];
         var apps = rules.Where(r => r.Trigger == AutomationTrigger.AppOpen && r.AppName.Length > 0).Select(r => r.AppName).ToList();
         bool needsPowerSource = rules.Any(r => r.Trigger is AutomationTrigger.OnBattery or AutomationTrigger.PluggedIn);
+        bool needsSound = rules.Any(r => r.Trigger == AutomationTrigger.SoundPlaying);
+        bool needsScreen = rules.Any(r => r.Trigger == AutomationTrigger.ScreenOff);
+        idleLimits = rules.Where(r => r.Trigger == AutomationTrigger.Idle).Select(r => r.IdleAfter).Distinct().ToList();
 
         if (OperatingSystem.IsWindows())
         {
@@ -106,10 +121,64 @@ sealed class AutomationRunner : IDisposable
                 powerSource.Dispose();
                 powerSource = null;
             }
+
+            if (needsScreen && screen is null)
+            {
+                screen = new ScreenWatcher();   // tells the current state a moment later; until then the screen counts as on
+                screen.Changed += off => Dispatcher.UIThread.Post(() =>
+                {
+                    if (off == screenOff || screen is null) return;
+                    screenOff = off;
+                    Evaluate();
+                });
+            }
+            else if (!needsScreen && screen is not null)
+            {
+                screen.Dispose();
+                screen = null;
+                screenOff = false;
+            }
+
+            if (needsSound && meter is null)
+            {
+                meter = new OutputMeter();
+                soundTimer.Start();
+            }
+            else if (!needsSound && meter is not null)
+            {
+                soundTimer.Stop();
+                meter.Dispose();
+                meter = null;
+                sound.Reset();
+            }
+
+            if (idleLimits.Count > 0) CheckIdle(evaluate: false);
+            else
+            {
+                idleTimer.Stop();
+                idle = TimeSpan.Zero;
+            }
         }
 
         tracker.Watch(apps);
         Evaluate();
+    }
+
+    void CheckSound()
+    {
+        if (meter is not null && OperatingSystem.IsWindows() && sound.Update(meter.Peak(), SoundCheck)) Evaluate();
+    }
+
+    // Looks at the idle time only when it matters: at the moment the first rule could start, then four times a second
+    // until the user is back.
+    void CheckIdle(bool evaluate = true)
+    {
+        if (!OperatingSystem.IsWindows() || idleLimits.Count == 0) return;
+        int reachedBefore = idleLimits.Count(limit => idle >= limit);
+        idle = InputIdle.Time;
+        idleTimer.Interval = IdleSchedule.NextCheck(idle, idleLimits);
+        idleTimer.Start();
+        if (evaluate && idleLimits.Count(limit => idle >= limit) != reachedBefore) Evaluate();
     }
 
     void Evaluate()
@@ -131,10 +200,14 @@ sealed class AutomationRunner : IDisposable
     public void Dispose()
     {
         closedApps.Stop();
+        soundTimer.Stop();
+        idleTimer.Stop();
         if (OperatingSystem.IsWindows())
         {
             foreground?.Dispose();
             powerSource?.Dispose();
+            screen?.Dispose();
+            meter?.Dispose();
         }
         // On a pool thread: the calls continue without needing the UI thread that is waiting here.
         try { Task.Run(controller.RestoreHelperSettingsAsync).Wait(QuitWait); }

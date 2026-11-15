@@ -9,13 +9,20 @@ using RaptorSense.Thermal;
 
 namespace RaptorSense.App;
 
-/// <summary>Rules that switch the lighting, power mode and fans when an app opens or the power source changes.</summary>
+/// <summary>
+/// Rules that switch the lighting, power mode and fans when an app opens, the power source changes, sound plays, the
+/// laptop is left alone or its screen turns off.
+/// </summary>
 sealed class AutomationsPanel : UserControl
 {
     const string NoChange = "No change";
 
-    static readonly string[] TriggerNames = ["An app is open", "On battery", "Plugged in"];
-    static readonly AutomationTrigger[] Triggers = [AutomationTrigger.AppOpen, AutomationTrigger.OnBattery, AutomationTrigger.PluggedIn];
+    static readonly string[] TriggerNames = ["An app is open", "On battery", "Plugged in", "Sound is playing", "Nothing is touched for", "The screen is off"];
+    static readonly AutomationTrigger[] Triggers =
+    [
+        AutomationTrigger.AppOpen, AutomationTrigger.OnBattery, AutomationTrigger.PluggedIn,
+        AutomationTrigger.SoundPlaying, AutomationTrigger.Idle, AutomationTrigger.ScreenOff,
+    ];
     static readonly PowerProfile[] PowerModes = Enum.GetValues<PowerProfile>();
     static readonly FanMode[] FanModes = [FanMode.Auto, FanMode.Max];
 
@@ -60,7 +67,10 @@ sealed class AutomationsPanel : UserControl
         page.Children.Add(problem);
         page.Children.Add(Look.Note(
             "An app counts as open from when it is running until it closes, so switching to another window doesn't end the rule. " +
-            "Power mode and fans need fan control installed. RaptorSense only looks for the apps you name here, and nothing leaves your laptop."));
+            "Sound counts as playing after three seconds of it and as stopped after fifteen seconds of silence, whatever the volume is set to. " +
+            "\"Nothing is touched\" means no key, mouse or touchpad use, so a film you are only watching counts too. " +
+            "Power mode and fans need fan control installed. RaptorSense only looks for the apps you name here, reads how loud the " +
+            "sound is but never the sound itself, and nothing leaves your laptop."));
         Content = new ScrollViewer { Content = page };
 
         runner.Changed += ShowState;
@@ -95,9 +105,15 @@ sealed class AutomationsPanel : UserControl
         var app = new TextBox { Text = rule.App, PlaceholderText = "App name, e.g. VALORANT", Width = 220 };
         var runningApps = new ComboBox { PlaceholderText = "Choose a running app", MinWidth = 190 };
         var appControls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { app, runningApps }, IsVisible = rule.Trigger == AutomationTrigger.AppOpen };
+        var minutes = new NumericUpDown
+        {
+            Minimum = AutomationRule.MinIdleMinutes, Maximum = AutomationRule.MaxIdleMinutes, Increment = 1, FormatString = "0",
+            Value = (decimal)rule.IdleAfter.TotalMinutes, MinWidth = 120,
+        };
+        var idleControls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { minutes, Caption("minutes") }, IsVisible = rule.Trigger == AutomationTrigger.Idle };
 
-        var profiles = new List<string> { NoChange };
-        profiles.AddRange(ProfileStore.List());
+        var profiles = new List<string> { NoChange, AutomationRule.LightsOff };
+        profiles.AddRange(ProfileStore.List().Where(name => name != AutomationRule.LightsOff));
         if (rule.LightingProfile is { } chosen && !profiles.Contains(chosen)) profiles.Add(chosen);   // deleted since: keep it visible
         var lighting = new ComboBox { ItemsSource = profiles, SelectedItem = rule.LightingProfile ?? NoChange, MinWidth = 180 };
         var power = Picker(PowerModes, rule.Power);
@@ -115,7 +131,12 @@ sealed class AutomationsPanel : UserControl
         trigger.SelectionChanged += (_, _) =>
         {
             appControls.IsVisible = Triggers[trigger.SelectedIndex] == AutomationTrigger.AppOpen;
+            idleControls.IsVisible = Triggers[trigger.SelectedIndex] == AutomationTrigger.Idle;
             Replace(index, r => r with { Trigger = Triggers[trigger.SelectedIndex] });
+        };
+        minutes.ValueChanged += (_, _) =>
+        {
+            if (minutes.Value is { } value) Replace(index, r => r with { IdleMinutes = (int)value });
         };
         app.LostFocus += (_, _) =>
         {
@@ -148,6 +169,7 @@ sealed class AutomationsPanel : UserControl
         when.Children.Add(Caption("When"));
         when.Children.Add(trigger);
         when.Children.Add(appControls);
+        when.Children.Add(idleControls);
         when.Children.Add(active);
 
         var actions = new WrapPanel { Orientation = Orientation.Horizontal, ItemSpacing = 14, LineSpacing = 6 };
