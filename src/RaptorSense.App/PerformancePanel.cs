@@ -24,6 +24,13 @@ sealed class PerformancePanel : UserControl
     readonly Button apply = new() { Content = "Apply custom speeds" };
     readonly TextBlock safety = new() { Foreground = Look.Warning, TextWrapping = TextWrapping.Wrap, IsVisible = false };
     readonly StackPanel controls = new() { Spacing = 16 };
+    readonly StackPanel fanControls = new() { Spacing = 10 };
+    readonly Button setup = new() { Content = "Install fan control" };
+    readonly TextBlock setupNote = new() { TextWrapping = TextWrapping.Wrap, Foreground = Look.Muted };
+    readonly StackPanel setupRow = new() { Spacing = 8, IsVisible = false };
+    readonly string? helperExe = HelperSetup.Find();
+    string? setupResult;
+    bool installing;
     readonly TextBlock batteryCycles = Value(), batteryHealth = Value(), batteryNow = Value(), batteryNew = Value();
     readonly StackPanel batteryContent = new() { Spacing = 12 };
     readonly Border batterySection;
@@ -46,17 +53,22 @@ sealed class PerformancePanel : UserControl
         gpuSpeed.ValueChanged += (_, e) => gpuSpeedText.Text = $"GPU fan {e.NewValue:N0}%";
         apply.Click += async (_, _) => { await SendFans(FanMode.Custom); choosingCustom = false; };
 
-        var fans = new StackPanel { Spacing = 10 };
-        fans.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Children = { auto, max, custom } });
-        fans.Children.Add(cpuSpeedText);
-        fans.Children.Add(cpuSpeed);
-        fans.Children.Add(gpuSpeedText);
-        fans.Children.Add(gpuSpeed);
-        fans.Children.Add(apply);
-        fans.Children.Add(Look.Note(
+        setup.Click += async (_, _) => await InstallHelper();
+        setupRow.Children.Add(setup);
+        setupRow.Children.Add(setupNote);
+
+        fanControls.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Children = { auto, max, custom } });
+        fanControls.Children.Add(cpuSpeedText);
+        fanControls.Children.Add(cpuSpeed);
+        fanControls.Children.Add(gpuSpeedText);
+        fanControls.Children.Add(gpuSpeed);
+        fanControls.Children.Add(apply);
+        fanControls.Children.Add(Look.Note(
             $"Custom speeds are at least {FanController.MinCustomPercent}%. At {FanController.HotC} °C the fans go to Max until " +
             $"everything is below {FanController.CoolC} °C, and they return to Auto when the helper stops."));
-        fans.Children.Add(safety);
+        fanControls.Children.Add(safety);
+        // The install button stays usable while the controls are greyed out: it's how they become usable.
+        var fans = new StackPanel { Spacing = 14, Children = { setupRow, fanControls } };
         controls.Children.Add(Look.Card(profiles, "Power profile"));
         controls.Children.Add(Look.Card(fans, "Fans"));
 
@@ -81,7 +93,7 @@ sealed class PerformancePanel : UserControl
         page.Children.Add(new Grid { ColumnDefinitions = new ColumnDefinitions("1.4*,*"), Children = { controls, batterySection } });
         Content = new ScrollViewer { Content = page };
 
-        controls.IsEnabled = false;
+        profiles.IsEnabled = fanControls.IsEnabled = false;
         UpdateCustomEnabled();
         // Not the constructor that takes a callback: that one starts the timer straight away.
         timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
@@ -130,13 +142,45 @@ sealed class PerformancePanel : UserControl
         finally { busy = false; }
     }
 
+    async Task InstallHelper()
+    {
+        if (helperExe is null || installing) return;
+        installing = true;
+        setup.IsEnabled = false;
+        setupNote.Text = "Waiting for you to allow it in the Windows prompt…";
+        try { setupResult = await Task.Run(() => HelperSetup.Install(helperExe)); }
+        finally
+        {
+            installing = false;
+            setup.IsEnabled = true;
+        }
+        setupNote.Text = setupResult;
+        await Refresh();
+    }
+
+    void ShowSetup(ThermalStatus status, bool connected)
+    {
+        // Offered when the helper isn't there, or is older than this app. Only possible when the app has a helper to install.
+        bool missing = !connected && status.Error == ThermalClient.HelperMissing;
+        bool outdated = connected && status.HelperRevision < ThermalProtocol.HelperRevision;
+        setupRow.IsVisible = helperExe is not null && (missing || outdated || installing);
+        if (!setupRow.IsVisible) setupResult = null;   // done: an old result shouldn't greet the next time it's needed
+        if (!setupRow.IsVisible || installing) return;
+
+        setup.Content = outdated ? "Update fan control" : "Install fan control";
+        setupNote.Text = setupResult ?? (outdated
+            ? "The fan control installed is from an older RaptorSense. Updating it needs administrator rights once."
+            : "Fans, power modes and the light bar need a small helper service. Installing it needs administrator rights once.");
+    }
+
     void Show(ThermalStatus status)
     {
         bool connected = status.Reading is not null;
-        controls.IsEnabled = connected;
-        helperState.Text = connected
-            ? status.Ok ? "Connected to the RaptorSense helper." : $"The helper refused: {status.Error}"
-            : status.Error ?? ThermalClient.HelperMissing;
+        profiles.IsEnabled = fanControls.IsEnabled = connected && !status.ReadOnly;
+        ShowSetup(status, connected);
+        helperState.Text = !connected ? status.Error ?? ThermalClient.HelperMissing
+            : status.ReadOnly ? LaptopModels.Refusal(status.Model) + " The readings below may not be right on it either."
+            : status.Ok ? "Connected to the RaptorSense helper." : $"The helper refused: {status.Error}";
         if (!connected) return;
 
         var r = status.Reading!.Value;

@@ -12,6 +12,11 @@ Reference machine: Predator Helios 16 **PH16-71**, BIOS V1.18, PredatorSense 5.0
 - Administrator rights are required, even for the `Get*` methods.
 - Getters take a `UInt32` input; setters take a `UInt64`, except the LED/backlight ones, which use byte arrays.
 - Integer outputs: bits 0-7 are a status byte (0 = success, 1 and 2 seen for unsupported inputs), the value follows.
+- **Only the reference machine's encodings are known.** The class has the same name on other Acer gaming laptops,
+  but sensor ids, fan ids and setting values may differ. So the helper writes only on models listed in
+  `LaptopModels.Verified`, matched against `Win32_ComputerSystem.Model` (`Predator PH16-71` here, with
+  `SystemFamily` `Predator Helios 16`); elsewhere it only reads. To add a model, map it with the probe, check each
+  write by hand, then add its model code to that list.
 
 | ID | Method | ID | Method |
 |---:|---|---:|---|
