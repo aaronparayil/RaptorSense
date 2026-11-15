@@ -28,19 +28,34 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
     IReadOnlyList<PowerProfile> supported = [];
     PowerProfile? knownProfile;
     long profileReadAt;
+    string? model;
+    string? refusal;   // set on a laptop the helper only reads on
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
         using var wmi = AcerGamingWmi.Open();
-        firmware = wmi;
-        lightBar = wmi;
-        fans = new FanController(wmi);
+        model = LaptopModels.ReadModel();
+        if (LaptopModels.IsVerified(model))
+        {
+            firmware = wmi;
+            lightBar = wmi;
+        }
+        else
+        {
+            // Nothing that writes is handed out: the fan rules, the light bar and every request see only reads.
+            refusal = LaptopModels.Refusal(model);
+            firmware = new ReadOnlyFirmware(wmi, refusal);
+        }
+        fans = new FanController(firmware);
         lock (firmwareLock)
         {
-            supported = wmi.SupportedProfiles();
-            fans.RecoverOnStart();
+            supported = firmware.SupportedProfiles();
+            if (refusal is null) fans.RecoverOnStart();
         }
-        log.LogInformation("RaptorSense helper started. Profiles: {Profiles}", string.Join(", ", supported));
+        if (refusal is null)
+            log.LogInformation("RaptorSense helper started on {Model}. Profiles: {Profiles}", model, string.Join(", ", supported));
+        else
+            log.LogWarning("RaptorSense helper started on {Model}, which hasn't been tested: it only reads here.", LaptopModels.Describe(model));
 
         var pipe = ServePipeAsync(stop);
         try
@@ -115,6 +130,7 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
         if (request is null || firmware is null || fans is null) return ThermalStatus.Failed("Bad request.");
         lock (firmwareLock)
         {
+            if (refusal is not null && request.Command != "status") return Status(refusal) with { Ok = false };
             try
             {
                 switch (request.Command)
@@ -165,6 +181,9 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
         CpuPercent = fans.CpuPercent,
         GpuPercent = fans.GpuPercent,
         SafetyOverride = fans.SafetyOverride,
+        Model = model,
+        ReadOnly = refusal is not null,
+        HelperRevision = ThermalProtocol.HelperRevision,
     };
 
     // Called with the firmware lock held. A failed read is not kept, so the next reply tries again.

@@ -13,6 +13,12 @@ public static class ThermalProtocol
 {
     public const string PipeName = "RaptorSense.Thermal";
 
+    /// <summary>
+    /// Which helper this is. Raise it whenever the helper changes, so the app offers to update an installed one.
+    /// Helpers from before 1.8.5 send none, which reads as 0.
+    /// </summary>
+    public const int HelperRevision = 1;
+
     public static readonly JsonSerializerOptions Json = new()
     {
         Converters = { new JsonStringEnumConverter() },
@@ -111,6 +117,15 @@ public sealed record ThermalStatus
     public int GpuPercent { get; init; }
 
     public bool SafetyOverride { get; init; }
+
+    /// <summary>The laptop model the helper found, as Windows reports it.</summary>
+    public string? Model { get; init; }
+
+    /// <summary>True when the helper only reads on this laptop, because it isn't one of <see cref="LaptopModels.Verified"/>.</summary>
+    public bool ReadOnly { get; init; }
+
+    /// <summary>The helper's <see cref="ThermalProtocol.HelperRevision"/>; 0 from a helper older than 1.8.5.</summary>
+    public int HelperRevision { get; init; }
 
     public static ThermalStatus Failed(string error) => new() { Ok = false, Error = error };
 }

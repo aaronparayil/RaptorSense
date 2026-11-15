@@ -163,6 +163,7 @@ static int PrintThermal(ThermalStatus status)
         (status.FanMode == FanMode.Custom ? $" ({status.CpuPercent}% / {status.GpuPercent}%)" : "") +
         (status.SafetyOverride ? "  [safety: held at Max]" : ""));
     Console.WriteLine($"Power profile: {status.Profile} (supported: {string.Join(", ", status.SupportedProfiles)})");
+    if (status.ReadOnly && status.Ok) Console.WriteLine(LaptopModels.Refusal(status.Model));
     if (!status.Ok || status.Error is not null) Console.Error.WriteLine(status.Error);
     return status.Ok ? 0 : 1;
 }

@@ -57,8 +57,10 @@ Linux is planned.
 
 - **Lighting** looks for keyboards `04F2:0117`, `011A` and `0119`. If yours isn't one of these, the app says
   "Keyboard not found" and does nothing. A similar keyboard may have its keys mapped differently.
-- **Fans and power** use Acer's gaming firmware interface. **On any other model these are untested.** Firmware
-  differs between laptops, so watch your temperatures, and use them at your own risk.
+- **Fans, power modes and the light bar** use Acer's gaming firmware interface, and RaptorSense only changes them
+  on models that have been tested: so far the PH16-71. Firmware differs between laptops, so on any other model it
+  shows temperatures and fan speeds but changes nothing, until that model has been checked. The readings may be off
+  there too.
 
 RaptorSense comes with no warranty (see the [licence](LICENSE)). If you try it on another model, please
 [open an issue](https://github.com/aaronparayil/RaptorSense/issues) and say how it went, whether it worked or not.
@@ -73,11 +75,13 @@ The [probe](#other-laptops) helps add new models.
 The download isn't code-signed, so Windows may show "Windows protected your PC". Choose **More info**, then **Run anyway**.
 If you'd rather not trust a download, [build it yourself](#build-from-source).
 
-**For fan and power control**, double-click `Install fan control.cmd` once and accept the administrator prompt.
-Lighting works without this. See [Fans and power modes](#fans-and-power-modes) for what it installs.
+**For fan and power control**, open the **Performance** tab, press **Install fan control** under Fans and accept
+the administrator prompt. (Double-clicking `Install fan control.cmd` does the same.) Lighting works without this.
+See [Fans and power modes](#fans-and-power-modes) for what it installs.
 
 **To update:** quit RaptorSense from the tray, then extract the new zip over your old folder. Your profiles,
-animations and rules are kept. Coming from 1.2 or later, you don't need to install fan control again.
+animations and rules are kept. If the Performance tab then shows **Update fan control**, press it: the new version
+changed the helper too.
 
 **To uninstall:**
 
@@ -104,7 +108,7 @@ animations and rules are kept. Coming from 1.2 or later, you don't need to insta
 | A choice of nine background colours for the window | Works |
 | Tray icon: runs in the background, with profiles, pause and quit | Works |
 | Start with Windows (no admin needed), starts hidden with your last setup | Works |
-| Power profiles, fans (Auto / Max / Custom) and live temperatures | Works; needs fan control installed |
+| Power profiles, fans (Auto / Max / Custom) and live temperatures | Works; needs fan control installed (a button on the Performance tab). Changes nothing on models that haven't been tested |
 | Rear light bar: a colour per zone, brightness, and its 6 built-in animations | Works; needs fan control installed. No live effects or music sync on it yet |
 | Battery: charge cycles and health, from Windows' battery driver | Works |
 | Automations: when an app is open, on battery or plugged in, while sound is playing, after some minutes untouched, or while the screen is off, switch the lighting profile, power mode and fans, then put them back | Works; power mode and fans need fan control installed. The screen-off rule has not been tried on a real screen yet |
@@ -215,6 +219,9 @@ where only administrators can change it. Install again to update it to a newer v
 
 Safety rules, enforced by the helper (tests in `tests/RaptorSense.Tests`):
 
+- It changes fans, power profiles and the light bar only on tested models (`LaptopModels.Verified` in
+  `src/RaptorSense.Core/Thermal/LaptopModels.cs`, matched against the model Windows reports). On any other laptop
+  it only reads, and every change is refused before it reaches the firmware.
 - Custom fan speeds are at least 25 %.
 - At 90 °C in custom mode the fans go to Max until everything is below 80 °C.
 - If the sensors can't be read in custom mode, the fans go to Max.
@@ -313,7 +320,8 @@ powershell -ExecutionPolicy Bypass -File scripts\probe.ps1 -Label mymodel
 ```
 
 Run it from an administrator PowerShell. It only reads from the firmware and saves a JSON report to `reports\`.
-Check the report before sharing it, then open an issue and attach it.
+Check the report before sharing it, then open an issue and attach it. Until a model has been checked this way,
+RaptorSense only reads its fans and power mode.
 
 ## Licence
 
