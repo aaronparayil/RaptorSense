@@ -134,6 +134,46 @@ and `LIGHTBAR_REVERSE_ENGINEERING.md`), checked on this unit. Parameter sizes he
 - No handshake or mutex is needed. COM objects are thread-affine, so use one WMI instance per thread.
 - `GetGamingLED*` (ids 4, 11, 13) read all zeros or an error status on this laptop; the bar does not use them for reads.
 
+## Nitro 5 AN515-57: 4-zone keyboard (hypothesis, not yet seen)
+
+**Not checked on the laptop yet.** Gathered on 2026-11-15, before the AN515-57 arrived, from two Linux sources:
+[acer-predator-turbo-and-rgb-keyboard-linux-module](https://github.com/JafarAkhondali/acer-predator-turbo-and-rgb-keyboard-linux-module)
+(`src/facer.c`, `facer_rgb.py`; its table lists AN515-55, -56, -57 and -58 with RGB "tested"), and an RFC patch adding
+4-zone RGB for the AN515-58 to mainline `acer-wmi`
+([May 2026](https://patchew.org/linux/20260503062131.158944-1-dirgayuza123@gmail.com/); one review, no later version found).
+
+- **Where:** the same `AcerGamingFunction` interface (`WMID_GUID4`) as the Helios's light bar, not USB. So it needs
+  administrator rights on Windows, and lighting would go through the helper.
+- **Methods**, by the Linux numbering: 2 `SetGamingLED`, 4 `GetGamingLED`, 5 `GetGamingSysInfo`,
+  6 `SetGamingRgbKb` (static zone colour), 20 `SetGamingKBBacklight` (effects), 21 `GetGamingKBBacklight`.
+- **Turning the zones on**, once at start: `GetGamingSysInfo(0)`, then `SetGamingLED(8 | 15 << 40)` ("bit 3 enables
+  keyboard backlight update; bits 40-43 select the zones"). The module's comment says the sys-info read "appears to be
+  required to enable Nitro AN515-57". Note that 8 at bit 32 and the zone mask at bit 40 are exactly the extra bits the
+  Helios's light bar needs in its `SetGamingRgbKb` value.
+- **Static colour**, one call per zone: method 6 with the 4 bytes `zone-mask R G B` (masks 1, 2, 4, 8 from the left),
+  which as a `u64` is `mask | r << 8 | g << 16 | b << 24`: the packing that does **not** work for the Helios's bar.
+  `facer_rgb.py` then sends the effect buffer below with mode 0 and only the brightness and byte 9 = 1 set, to switch the
+  keyboard to static colours. No delays between calls in either source, and nothing reads a colour back.
+- **Effects**, method 20, 16 bytes: `[mode, speed 1-9, brightness 0-100, 8 for wave else 0, direction (1 right to left,
+  2 left to right), R, G, B, 0, 1, 0…]`. Modes 0 static, 1 breath, 2 neon, 3 wave, 4 shifting, 5 zoom.
+  The Helios's bar uses the same layout with bytes 8-9 = `3 2` and different mode numbers; perhaps bytes 8-9 select
+  the device. Untested guess.
+- **Brightness keys:** on the AN515-58, Fn+F9 / Fn+F10 (from the patch's notes, which say they send no release event on Linux).
+- **Not to copy:** the Linux module can set an embedded-controller flag (EC register 0x03, bit 4) that PredatorSense
+  is said to set on Windows. Writing EC registers directly is outside what RaptorSense does.
+
+On the Helios, Windows' `SetGamingLED` takes a 12-byte array, not a `u64`, so the turn-on call may need a different
+shape on Windows; the probe's list of method parameters will tell.
+
+Expected cost, from the Helios's light bar (about 18 ms per call, and firmware calls there stall the whole machine for
+a few milliseconds): four zone
+calls per frame would allow roughly 10 frames a second at best. So static colours, the firmware's own effects and
+slow changes look possible; 60 fps effects and quick music sync probably don't. Measure it on the laptop first.
+
+To check on the AN515-57: the keyboard's USB IDs (in case it is USB after all), whether the methods above exist under
+these names in Windows' `AcerGamingFunction`, the read-only `GetGamingKBBacklight` and `GetGamingLED` values with
+NitroSense's colours set, and then, with the owner's go-ahead, one static zone colour.
+
 ## Battery: Windows battery driver
 
 **Confirmed on Windows (2026-11-06), PH16-71, BIOS V1.18, battery AP21A8T**, without administrator rights:
