@@ -54,6 +54,7 @@ sealed class MainWindow : Window, IAutomationTarget
     readonly DispatcherTimer uiTimer;
     IAudioSpectrum? audio;
     IKeyPressSource? keyHook;
+    SpecialKeyWatcher? specialKeys;
     bool brightnessSynced;
     DateTime noticeUntil;
     bool shutDown;
@@ -150,6 +151,33 @@ sealed class MainWindow : Window, IAutomationTarget
         uiTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(33), DispatcherPriority.Render, (_, _) => RefreshPreview());
         uiTimer.Start();
         automations.Start();
+
+        if (OperatingSystem.IsWindows())
+        {
+            specialKeys = new SpecialKeyWatcher();
+            specialKeys.Pressed += key => Dispatcher.UIThread.Post(() =>
+            {
+                if (key == SpecialKey.Predator) OnPredatorKey();
+                else if (key is SpecialKey.BrightnessUp or SpecialKey.BrightnessDown) OnBrightnessKey(key == SpecialKey.BrightnessUp);
+            });
+        }
+    }
+
+    // The PREDATOR key opens the window, as it opens Acer's app. Pressed with the window already in front, it puts it
+    // back in the tray.
+    void OnPredatorKey()
+    {
+        if (shutDown) return;
+        if (IsVisible && IsActive && WindowState != WindowState.Minimized) Close();
+        else ShowFromTray();
+    }
+
+    // Fn+F11 and Fn+F12. The keyboard changes its own level when they are pressed, but the next frame would put the
+    // old one back, so the brightness here takes the same step. Moving the slider is what tells the engine.
+    void OnBrightnessKey(bool brighter)
+    {
+        if (shutDown || !brightnessSynced) return;
+        brightness.Value = BrightnessSteps.Next(engine.Brightness, brighter);
     }
 
     // ---- Automations ----
@@ -686,6 +714,7 @@ sealed class MainWindow : Window, IAutomationTarget
         Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
+        if (OperatingSystem.IsWindows() && TryGetPlatformHandle() is { } handle) WindowActivation.BringToFront(handle.Handle);
     }
 
     // Closing the window only hides it: the lighting keeps running from the tray. Quit is in the tray menu.
@@ -735,6 +764,7 @@ sealed class MainWindow : Window, IAutomationTarget
         automations.Dispose();
         uiTimer.Stop();
         keyHook?.Dispose();
+        if (OperatingSystem.IsWindows()) specialKeys?.Dispose();
         engine.Dispose();
         audio?.Dispose();
     }

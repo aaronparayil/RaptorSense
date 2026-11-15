@@ -36,6 +36,7 @@ Created by [aaronparayil](https://github.com/aaronparayil). Free and open source
   step on the beat, speed up when it gets loud, or pulse with the bass.
 - **Fans and power.** Power profiles, fan speeds (Auto, Max or your own), live temperatures, the rear light bar,
   and battery cycles and health.
+- **The keyboard's own keys.** The PREDATOR key opens RaptorSense, and Fn+F11 / Fn+F12 dim and brighten the keys.
 - **Automations.** Rules such as "while this game is open, use my gaming profile, Turbo and Max fans", "while
   sound is playing, use my music profile" or "lights off after five minutes untouched", which put everything back
   when they end.
@@ -107,7 +108,7 @@ animations and rules are kept. Coming from 1.2 or later, you don't need to insta
 | Rear light bar: a colour per zone, brightness, and its 6 built-in animations | Works; needs fan control installed. No live effects or music sync on it yet |
 | Battery: charge cycles and health, from Windows' battery driver | Works |
 | Automations: when an app is open, on battery or plugged in, while sound is playing, after some minutes untouched, or while the screen is off, switch the lighting profile, power mode and fans, then put them back | Works; power mode and fans need fan control installed. The screen-off rule has not been tried on a real screen yet |
-| PREDATOR key | Planned |
+| PREDATOR key opens the window; Fn+F11 / Fn+F12 change the brightness | Works |
 | Linux | Planned |
 
 ## Lighting
@@ -128,6 +129,11 @@ window on the processor, which keeps memory low and leaves the graphics card alo
 an effect playing, that takes about 40% of one processor core on the Helios 16. Switching it on draws the window
 with the graphics card: lighter on the processor and smoother on a very large screen, for about 100 MB more
 memory. It changes the next time RaptorSense starts.
+
+**Keys on the keyboard.** The **PREDATOR key** opens RaptorSense in front of whatever you're doing; pressed again
+with the window in front, it puts it back in the tray. **Fn+F11** and **Fn+F12** make the keys dimmer and brighter
+in the keyboard's own five steps, and the brightness slider follows. If PredatorSense is installed, the PREDATOR
+key opens that as well.
 
 Profiles are readable JSON files in
 `%APPDATA%\RaptorSense\profiles`. Painted keys are stored by name (`"W": "FF0000"`), so profiles can be shared and
@@ -249,6 +255,10 @@ Typing effects need a Windows keyboard hook. RaptorSense uses it only to learn *
 pressed: it reads the physical scan code, turns it into a lighting cell, and passes the key on untouched. It never
 looks at characters and never records or stores anything. The hook exists only while a typing effect is selected.
 See `src/RaptorSense.Core/Input/WindowsKeyHook.cs`.
+
+The PREDATOR key and the Fn brightness keys are announced by the keyboard on a channel of their own, separate from
+typing. RaptorSense listens only to that channel, which carries nothing else. See
+`src/RaptorSense.Core/Input/SpecialKeys.cs`.
 
 Music effects, and animations set to follow the music, read the audio your PC is playing to measure its loudness
 per frequency. Nothing is recorded, and it stops listening when no such effect is in use.

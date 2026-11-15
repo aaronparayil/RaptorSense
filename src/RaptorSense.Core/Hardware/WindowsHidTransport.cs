@@ -31,6 +31,41 @@ public sealed class WindowsHidTransport : IHidTransport
     /// <summary>Opens the first present collection with this vendor id, one of the product ids, and the usage page.</summary>
     public static WindowsHidTransport? Open(ushort vid, IReadOnlyList<ushort> pids, ushort usagePage)
     {
+        foreach (var (path, pid) in Collections(vid, pids))
+        {
+            var transport = TryOpen(path, vid, pid, usagePage);
+            if (transport is not null) return transport;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Opens the first present collection with this vendor id, one of the product ids, and the usage page, just to
+    /// read the reports it sends by itself. Null when there is none, or Windows keeps it to itself (as it does
+    /// with the collections that carry typing).
+    /// </summary>
+    public static InputReader? OpenInput(ushort vid, IReadOnlyList<ushort> pids, ushort usagePage)
+    {
+        foreach (var (path, _) in Collections(vid, pids))
+        {
+            HIDP_CAPS caps;
+            using (var peek = CreateFile(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero))
+            {
+                if (peek.IsInvalid || !HidD_GetPreparsedData(peek, out IntPtr preparsed)) continue;
+                try { HidP_GetCaps(preparsed, out caps); }
+                finally { HidD_FreePreparsedData(preparsed); }
+            }
+            if (caps.UsagePage != usagePage || caps.InputReportByteLength == 0) continue;
+            var handle = CreateFile(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
+            if (handle.IsInvalid) { handle.Dispose(); continue; }
+            return new InputReader(handle, caps.InputReportByteLength);
+        }
+        return null;
+    }
+
+    static List<(string Path, ushort Pid)> Collections(ushort vid, IReadOnlyList<ushort> pids)
+    {
+        var found = new List<(string, ushort)>();
         HidD_GetHidGuid(out Guid hidGuid);
         IntPtr set = SetupDiGetClassDevs(ref hidGuid, IntPtr.Zero, IntPtr.Zero, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
         if (set == new IntPtr(-1)) throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -43,14 +78,37 @@ public sealed class WindowsHidTransport : IHidTransport
                 if (path is null) continue;
                 foreach (ushort pid in pids)
                 {
-                    if (!path.Contains($"vid_{vid:x4}&pid_{pid:x4}", StringComparison.OrdinalIgnoreCase)) continue;
-                    var transport = TryOpen(path, vid, pid, usagePage);
-                    if (transport is not null) return transport;
+                    if (path.Contains($"vid_{vid:x4}&pid_{pid:x4}", StringComparison.OrdinalIgnoreCase)) found.Add((path, pid));
                 }
             }
         }
         finally { SetupDiDestroyDeviceInfoList(set); }
-        return null;
+        return found;
+    }
+
+    /// <summary>Reads the reports a collection sends by itself, one at a time.</summary>
+    public sealed class InputReader : IDisposable
+    {
+        readonly SafeFileHandle handle;
+        readonly byte[] buffer;
+
+        internal InputReader(SafeFileHandle handle, int reportLength)
+        {
+            this.handle = handle;
+            buffer = new byte[reportLength];
+        }
+
+        /// <summary>
+        /// Waits for the next report, report id first. Empty when the wait was cancelled or the device went away;
+        /// the span is only good until the next call.
+        /// </summary>
+        public ReadOnlySpan<byte> Read() =>
+            ReadFile(handle, buffer, buffer.Length, out int read, IntPtr.Zero) ? buffer.AsSpan(0, read) : default;
+
+        /// <summary>Ends a <see cref="Read"/> that another thread is waiting in. Does nothing if none is.</summary>
+        public void Cancel() => CancelIoEx(handle, IntPtr.Zero);
+
+        public void Dispose() => handle.Dispose();
     }
 
     static WindowsHidTransport? TryOpen(string path, ushort vid, ushort pid, ushort usagePage)
@@ -164,4 +222,6 @@ public sealed class WindowsHidTransport : IHidTransport
     [DllImport("setupapi.dll")] static extern bool SetupDiDestroyDeviceInfoList(IntPtr set);
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)] static extern SafeFileHandle CreateFile(string name, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
     [DllImport("kernel32.dll", SetLastError = true)] static extern bool WriteFile(SafeFileHandle h, byte[] buf, int len, out int written, IntPtr overlapped);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern bool ReadFile(SafeFileHandle h, byte[] buf, int len, out int read, IntPtr overlapped);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern bool CancelIoEx(SafeFileHandle h, IntPtr overlapped);
 }

@@ -183,6 +183,30 @@ RaptorSense's Windows implementation is in `scripts/lib/RaptorHid.cs`.
 - **Brightness read-back**: send `88 …`, read the feature report, byte 4.
 - **Fn and PREDATOR keys**: usage page `0x88`, report id 4. `04 81 FF` = PREDATOR key pressed.
 
+### Special keys and the keyboard's own brightness (confirmed 2026-11-15)
+
+Listened to on Windows, PH16-71, without administrator rights:
+
+- The special keys arrive as 3-byte input reports on `MI_02&COL03` (usage page `0x0088`, usage 1), which a normal
+  user can open for reading. Pressed: PREDATOR `04 81 FF`, Fn+F11 (dimmer) `04 7D FF`, Fn+F12 (brighter) `04 7C FF`.
+  Letting go of any of them sends `04 00 00`. None of them reaches Windows as a key press, and none raised an
+  `AcerGenericEvent` in WMI.
+- **The keyboard changes its brightness by itself** on Fn+F11 / Fn+F12, through the levels 0, 12, 25, 37, 50, and
+  byte 4 of the `88` state report follows. This holds while one of its own effects runs and after a single painted
+  frame.
+- **Every painted frame puts the brightness back** to the value in its last packet. While frames were streamed at a
+  fixed brightness, each press showed for a moment and was undone (the state still read 25 at the end).
+  Reading the state before each frame and adopting a changed value mostly works, but a press that lands while a
+  frame is being sent is lost (about one press in four in the test, at 30 frames a second). So RaptorSense takes the step itself when it sees the
+  key's report: `SpecialKeyWatcher` and `BrightnessSteps`.
+- Byte 5 of the state report counts painted frames, 1 to 7 and round again. Leave it out when comparing states.
+- A state read sometimes returns the previous feature packet instead (seen: `08 02 33 05 …`, the frame's last
+  packet), roughly once in a hundred reads while streaming. Check for `88` in byte 0 and the checksum before
+  trusting one.
+- **Unexplained:** in two earlier listening runs the same day, Fn+F11 / Fn+F12 produced no report and changed
+  nothing, while the PREDATOR key reported normally. PredatorSense and `AcerLightingService` were running during
+  those runs and were not running during the one that worked. Nothing here shows that they were the cause.
+
 Windows specifics (confirmed 2026-11-03):
 
 - The FF02 collection opens **without administrator rights**.
