@@ -45,10 +45,12 @@ model when it starts and shows what works on it.
 **On other Acer laptops:** per-key lighting works only if the keyboard is one of the known ones, and fans and power
 are read-only until the model has been checked. See [Will it work on my laptop?](#will-it-work-on-my-laptop)
 
-**Linux:** in progress on the [`linux` branch](https://github.com/aaronparayil/RaptorSense/tree/linux), not in the
-download yet. There the app, the command-line tool and all the tests build and run on Linux, and each push builds a
-Linux package to try. Keyboard lighting for the Helios is written but has not driven a real keyboard yet. Music and
-typing effects, fans, power and automations are still to come on Linux.
+**Linux:** a first [preview to test](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-1) is up, separate from the
+Windows download. It lights the Helios's per-key keyboard, but that has **not driven a real keyboard yet**, so testers
+are wanted: if you run Linux on a Predator with keyboard `04F2:0117`, `011A` or `0119`, please try it and
+[send a report](https://github.com/aaronparayil/RaptorSense/issues/new?template=linux-test.yml), whether it worked or not.
+Music and typing effects, fans, power and automations are still to come on Linux. The work is on the
+[`linux` branch](https://github.com/aaronparayil/RaptorSense/tree/linux#linux).
 
 ## What you get
 
@@ -152,7 +154,7 @@ changed the helper too.
 | Battery: charge cycles and health, from Windows' battery driver | Works |
 | Automations: when an app is open, on battery or plugged in, while sound is playing, after some minutes untouched, or while the screen is off, switch the lighting profile, power mode and fans, then put them back | Works; power mode and fans need fan control installed. The screen-off rule has not been tried on a real screen yet |
 | PREDATOR key opens the window; Fn+F11 / Fn+F12 change the brightness | Works |
-| Linux | In progress on the [`linux` branch](https://github.com/aaronparayil/RaptorSense/tree/linux): it builds, starts and passes its tests there. Keyboard lighting is written but not yet tried on a real keyboard |
+| Linux | A [preview to test](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-1), built from the [`linux` branch](https://github.com/aaronparayil/RaptorSense/tree/linux#linux): it builds, starts and passes its tests on Linux. Keyboard lighting is written but not yet tried on a real keyboard, and testers are wanted |
 
 ## Lighting
 

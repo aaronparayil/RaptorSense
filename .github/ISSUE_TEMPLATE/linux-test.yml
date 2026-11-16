@@ -1,0 +1,112 @@
+name: Linux test report
+description: You ran the Linux preview on a real keyboard. Say how it went, whether it worked or not.
+title: "Linux test: <laptop model>"
+labels: ["linux"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for trying it. The Linux build had never driven a real keyboard when it was put up, so every
+        report helps, and "nothing happened" is as useful as "it all worked".
+
+        The steps are in `linux/FIRST-RUN.txt` inside the download. Fill in as far as you got and leave the rest.
+        Please look over what you paste for anything you would rather not share.
+  - type: input
+    id: model
+    attributes:
+      label: Laptop model
+      description: "What this prints: `cat /sys/class/dmi/id/product_name`"
+      placeholder: Predator PH16-71
+    validations:
+      required: true
+  - type: input
+    id: keyboard
+    attributes:
+      label: Keyboard
+      description: "What this prints: `lsusb | grep -i 04f2`. Nothing printed is an answer too."
+      placeholder: "Bus 001 Device 003: ID 04f2:0117 Chicony Electronics Co., Ltd"
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Linux distribution and desktop
+      placeholder: Ubuntu 26.04, GNOME on Wayland
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: Which RaptorSense build
+      description: The name of the file you downloaded.
+      placeholder: RaptorSense-1.8.5-linux-x64.tar.gz
+    validations:
+      required: true
+  - type: textarea
+    id: access
+    attributes:
+      label: "Step 1: keyboard access"
+      description: What `linux/setup-keyboard-access.sh` printed.
+      render: text
+  - type: textarea
+    id: info
+    attributes:
+      label: "Step 2: who the keyboard says it is"
+      description: What `cli/raptorsense info` printed, error or not.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: together
+    attributes:
+      label: "Step 3: did every key change together?"
+      description: "During `cli/raptorsense run breathing --color 00AEC7 --seconds 10`, with no pause set."
+      options:
+        - Yes, the whole keyboard faded as one
+        - No, some keys lagged behind or kept an old colour
+        - Nothing lit up at all
+        - It stopped with an error
+        - Did not get this far
+    validations:
+      required: true
+  - type: textarea
+    id: breathing
+    attributes:
+      label: "Step 3: what it printed"
+      description: The lines it wrote while running, with the "sent ... fps" numbers.
+      render: text
+  - type: dropdown
+    id: gap
+    attributes:
+      label: "Step 4: smallest pause at which every key kept up"
+      description: "The number given to `RAPTORSENSE_HID_GAP_MS`."
+      options:
+        - "0: it was already right in step 3"
+        - "4"
+        - "8"
+        - "16"
+        - No pause I tried fixed it
+        - Did not try
+    validations:
+      required: true
+  - type: textarea
+    id: rainbow
+    attributes:
+      label: "Step 5: the moving effect"
+      description: "How `cli/raptorsense run rainbow --seconds 10` looked: smooth, jerky, wrong keys, wrong colours."
+  - type: checkboxes
+    id: app
+    attributes:
+      label: "Step 6: the app"
+      description: Tick what was true after starting `./RaptorSense`.
+      options:
+        - label: The window opened
+        - label: Picking an effect in the window changed the real keyboard
+        - label: A tray icon appeared
+        - label: Closing the window left it running
+        - label: Starting it a second time brought the window back
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: What looked wrong, what you expected, error text, a photo or a short clip of the keyboard.
