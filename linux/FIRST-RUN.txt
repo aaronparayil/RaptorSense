@@ -42,7 +42,11 @@ Run everything from the folder this file's parent is in (the one with "RaptorSen
    time bring the window back.
 
 What to report: the output of steps 2 and 3, the smallest pause from step 4 at which every key keeps up (0 if step 3
-already looked right), and anything that looked wrong in steps 5 and 6.
+already looked right), and anything that looked wrong in steps 5 and 6. This form asks for exactly that:
+
+       https://github.com/aaronparayil/RaptorSense/issues/new?template=linux-test.yml
+
+A report that says "nothing lit up" is as useful as one that says it all worked.
 
 Not working on Linux yet, so not worth testing: music and typing effects, fans and power modes, the light bar,
 automations, and the PREDATOR and brightness keys.

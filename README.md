@@ -45,10 +45,11 @@ model when it starts and shows what works on it.
 **On other Acer laptops:** per-key lighting works only if the keyboard is one of the known ones, and fans and power
 are read-only until the model has been checked. See [Will it work on my laptop?](#will-it-work-on-my-laptop)
 
-**Linux:** in progress on the [`linux` branch](https://github.com/aaronparayil/RaptorSense/tree/linux), not in the
-download yet. There the app, the command-line tool and all the tests build and run on Linux, and each push builds a
-Linux package to try. Keyboard lighting for the Helios is written but has not driven a real keyboard yet. Music and
-typing effects, fans, power and automations are still to come on Linux.
+**Linux:** a first [preview to test](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-1) is up, separate from the
+Windows download. It lights the Helios's per-key keyboard, but that has **not driven a real keyboard yet**, so testers
+are wanted: if you run Linux on a Predator with keyboard `04F2:0117`, `011A` or `0119`, please try it and
+[send a report](https://github.com/aaronparayil/RaptorSense/issues/new?template=linux-test.yml), whether it worked or not.
+Music and typing effects, fans, power and automations are still to come on Linux. See [Linux](#linux).
 
 ## What you get
 
@@ -152,7 +153,7 @@ changed the helper too.
 | Battery: charge cycles and health, from Windows' battery driver | Works |
 | Automations: when an app is open, on battery or plugged in, while sound is playing, after some minutes untouched, or while the screen is off, switch the lighting profile, power mode and fans, then put them back | Works; power mode and fans need fan control installed. The screen-off rule has not been tried on a real screen yet |
 | PREDATOR key opens the window; Fn+F11 / Fn+F12 change the brightness | Works |
-| Linux | In progress: it builds, starts and passes its tests on Linux. Keyboard lighting is written but not yet tried on a real keyboard; see [Linux](#linux) |
+| Linux | A preview to test: it builds, starts and passes its tests on Linux. Keyboard lighting is written but not yet tried on a real keyboard, and testers are wanted; see [Linux](#linux) |
 
 ## Lighting
 
@@ -359,7 +360,9 @@ To build the download zip: `powershell -ExecutionPolicy Bypass -File scripts\pac
 
 ## Linux
 
-**Work in progress, and not in the downloads yet.** What is true today:
+**A preview, for testing.** It is a separate download, the
+[Linux preview](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-1), and the Windows release stays the main one.
+What is true today:
 
 - The app, the command-line tool and all the tests build and run on Linux (checked on Ubuntu 26.04).
 - **Keyboard lighting** (the per-key Helios keyboard) is written for Linux but has not driven a real keyboard yet.
@@ -369,7 +372,23 @@ To build the download zip: `powershell -ExecutionPolicy Bypass -File scripts\pac
 - **Not on Linux yet:** music effects, typing effects, fans and power modes, the light bar, the Nitro's 4-zone
   keyboard, automations, and the PREDATOR and brightness keys.
 
-To try it from source:
+### Testers wanted
+
+Everything above was checked on a Linux without the keyboard, so the first run on a real one is still to come. If you
+have a Predator with keyboard `04F2:0117`, `011A` or `0119` (`lsusb | grep -i 04f2` shows it) and run Linux:
+
+1. Download the `tar.gz` from the [Linux preview](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-1) and unpack it. It needs no .NET.
+2. Follow `linux/FIRST-RUN.txt` in it: six short steps, about ten minutes.
+3. [Send a report](https://github.com/aaronparayil/RaptorSense/issues/new?template=linux-test.yml). It asks for what the steps
+   printed and what the keyboard did.
+
+The preview only sends lighting to the keyboard, the same packets as on Windows. It cannot change fans or power: the
+part that does that on Windows is not in it. Outside your own settings folder, the one thing it changes on the system
+is a udev rule, described below, and only if you run the script that installs it.
+
+### From source
+
+To build and run it yourself:
 
 ```
 dotnet run --project src/RaptorSense.App
