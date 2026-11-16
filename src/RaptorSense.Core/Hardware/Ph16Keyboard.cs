@@ -37,7 +37,12 @@ public sealed class Ph16Keyboard(IHidTransport transport) : IDisposable
             var transport = WindowsHidTransport.Open(VendorId, ProductIds, LightingUsagePage);
             return transport is null ? null : new Ph16Keyboard(transport);
         }
-        throw new PlatformNotSupportedException("Keyboard access is only implemented for Windows so far.");
+        if (OperatingSystem.IsLinux())
+        {
+            var transport = LinuxHidTransport.Open(VendorId, ProductIds, LightingUsagePage);
+            return transport is null ? null : new Ph16Keyboard(transport);
+        }
+        throw new PlatformNotSupportedException("Keyboard access is only implemented for Windows and Linux so far.");
     }
 
     public int GetBrightness()

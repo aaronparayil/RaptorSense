@@ -9,7 +9,7 @@ namespace RaptorSense.App;
 /// </summary>
 static class ThisLaptop
 {
-    public static string? Model { get; } = OperatingSystem.IsWindows() ? LaptopModels.ReadModel() : null;
+    public static string? Model { get; } = LaptopModels.ReadThisModel();
 
     /// <summary>The keyboard drawn and driven: the Nitro's zones, or the Helios's per-key keyboard (also on unknown models).</summary>
     public static LaptopLayout Layout { get; } = LaptopLayouts.For(Model);

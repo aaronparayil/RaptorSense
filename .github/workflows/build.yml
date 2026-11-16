@@ -1,0 +1,52 @@
+name: Build and test
+
+# Builds and runs the tests on Windows and Linux, so a change for one system can't quietly break the other.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build everything (Windows)
+        if: runner.os == 'Windows'
+        run: dotnet build RaptorSense.slnx -c Release
+
+      # The fan helper is a Windows service and doesn't build on Linux.
+      - name: Build the app, command line and tests (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          dotnet build src/RaptorSense.App/RaptorSense.App.csproj -c Release
+          dotnet build src/RaptorSense.Cli/RaptorSense.Cli.csproj -c Release
+          dotnet build tests/RaptorSense.Tests/RaptorSense.Tests.csproj -c Release
+
+      - name: Test
+        run: dotnet run --project tests/RaptorSense.Tests/RaptorSense.Tests.csproj -c Release --no-build
+
+      # A Linux build to try, kept with the run for two weeks. Not a release.
+      - name: Pack the Linux download
+        if: runner.os == 'Linux'
+        run: bash scripts/package-linux.sh
+
+      - name: Keep the Linux download
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: RaptorSense-linux-x64
+          path: dist/*.tar.gz
+          retention-days: 14

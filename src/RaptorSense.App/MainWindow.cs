@@ -63,7 +63,7 @@ sealed class MainWindow : Window, IAutomationTarget
     readonly ComboBox profileList = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Saved profiles" };
     readonly TextBox profileName = new() { PlaceholderText = "Profile name" };
     readonly ToggleSwitch output = new() { IsChecked = true, OnContent = "Controlling the keyboard", OffContent = "Preview only" };
-    readonly ToggleSwitch autostart = new() { OnContent = "Starts with Windows", OffContent = "Start with Windows" };
+    readonly ToggleSwitch autostart = new() { OnContent = Autostart.OnLabel, OffContent = Autostart.OffLabel };
     readonly DispatcherTimer uiTimer;
     IAudioSpectrum? audio;
     IKeyPressSource? keyHook;
@@ -522,7 +522,7 @@ sealed class MainWindow : Window, IAutomationTarget
             autostart.IsCheckedChanged += (_, _) =>
             {
                 try { Autostart.IsEnabled = autostart.IsChecked == true; }
-                catch (Exception e) { Notify($"Could not change Start with Windows: {e.Message}"); }
+                catch (Exception e) { Notify($"Could not change \"{Autostart.OffLabel}\": {e.Message}"); }
                 TrayStateChanged?.Invoke();
             };
             content.Children.Add(autostart);

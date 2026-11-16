@@ -54,7 +54,7 @@ Recorded on an earlier version: the effects are the same, the window has a new l
 
 Tested on two machines so far: **Predator Helios 16 PH16-71** (BIOS V1.18, per-key keyboard `04F2:0117`) and
 **Nitro 5 AN515-57** (BIOS V1.22, 4-zone keyboard). One download works on both: the app reads the laptop's model
-when it starts and shows what works on it. Windows only for now; Linux is planned.
+when it starts and shows what works on it. Windows only for now; [Linux](#linux) is in progress.
 
 - **Per-key lighting** looks for keyboards `04F2:0117`, `011A` and `0119`. If yours isn't one of these and the laptop
   isn't the Nitro below, the app says "Keyboard not found" and does nothing. A similar keyboard may have its keys
@@ -125,7 +125,7 @@ changed the helper too.
 | Battery: charge cycles and health, from Windows' battery driver | Works |
 | Automations: when an app is open, on battery or plugged in, while sound is playing, after some minutes untouched, or while the screen is off, switch the lighting profile, power mode and fans, then put them back | Works; power mode and fans need fan control installed. The screen-off rule has not been tried on a real screen yet |
 | PREDATOR key opens the window; Fn+F11 / Fn+F12 change the brightness | Works |
-| Linux | Planned |
+| Linux | In progress: it builds, starts and passes its tests on Linux. Keyboard lighting is written but not yet tried on a real keyboard; see [Linux](#linux) |
 
 ## Lighting
 
@@ -322,6 +322,36 @@ To build the download zip: `powershell -ExecutionPolicy Bypass -File scripts\pac
 | `tests/RaptorSense.Tests` | Effect, fan-safety and light bar protocol tests |
 | `scripts/` | Packaging, and the hardware probes used to map the laptop (`probe.ps1` is read-only) |
 | `docs/protocol.md` | Everything known about the hardware, with confidence levels |
+
+## Linux
+
+**Work in progress, and not in the downloads yet.** What is true today:
+
+- The app, the command-line tool and all the tests build and run on Linux (checked on Ubuntu 26.04).
+- **Keyboard lighting** (the per-key Helios keyboard) is written for Linux but has not driven a real keyboard yet.
+  It covers the same effects, painted keys, animations and profiles as on Windows.
+- **Works, checked without a keyboard:** battery cycles and health, **Start when you sign in**, and starting
+  RaptorSense a second time to bring its window back (for desktops that show no tray icons).
+- **Not on Linux yet:** music effects, typing effects, fans and power modes, the light bar, the Nitro's 4-zone
+  keyboard, automations, and the PREDATOR and brightness keys.
+
+To try it from source:
+
+```
+dotnet run --project src/RaptorSense.App
+```
+
+`scripts/package-linux.sh` builds a `tar.gz` that needs no .NET. `linux/FIRST-RUN.txt` in it lists what to try first
+on a real keyboard.
+
+A normal user may not talk to the keyboard's lighting until a udev rule allows it. This installs the one in `linux/`:
+
+```
+linux/setup-keyboard-access.sh
+```
+
+It opens only the keyboard's lighting interface, not the ones that carry what you type. Without it, the app says the
+keyboard is there but may not be opened.
 
 ## Other laptops
 

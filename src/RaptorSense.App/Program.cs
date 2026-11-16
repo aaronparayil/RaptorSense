@@ -22,14 +22,30 @@ static class Program
                 try { EventWaitHandle.OpenExisting(ShowEventName).Set(); }
                 catch (WaitHandleCannotBeOpenedException) { }
             }
+            else AskOverPipe();
             return 0;
         }
 
-        // Named events are Windows-only; elsewhere a second launch simply exits.
+        // Named events are Windows-only. Elsewhere the first copy listens on a pipe (App.WatchShowRequests): on a
+        // Linux desktop without a tray, starting RaptorSense again is the only way back to a closed window.
         using var showRequests = OperatingSystem.IsWindows() ? new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName) : null;
         App.ShowRequests = showRequests;
         App.StartHidden = args.Contains(Autostart.MinimizedArgument);
         return BuildAvaloniaApp(AppearanceSettings.UseGraphicsCard).StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
+    }
+
+    /// <summary>The pipe a second launch connects to, off Windows. Only this user can open it.</summary>
+    public const string ShowPipeName = "RaptorSense.Show";
+
+    // Connecting is the whole message. If the first copy isn't listening (it is still starting, or shutting down), give up quietly.
+    static void AskOverPipe()
+    {
+        try
+        {
+            using var pipe = new System.IO.Pipes.NamedPipeClientStream(".", ShowPipeName, System.IO.Pipes.PipeDirection.Out, System.IO.Pipes.PipeOptions.CurrentUserOnly);
+            pipe.Connect(1500);
+        }
+        catch (Exception e) when (e is TimeoutException or IOException or UnauthorizedAccessException) { }
     }
 
     /// <summary>
@@ -41,7 +57,9 @@ static class Program
     public static AppBuilder BuildAvaloniaApp(bool useGraphicsCard = false)
     {
         var builder = AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace();
-        return useGraphicsCard ? builder : builder.With(new Win32PlatformOptions { RenderingMode = [Win32RenderingMode.Software] });
+        return useGraphicsCard ? builder : builder
+            .With(new Win32PlatformOptions { RenderingMode = [Win32RenderingMode.Software] })
+            .With(new X11PlatformOptions { RenderingMode = [X11RenderingMode.Software] });
     }
 }
 
@@ -112,7 +130,7 @@ sealed class App : Application
 
         if (Autostart.IsSupported)
         {
-            var autostart = new NativeMenuItem("Start with Windows") { ToggleType = MenuItemToggleType.CheckBox, IsChecked = window.StartWithWindows };
+            var autostart = new NativeMenuItem(Autostart.OffLabel) { ToggleType = MenuItemToggleType.CheckBox, IsChecked = window.StartWithWindows };
             autostart.Click += (_, _) => window.StartWithWindows = !window.StartWithWindows;
             menu.Add(autostart);
         }
@@ -135,11 +153,34 @@ sealed class App : Application
     // A second launch signals this event; show the window on the UI thread.
     void WatchShowRequests()
     {
-        if (ShowRequests is not { } signal) return;
-        new Thread(() =>
+        if (ShowRequests is { } signal)
         {
-            while (signal.WaitOne()) Dispatcher.UIThread.Post(() => window?.ShowFromTray());
-        })
-        { IsBackground = true, Name = "RaptorSense show requests" }.Start();
+            new Thread(() =>
+            {
+                while (signal.WaitOne()) Dispatcher.UIThread.Post(() => window?.ShowFromTray());
+            })
+            { IsBackground = true, Name = "RaptorSense show requests" }.Start();
+        }
+        else if (!OperatingSystem.IsWindows())
+        {
+            new Thread(() =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        using var pipe = new System.IO.Pipes.NamedPipeServerStream(Program.ShowPipeName, System.IO.Pipes.PipeDirection.In, 1,
+                            System.IO.Pipes.PipeTransmissionMode.Byte, System.IO.Pipes.PipeOptions.CurrentUserOnly);
+                        pipe.WaitForConnection();
+                        Dispatcher.UIThread.Post(() => window?.ShowFromTray());
+                    }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                    {
+                        Thread.Sleep(2000);   // the name is taken or the folder isn't writable: try again later, quietly
+                    }
+                }
+            })
+            { IsBackground = true, Name = "RaptorSense show requests" }.Start();
+        }
     }
 }

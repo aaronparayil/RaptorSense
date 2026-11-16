@@ -302,6 +302,30 @@ Windows specifics (confirmed 2026-11-03):
   keys stayed the same colour in every stage. On Windows, RaptorSense sends packets back to back and gets about 75 fps.
   The 16 ms gap is only needed with Linux hidraw's asynchronous writes. That still needs checking once we get to Linux.
 
+Linux specifics (written 2026-11-16; **nothing here has run on the keyboard yet**):
+
+- Linux gives one `/dev/hidrawN` per USB interface, not per collection as Windows does. The lighting interface is
+  `MI_03` (interface 3), alone on usage page FF02 and without report ids, so `LinuxHidTransport` finds it by parsing
+  `/sys/class/hidraw/*/device/report_descriptor` and matching `HID_ID` in `device/uevent`.
+- Feature reports go through the `HIDIOCSFEATURE` / `HIDIOCGFEATURE` ioctls and output reports through `write`, each
+  with a leading report-id byte of 0.
+- hidraw devices belong to root. `linux/70-raptorsense.rules` gives the seated user interface 3 only; the typing
+  interfaces (`MI_00`, and `MI_02` with its keyboard collection) stay closed.
+- **Open: the gap between a frame's eight output reports.** TrueSense needed about 16 ms on Linux or the last packet
+  was dropped, which would mean about 6 frames a second. Whether that holds for plain `write` on a current kernel is
+  the first thing to measure: set `RAPTORSENSE_HID_GAP_MS` (default 0) and watch a whole-keyboard fade for keys
+  that lag behind.
+- The special keys are on `MI_02`, which on Linux is one hidraw device shared with consumer keys, a mouse and a
+  keyboard collection. Reading it would need care to drop everything but report id 4. Not started.
+- Seen in WSL (Ubuntu 26.04, no keyboard): the app aborts with `free(): invalid pointer` the first time it draws a
+  window on a system whose fontconfig cache has never been built, inside the system's font library, and starts
+  normally from then on. A desktop install has that cache already. .NET also wants `libicu`; Linux builds are made
+  with `InvariantGlobalization` so they start without it.
+- The model comes from `/sys/class/dmi/id/product_name`, which should read the same as Windows' model
+  (`Predator PH16-71`). To confirm on the laptop.
+- Checked in WSL (2026-11-16): the battery from `/sys/class/power_supply`, and a second launch reaching the first
+  copy over a per-user pipe (`/tmp/CoreFxPipe_RaptorSense.Show`), also after the first copy was killed.
+
 ### Key map check (confirmed 2026-11-03)
 
 Every key was pressed with the reactive effect running, and each lit its own cell. That covers Esc (cell 5),

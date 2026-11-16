@@ -1,0 +1,16 @@
+# RaptorSense: lets the person sitting at the laptop set the keyboard's lighting without being root.
+#
+# Only the keyboard's lighting interface (USB interface 3, usage page FF02) is opened up. Its other interfaces carry
+# what is typed, and stay as they are.
+#
+# Install:
+#   sudo cp 70-raptorsense.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload
+#   sudo udevadm trigger
+#
+# The file name must sort before 73-seat-late.rules for "uaccess" to take effect.
+#
+# Not yet tried on a real keyboard.
+
+SUBSYSTEM=="hidraw", SUBSYSTEMS=="usb", IMPORT{builtin}="usb_id"
+SUBSYSTEM=="hidraw", ENV{ID_VENDOR_ID}=="04f2", ENV{ID_MODEL_ID}=="0117|011a|0119", ENV{ID_USB_INTERFACE_NUM}=="03", TAG+="uaccess"

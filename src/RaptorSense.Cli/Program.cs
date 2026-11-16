@@ -143,7 +143,7 @@ static int ListAnimations()
 
 static int PrintBattery()
 {
-    if (WindowsBattery.TryRead() is not { } battery)
+    if (Battery.TryRead() is not { } battery)
     {
         Console.Error.WriteLine("No battery found, or it could not be read.");
         return 1;
@@ -287,12 +287,13 @@ static int RunEngine(EffectEngine engine, Dictionary<string, string> options)
 
     using var stop = new ManualResetEventSlim();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Set(); };
-    double seconds = options.TryGetValue("seconds", out var s) ? double.Parse(s) : double.PositiveInfinity;
-    var deadline = DateTime.UtcNow + (double.IsInfinity(seconds) ? TimeSpan.MaxValue - TimeSpan.FromDays(1) : TimeSpan.FromSeconds(seconds));
+    // No --seconds means until Ctrl+C.
+    double seconds = options.TryGetValue("seconds", out var s) ? double.Parse(s, System.Globalization.CultureInfo.InvariantCulture) : double.PositiveInfinity;
+    var running = System.Diagnostics.Stopwatch.StartNew();
 
     engine.Start();
     Console.WriteLine($"Running '{effect.Name}'. Ctrl+C to stop.");
-    while (!stop.IsSet && DateTime.UtcNow < deadline)
+    while (!stop.IsSet && running.Elapsed.TotalSeconds < seconds)
     {
         stop.Wait(1000);
         Console.WriteLine($"  {engine.Status}  |  render {engine.RenderFps:N0} fps, sent {engine.SendFps:N0} fps, brightness {engine.Brightness}");
@@ -319,9 +320,17 @@ static int BuiltIn(string name, Dictionary<string, string> options)
 
 static Ph16Keyboard? OpenOrFail()
 {
-    var keyboard = Ph16Keyboard.TryOpen();
-    if (keyboard is null) Console.Error.WriteLine("Keyboard lighting interface not found (expected USB 04F2:0117/011A/0119, usage page FF02).");
-    return keyboard;
+    try
+    {
+        var keyboard = Ph16Keyboard.TryOpen();
+        if (keyboard is null) Console.Error.WriteLine("Keyboard lighting interface not found (expected USB 04F2:0117/011A/0119, usage page FF02).");
+        return keyboard;
+    }
+    catch (Exception e) when (e is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+    {
+        Console.Error.WriteLine($"Could not open the keyboard: {e.Message}");
+        return null;
+    }
 }
 
 static void ApplySettings(EffectEngine engine, Dictionary<string, string> options)

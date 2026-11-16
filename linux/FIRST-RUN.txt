@@ -1,0 +1,48 @@
+RaptorSense on Linux: first run on a real keyboard
+===================================================
+
+Nothing in the Linux build has driven a real keyboard yet. These steps find out whether it does, and how fast.
+They change nothing on the disk except one udev rule (step 1), which the script says how to remove.
+
+Run everything from the folder this file's parent is in (the one with "RaptorSense" in it).
+
+1. Allow yourself to talk to the keyboard's lighting (asks for your password):
+
+       linux/setup-keyboard-access.sh
+
+2. Ask the keyboard who it is. This should print its USB id and brightness:
+
+       cli/raptorsense info
+
+   "not found"        : the lighting interface wasn't recognised. Please send the output of
+                        ls /sys/class/hidraw/*/device/uevent | xargs grep -H HID_ID
+   "may not open it"  : step 1 didn't take effect. Unplugging isn't possible on a laptop keyboard, so reboot or run
+                        sudo udevadm trigger   and try again.
+
+3. A whole-keyboard colour fade for ten seconds. Watch whether every key changes together:
+
+       cli/raptorsense run breathing --color 00AEC7 --seconds 10
+
+   Note the "sent ... fps" number it prints each second.
+
+4. If some keys lag behind or stay on an old colour, the keyboard is dropping packets. Try again with a pause after
+   each packet, raising it until every key keeps up (4, then 8, then 16):
+
+       RAPTORSENSE_HID_GAP_MS=4 cli/raptorsense run breathing --color 00AEC7 --seconds 10
+
+5. A moving effect, to see how smooth it is:
+
+       cli/raptorsense run rainbow --seconds 10
+
+6. The app itself:
+
+       ./RaptorSense
+
+   Worth checking: does a tray icon appear, does closing the window keep it running, and does starting it a second
+   time bring the window back.
+
+What to report: the output of steps 2 and 3, the smallest pause from step 4 at which every key keeps up (0 if step 3
+already looked right), and anything that looked wrong in steps 5 and 6.
+
+Not working on Linux yet, so not worth testing: music and typing effects, fans and power modes, the light bar,
+automations, and the PREDATOR and brightness keys.

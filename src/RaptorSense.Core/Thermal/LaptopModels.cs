@@ -60,6 +60,28 @@ public static class LaptopModels
                (off.Count == 1 ? "it" : "them") + " here" + still + ". To help add it, see \"Other laptops\" in the README.";
     }
 
+    public const string DmiRoot = "/sys/class/dmi/id";
+
+    /// <summary>The model of the laptop this is running on, on whichever system, or null if it can't be read.</summary>
+    public static string? ReadThisModel() =>
+        OperatingSystem.IsWindows() ? ReadModel() : OperatingSystem.IsLinux() ? ReadModelFromDmi() : null;
+
+    /// <summary>
+    /// The model as Linux shows it in <c>/sys/class/dmi/id/product_name</c>: the same firmware field Windows reports
+    /// (e.g. "Predator PH16-71"), readable without special rights. Null if it isn't there.
+    /// </summary>
+    public static string? ReadModelFromDmi(string root = DmiRoot)
+    {
+        try
+        {
+            var path = Path.Combine(root, "product_name");
+            if (!File.Exists(path)) return null;
+            var name = File.ReadAllText(path).Trim();
+            return name.Length == 0 ? null : name;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+    }
+
     /// <summary>The model as Windows reports it, or null if it can't be read (which counts as not verified).</summary>
     [SupportedOSPlatform("windows")]
     public static string? ReadModel()

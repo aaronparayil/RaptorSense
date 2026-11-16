@@ -254,7 +254,7 @@ sealed class PerformancePanel : UserControl
 
     void ShowBattery()
     {
-        var battery = WindowsBattery.TryRead();
+        var battery = Battery.TryRead();
         batterySection.IsVisible = battery is not null;
         if (battery is not { } b) return;
 
