@@ -67,10 +67,24 @@ sealed class PerformancePanel : UserControl
             $"Custom speeds are at least {FanController.MinCustomPercent}%. At {FanController.HotC} °C the fans go to Max until " +
             $"everything is below {FanController.CoolC} °C, and they return to Auto when the helper stops."));
         fanControls.Children.Add(safety);
-        // The install button stays usable while the controls are greyed out: it's how they become usable.
-        var fans = new StackPanel { Spacing = 14, Children = { setupRow, fanControls } };
-        controls.Children.Add(Look.Card(profiles, "Power profile"));
-        controls.Children.Add(Look.Card(fans, "Fans"));
+        if (ThisLaptop.HasFanControl)
+        {
+            // The install button stays usable while the controls are greyed out: it's how they become usable.
+            var fans = new StackPanel { Spacing = 14, Children = { setupRow, fanControls } };
+            if (ThisLaptop.HasPowerControl) controls.Children.Add(Look.Card(profiles, "Power profile"));
+            else fans.Children.Add(Look.Note("Power modes haven't been tested on this laptop yet, so they aren't shown."));
+            controls.Children.Add(Look.Card(fans, "Fans"));
+        }
+        else
+        {
+            // Fans and power haven't been checked on this laptop, so there is nothing here to change: just the helper,
+            // which the readings above (and a 4-zone keyboard's lighting) need.
+            var helper = new StackPanel { Spacing = 14, Children = { setupRow } };
+            helper.Children.Add(Look.Note(
+                "Changing fan speeds and power modes hasn't been tested on this laptop yet, so RaptorSense only shows " +
+                "the readings here. They may not be exact on it either."));
+            controls.Children.Add(Look.Card(helper, "Fans and power"));
+        }
 
         var batteryTiles = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, -12, -12) };
         batteryTiles.Children.Add(Tile("Charge cycles", batteryCycles));
@@ -167,18 +181,32 @@ sealed class PerformancePanel : UserControl
         if (!setupRow.IsVisible) setupResult = null;   // done: an old result shouldn't greet the next time it's needed
         if (!setupRow.IsVisible || installing) return;
 
-        setup.Content = outdated ? "Update fan control" : "Install fan control";
+        // Named for what it does on this laptop: fan control on the Helios, the keyboard and readings on the Nitro.
+        string what = ThisLaptop.HasFanControl ? "fan control"
+            : ThisLaptop.HasFourZoneKeyboard ? "the keyboard helper" : "the readings helper";
+        setup.Content = (outdated ? "Update " : "Install ") + what;
         setupNote.Text = setupResult ?? (outdated
-            ? "The fan control installed is from an older RaptorSense. Updating it needs administrator rights once."
-            : "Fans, power modes and the light bar need a small helper service. Installing it needs administrator rights once.");
+            ? $"The helper installed is from an older RaptorSense. Updating it needs administrator rights once."
+            : ThisLaptop.HasPowerControl
+                ? "Fans, power modes and the light bar need a small helper service. Installing it needs administrator rights once."
+            : ThisLaptop.HasFanControl && ThisLaptop.HasFourZoneKeyboard
+                ? "The fans and the keyboard's lighting need a small helper service. Installing it needs administrator rights once."
+            : ThisLaptop.HasFanControl
+                ? "The fans need a small helper service. Installing it needs administrator rights once."
+                : ThisLaptop.HasFourZoneKeyboard
+                    ? "The keyboard's lighting and these readings need a small helper service. Installing it needs administrator rights once."
+                    : "These readings need a small helper service. Installing it needs administrator rights once.");
     }
 
     void Show(ThermalStatus status)
     {
         bool connected = status.Reading is not null;
-        profiles.IsEnabled = fanControls.IsEnabled = connected && !status.ReadOnly;
+        fanControls.IsEnabled = connected && !status.ReadOnly;
+        // Helpers before revision 4 don't say; for them, "not read-only" meant power modes too.
+        profiles.IsEnabled = connected && !status.ReadOnly && (status.PowerControl || status.HelperRevision < 4);
         ShowSetup(status, connected);
         helperState.Text = !connected ? status.Error ?? ThermalClient.HelperMissing
+            : status.ReadOnly && !ThisLaptop.HasFanControl ? "Connected to the RaptorSense helper."   // the card below says why there are no controls
             : status.ReadOnly ? LaptopModels.Refusal(status.Model) + " The readings below may not be right on it either."
             : status.Ok ? "Connected to the RaptorSense helper." : $"The helper refused: {status.Error}";
         if (!connected) return;

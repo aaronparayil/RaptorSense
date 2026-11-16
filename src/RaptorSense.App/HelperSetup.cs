@@ -46,7 +46,7 @@ static class HelperSetup
         }
         catch (Win32Exception e) when (e.NativeErrorCode == CancelledByUser)
         {
-            return "Cancelled: fan control needs administrator rights once, to install.";
+            return "Cancelled: the helper needs administrator rights once, to install.";
         }
         catch (Win32Exception e)
         {

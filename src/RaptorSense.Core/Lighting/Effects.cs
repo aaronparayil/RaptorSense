@@ -11,10 +11,14 @@ public static class Effects
     /// <summary>Plays the animation from the Animations tab. Declared before <see cref="All"/>, which includes it.</summary>
     public static AnimationEffect Animation { get; } = new();
 
+    /// <summary>One colour everywhere. Shared by both laptops' lists, so a profile finds the same one on either.</summary>
+    public static StaticEffect Static { get; } = new();
+
+    /// <summary>The effects for the Helios's per-key keyboard (and laptops the app doesn't know).</summary>
     public static IReadOnlyList<IEffect> All { get; } =
     [
         // Basic
-        new StaticEffect(), Painted, Animation, new GradientEffect(), new BreathingEffect(),
+        Static, Painted, Animation, new GradientEffect(), new BreathingEffect(),
         // Animated
         new RainbowWaveEffect(), new ColorWaveEffect(), new NeonEffect(), new SnakeEffect(),
         new RadarEffect(), new SpotlightEffect(), new HeartbeatEffect(), new AuroraEffect(),
@@ -37,7 +41,34 @@ public static class Effects
         new KeyboardEffect(BuiltInEffect.Heartbeat, "heartbeat"),
     ];
 
-    public static IEffect? Find(string id) => All.FirstOrDefault(e => e.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// The effects for the Nitro 5's 4-zone keyboard (NitroEffects.cs): made for four zones, not the Helios's per-key
+    /// effects averaged down. Static colour, painting and the Animations tab's animation are shared.
+    /// </summary>
+    public static IReadOnlyList<IEffect> Nitro { get; } =
+    [
+        // Basic
+        Static, Painted, Animation,
+        // Animated
+        new ColourDriftEffect(), new TwoToneSweepEffect(), new ScannerEffect(), new FillEffect(),
+        new LavaLampEffect(), new PartyEffect(), new SirenEffect(),
+        // Nature
+        new OceanEffect(), new EmbersEffect(), new DayAndNightEffect(),
+        // Music
+        new MusicZonesEffect(), new BeatColourEffect(),
+        // Typing
+        new ZoneFlashEffect(), new TypingRippleEffect(), new ZoneHeatEffect(), new TypingSpeedEffect(),
+    ];
+
+    /// <summary>The effects that keyboard can show.</summary>
+    public static IReadOnlyList<IEffect> For(LaptopLayout layout) => layout == LaptopLayout.Nitro ? Nitro : All;
+
+    /// <summary>The effect a list starts on when a profile names one it doesn't have.</summary>
+    public static IEffect DefaultFor(LaptopLayout layout) => layout == LaptopLayout.Nitro ? Nitro[3] : All[0];
+
+    /// <summary>Finds an effect in either list, so profiles made on one laptop still load on the other.</summary>
+    public static IEffect? Find(string id) =>
+        All.Concat(Nitro).FirstOrDefault(e => e.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>

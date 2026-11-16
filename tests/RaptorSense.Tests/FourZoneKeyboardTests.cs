@@ -128,10 +128,10 @@ public sealed class FourZoneKeyboardTests
         Assert.Equal(expected, LaptopModels.HasFourZoneKeyboard(model));
 
     [Fact]
-    public void TheNitroStaysReadOnlyForFansButItsRefusalMentionsTheKeyboard()
+    public void TheNitroIsNotFullyVerifiedButItsRefusalSaysWhatWorks()
     {
         Assert.False(LaptopModels.IsVerified("Nitro AN515-57"));
-        Assert.Contains("keyboard's colours still work", LaptopModels.Refusal("Nitro AN515-57"));
+        Assert.Contains("the keyboard's colours work", LaptopModels.Refusal("Nitro AN515-57"));
         Assert.DoesNotContain("keyboard", LaptopModels.Refusal("Nitro AN515-58"));
     }
 

@@ -53,7 +53,10 @@ sealed class AutomationsPanel : UserControl
         var intro = new StackPanel { Spacing = 10 };
         intro.Children.Add(new TextBlock
         {
-            Text = "Rules change your lighting, power mode and fans by themselves. When a rule ends, everything goes back to how it " +
+            Text = (ThisLaptop.HasPowerControl ? "Rules change your lighting, power mode and fans by themselves."
+                    : ThisLaptop.HasFanControl ? "Rules change your lighting and fans by themselves."
+                    : "Rules change your lighting by themselves.") +
+                   " When a rule ends, everything goes back to how it " +
                    "was before it started, including anything you changed by hand in between. If two rules set the same thing, the higher one wins.",
             TextWrapping = TextWrapping.Wrap,
             Foreground = Look.Muted,
@@ -69,7 +72,9 @@ sealed class AutomationsPanel : UserControl
             "An app counts as open from when it is running until it closes, so switching to another window doesn't end the rule. " +
             "Sound counts as playing after three seconds of it and as stopped after fifteen seconds of silence, whatever the volume is set to. " +
             "\"Nothing is touched\" means no key, mouse or touchpad use, so a film you are only watching counts too. " +
-            "Power mode and fans need fan control installed. RaptorSense only looks for the apps you name here, reads how loud the " +
+            (ThisLaptop.HasPowerControl ? "Power mode and fans need fan control installed. "
+             : ThisLaptop.HasFanControl ? "Fans need fan control installed. " : "") +
+            "RaptorSense only looks for the apps you name here, reads how loud the " +
             "sound is but never the sound itself, and nothing leaves your laptop."));
         Content = new ScrollViewer { Content = page };
 
@@ -174,8 +179,9 @@ sealed class AutomationsPanel : UserControl
 
         var actions = new WrapPanel { Orientation = Orientation.Horizontal, ItemSpacing = 14, LineSpacing = 6 };
         actions.Children.Add(Labelled("Lighting profile", lighting));
-        actions.Children.Add(Labelled("Power mode", power));
-        actions.Children.Add(Labelled("Fans", fans));
+        // Only what the helper changes on this laptop is offered.
+        if (ThisLaptop.HasPowerControl) actions.Children.Add(Labelled("Power mode", power));
+        if (ThisLaptop.HasFanControl) actions.Children.Add(Labelled("Fans", fans));
 
         return Look.Card(new StackPanel
         {

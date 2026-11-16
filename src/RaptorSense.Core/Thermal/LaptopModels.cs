@@ -21,9 +21,18 @@ public static class LaptopModels
     /// </summary>
     public static readonly IReadOnlyList<string> FourZoneKeyboards = ["AN515-57"];
 
+    /// <summary>
+    /// Laptops whose fan commands (Auto, Max, Custom speeds) have been checked on the real machine, as well as every
+    /// <see cref="Verified"/> one. The AN515-57 was checked on 2026-11-16: each mode read back and the fans followed.
+    /// On these the helper changes the fans (and runs the fan safety rules) even where power modes stay untouched.
+    /// </summary>
+    public static readonly IReadOnlyList<string> FanControl = ["AN515-57"];
+
     public static bool IsVerified(string? model) => Matches(model, Verified);
 
     public static bool HasFourZoneKeyboard(string? model) => Matches(model, FourZoneKeyboards);
+
+    public static bool HasFanControl(string? model) => IsVerified(model) || Matches(model, FanControl);
 
     static bool Matches(string? model, IReadOnlyList<string> codes) =>
         !string.IsNullOrWhiteSpace(model) &&
@@ -33,10 +42,23 @@ public static class LaptopModels
     public static string Describe(string? model) => string.IsNullOrWhiteSpace(model) ? "model unknown" : model.Trim();
 
     /// <summary>What the helper answers to a change it won't make on this model.</summary>
-    public static string Refusal(string? model) =>
-        $"RaptorSense hasn't been tested on this laptop ({Describe(model)}), so it doesn't change the fans, power " +
-        "mode or light bar here" + (HasFourZoneKeyboard(model) ? " (the keyboard's colours still work)" : "") +
-        ". To help add it, see \"Other laptops\" in the README.";
+    public static string Refusal(string? model)
+    {
+        // Name only what is still off on this model, and what works anyway.
+        var off = new List<string>();
+        if (!HasFanControl(model)) off.Add("the fans");
+        off.Add("the power mode");
+        if (!HasFourZoneKeyboard(model)) off.Add("the light bar");   // the Nitro has none
+        string what = off.Count == 1 ? off[0] : string.Join(", ", off.Take(off.Count - 1)) + " or " + off[^1];
+
+        var works = new List<string>();
+        if (HasFanControl(model)) works.Add("the fans");
+        if (HasFourZoneKeyboard(model)) works.Add("the keyboard's colours");
+        string still = works.Count == 0 ? "" : $" ({string.Join(" and ", works)} work)";
+
+        return $"RaptorSense hasn't tested changing {what} on this laptop ({Describe(model)}), so it doesn't change " +
+               (off.Count == 1 ? "it" : "them") + " here" + still + ". To help add it, see \"Other laptops\" in the README.";
+    }
 
     /// <summary>The model as Windows reports it, or null if it can't be read (which counts as not verified).</summary>
     [SupportedOSPlatform("windows")]
@@ -74,6 +96,29 @@ public sealed class ReadOnlyFirmware(IGamingFirmware inner, string refusal) : IG
     public void SetFanMode(FanMode mode) => throw new FirmwareException(refusal);
 
     public void SetCustomFanSpeeds(int cpuPercent, int gpuPercent) => throw new FirmwareException(refusal);
+
+    public void Dispose() { }   // the firmware belongs to whoever opened it
+}
+
+/// <summary>
+/// Passes reads and fan changes through and refuses power mode changes, without passing them on. The helper uses it on
+/// a laptop in <see cref="LaptopModels.FanControl"/> that isn't <see cref="LaptopModels.Verified"/>.
+/// </summary>
+public sealed class FansOnlyFirmware(IGamingFirmware inner, string refusal) : IGamingFirmware
+{
+    public ThermalReading ReadSensors() => inner.ReadSensors();
+
+    public IReadOnlyList<PowerProfile> SupportedProfiles() => inner.SupportedProfiles();
+
+    public PowerProfile GetProfile() => inner.GetProfile();
+
+    public (FanMode Cpu, FanMode Gpu) GetFanModes() => inner.GetFanModes();
+
+    public void SetProfile(PowerProfile profile) => throw new FirmwareException(refusal);
+
+    public void SetFanMode(FanMode mode) => inner.SetFanMode(mode);
+
+    public void SetCustomFanSpeeds(int cpuPercent, int gpuPercent) => inner.SetCustomFanSpeeds(cpuPercent, gpuPercent);
 
     public void Dispose() { }   // the firmware belongs to whoever opened it
 }

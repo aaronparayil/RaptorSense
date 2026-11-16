@@ -17,7 +17,7 @@ public static class ThermalProtocol
     /// Which helper this is. Raise it whenever the helper changes, so the app offers to update an installed one.
     /// Helpers from before 1.8.5 send none, which reads as 0.
     /// </summary>
-    public const int HelperRevision = 3;   // 2: the 4-zone keyboard; 3: zone frames without the read-back
+    public const int HelperRevision = 4;   // 2: the 4-zone keyboard; 3: zone frames without the read-back; 4: Nitro fans
 
     /// <summary>The first revision that answers the "keyboard" command.</summary>
     public const int FourZoneRevision = 2;
@@ -193,8 +193,14 @@ public sealed record ThermalStatus
     /// <summary>The laptop model the helper found, as Windows reports it.</summary>
     public string? Model { get; init; }
 
-    /// <summary>True when the helper only reads on this laptop, because it isn't one of <see cref="LaptopModels.Verified"/>.</summary>
+    /// <summary>
+    /// True when the helper changes neither fans nor power modes on this laptop: it isn't one of
+    /// <see cref="LaptopModels.Verified"/> or <see cref="LaptopModels.FanControl"/>. (A 4-zone keyboard may still work.)
+    /// </summary>
     public bool ReadOnly { get; init; }
+
+    /// <summary>True when the helper changes power modes here (<see cref="LaptopModels.Verified"/>). Helpers before revision 4 don't send it.</summary>
+    public bool PowerControl { get; init; }
 
     /// <summary>The helper's <see cref="ThermalProtocol.HelperRevision"/>; 0 from a helper older than 1.8.5.</summary>
     public int HelperRevision { get; init; }

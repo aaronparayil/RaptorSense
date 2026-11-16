@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using RaptorSense.Hardware;
 using RaptorSense.Layout;
 using RaptorSense.Lighting;
 using RaptorSense.Thermal;
@@ -45,6 +46,7 @@ sealed class ZoneStreamer : IDisposable
         using var timer = new PeriodicTimer(Interval);
         var frame = new Frame();
         Rgb[]? last = null;
+        int lastBrightness = -1;
         long lastSentMs = 0, statsStartMs = Environment.TickCount64;
         int sent = 0;
 
@@ -75,18 +77,22 @@ sealed class ZoneStreamer : IDisposable
 
                 engine.CopyLatestFrame(frame);
                 var zones = FourZoneLayout.Average(frame.Cells);
-                bool force = Interlocked.Exchange(ref resend, 0) == 1;
+                // The Lighting tab's slider runs 0..50 (the Helios's scale); the zones take 0..100.
+                int brightness = Math.Clamp(engine.Brightness, 0, Ph16Keyboard.MaxBrightness) * FourZoneProtocol.MaxBrightness / Ph16Keyboard.MaxBrightness;
+                bool force = Interlocked.Exchange(ref resend, 0) == 1 || brightness != lastBrightness;
                 if (!force && last is not null && Close(zones, last) && now - lastSentMs < KeepAliveMs) continue;
 
                 var watch = Stopwatch.StartNew();
                 var status = await ThermalClient.SetKeyboardAsync(new FourZoneRequest
                 {
                     Colors = zones.Select(z => z.ToString()).ToList(),
+                    Brightness = brightness,
                     Confirm = false,
                 }, cancel);
                 if (status.Ok)
                 {
                     last = zones;
+                    lastBrightness = brightness;
                     lastSentMs = Environment.TickCount64;
                     sent++;
                     Status = $"Playing on the 4 keyboard zones ({watch.ElapsedMilliseconds} ms per update)";

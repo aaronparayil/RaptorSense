@@ -190,6 +190,13 @@ a few milliseconds): four zone
 calls per frame would allow roughly 10 frames a second at best. So static colours, the firmware's own effects and
 slow changes look possible; 60 fps effects and quick music sync probably don't. Measure it on the laptop first.
 
+**Fans confirmed on the AN515-57 (2026-11-16)** with the PH16-71's encodings, unchanged: `SetGamingFanBehavior`
+`0x820009` (Max), `0x410009` (Auto) and `0xC30009` (Custom) all returned 0 and read back through
+`GetGamingFanBehavior(0x9)` as `0x8200`, `0x4100` and `0xC300`. `SetGamingFanSpeed(0x3C01)` / `(0x3C04)` set both
+fans to 60 % (read back as `0x3C00`). Fans went from about 2050 / 2380 rpm on Auto to 6250 / 7500 rpm on Max and
+4760 / 5660 rpm at 60 %. The speed read keeps the last custom value after going back to Auto. Power profiles read the
+same way as on the Helios (supported `0x33`: Quiet, Balanced, Performance, Turbo) but have not been switched yet.
+
 The app plays its per-key effects on the zones by averaging the keys in each zone (`FourZoneLayout`: the main block
 in three equal parts by key position, then the arrows and numpad). It sends a frame only when a zone changes, and at
 most ten a second, with `Confirm = false` so the helper skips the read-back.

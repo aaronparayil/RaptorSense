@@ -46,6 +46,54 @@ public sealed class LaptopModelTests
         Assert.Contains("(model unknown)", LaptopModels.Refusal(null));
     }
 
+    [Theory]
+    [InlineData("Predator PH16-71", true)]
+    [InlineData("Nitro AN515-57", true)]
+    [InlineData("Nitro AN515-58", false)]
+    [InlineData("Predator PH18-71", false)]
+    [InlineData(null, false)]
+    public void Fan_control_only_on_checked_models(string? model, bool expected) =>
+        Assert.Equal(expected, LaptopModels.HasFanControl(model));
+
+    [Fact]
+    public void The_refusal_lists_only_what_is_still_off()
+    {
+        var nitro = LaptopModels.Refusal("Nitro AN515-57");
+        Assert.Contains("changing the power mode", nitro);
+        Assert.DoesNotContain("the fans,", nitro);
+        Assert.DoesNotContain("light bar", nitro);
+        Assert.Contains("(the fans and the keyboard's colours work)", nitro);
+
+        var unknown = LaptopModels.Refusal("Predator PH18-71");
+        Assert.Contains("changing the fans, the power mode or the light bar", unknown);
+        Assert.DoesNotContain("work)", unknown);
+    }
+
+    [Fact]
+    public void Fans_only_firmware_changes_the_fans_but_not_the_power_mode()
+    {
+        var inner = new RecordingFirmware();
+        var firmware = new FansOnlyFirmware(inner, "power modes aren't tested here");
+        firmware.SetFanMode(FanMode.Max);
+        firmware.SetCustomFanSpeeds(60, 55);
+        Assert.Equal("power modes aren't tested here", Assert.Throws<FirmwareException>(() => firmware.SetProfile(PowerProfile.Turbo)).Message);
+        Assert.Equal(["fans Max", "custom 60/55"], inner.Writes);
+        Assert.Equal(71, new FansOnlyFirmware(new RecordingFirmware { Temp = 71 }, "no").ReadSensors().CpuTemp);
+    }
+
+    [Fact]
+    public void The_fan_safety_rules_work_through_fans_only_firmware()
+    {
+        // As on the Nitro: custom speeds go to Max when it gets too hot.
+        var inner = new RecordingFirmware();
+        var fans = new FanController(new FansOnlyFirmware(inner, "no"));
+        fans.SetCustom(40, 40);
+        inner.Temp = FanController.HotC + 5;
+        for (int tick = 0; tick < 5; tick++) fans.Tick();
+        Assert.True(fans.SafetyOverride);
+        Assert.Contains("fans Max", inner.Writes);
+    }
+
     [Fact]
     public void Read_only_firmware_passes_reads_through()
     {

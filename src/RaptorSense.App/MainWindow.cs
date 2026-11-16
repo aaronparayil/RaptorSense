@@ -23,14 +23,16 @@ namespace RaptorSense.App;
 
 sealed class MainWindow : Window, IAutomationTarget
 {
-    // One app for every laptop: the model picks the keyboard drawn and how effects reach it. Reading it needs no
-    // administrator rights. On the Nitro the per-key USB keyboard isn't there, so the engine doesn't look for it.
-    static readonly string? Model = OperatingSystem.IsWindows() ? LaptopModels.ReadModel() : null;
-    static readonly LaptopLayout ThisLaptop = LaptopLayouts.For(Model);
-    static readonly bool HasFourZoneKeyboard = ThisLaptop == LaptopLayout.Nitro;
+    // One app for every laptop: the model picks the keyboard drawn, how effects reach it and which tabs show.
+    // On the Nitro the per-key USB keyboard isn't there, so the engine doesn't look for it.
+    static readonly bool HasFourZoneKeyboard = ThisLaptop.HasFourZoneKeyboard;
 
     readonly EffectEngine engine = new(HasFourZoneKeyboard ? NoPerKeyKeyboard : Ph16Keyboard.TryOpen);
     readonly KeyboardZonesPanel zonesPanel = new();
+    readonly StartupShow startupShow = new(ThisLaptop.Layout);
+    readonly ToggleSwitch showOnStart = new() { OnContent = "Light show when RaptorSense starts", OffContent = "No light show at start" };
+    IEffect? afterShow;
+    DispatcherTimer? showTimer;
     ZoneStreamer? zoneStreamer;
     readonly Rgb[] zonePreview = new Rgb[Frame.CellCount];
 
@@ -109,7 +111,7 @@ sealed class MainWindow : Window, IAutomationTarget
             {
                 new TabItem { Header = "Lighting", Content = lighting },
                 new TabItem { Header = "Animations", Content = new AnimationsPanel(engine, () => ChooseEffect(Effects.Animation)) },
-                new TabItem { Header = "Light bar", Content = lightBar },
+                new TabItem { Header = "Light bar", Content = lightBar, IsVisible = ThisLaptop.HasLightBar },
                 // Only on laptops whose 4-zone keyboard has been checked. Reading the model needs no administrator rights.
                 new TabItem { Header = "Keyboard zones", Content = zonesPanel, IsVisible = HasFourZoneKeyboard },
                 new TabItem { Header = "Performance", Content = new PerformancePanel() },
@@ -160,6 +162,8 @@ sealed class MainWindow : Window, IAutomationTarget
         ApplyProfile(ProfileStore.LoadLast() ?? new Profile());
         RefreshProfileList();
 
+        // The Helios's keyboard tells the engine its brightness when it connects; the Nitro's zones start at full.
+        if (HasFourZoneKeyboard && engine.Brightness < 0) engine.Brightness = Ph16Keyboard.MaxBrightness;
         engine.Start();
         if (HasFourZoneKeyboard)
         {
@@ -174,6 +178,7 @@ sealed class MainWindow : Window, IAutomationTarget
         }
         uiTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(33), DispatcherPriority.Render, (_, _) => RefreshPreview());
         uiTimer.Start();
+        if (StartupShowEnabled) PlayStartupShow();
         automations.Start();
 
         if (OperatingSystem.IsWindows())
@@ -206,7 +211,11 @@ sealed class MainWindow : Window, IAutomationTarget
 
     // ---- Automations ----
 
-    Profile IAutomationTarget.CaptureLighting() => Profile.Capture("", engine, lightBar.Current);
+    Profile IAutomationTarget.CaptureLighting()
+    {
+        EndStartupShow();   // what to go back to is the user's effect, not the show
+        return Profile.Capture("", engine, lightBar.Current);
+    }
 
     Profile? IAutomationTarget.LoadProfile(string name) => ProfileStore.Load(name);
 
@@ -242,7 +251,16 @@ sealed class MainWindow : Window, IAutomationTarget
         }
 
         if (engine.Effect != Effects.Painted) StartPainting();
-        Effects.Painted[cell] = erase ? Rgb.Black : engine.Settings.Color;
+        var color = erase ? Rgb.Black : engine.Settings.Color;
+        if (!HasFourZoneKeyboard)
+        {
+            Effects.Painted[cell] = color;
+            return;
+        }
+        // The Nitro lights a zone, not a key: painting a key paints its whole zone.
+        int zone = FourZoneLayout.ZoneOf(hit);
+        foreach (var key in KeyMap.Keys)
+            if (FourZoneLayout.ZoneOf(key) == zone) Effects.Painted[key.Cell] = color;
     }
     /// <summary>Switches to the painted layout, starting from what the keyboard shows now so nothing jumps.</summary>
     void StartPainting()
@@ -259,10 +277,11 @@ sealed class MainWindow : Window, IAutomationTarget
         var picker = new StackPanel { Spacing = 4 };
         foreach (var category in EffectCategory.Order)
         {
-            // The Helios's keyboard runs these itself; the Nitro's own effects are on its Keyboard zones tab.
-            if (HasFourZoneKeyboard && category == EffectCategory.Keyboard) continue;
+            // Each laptop has its own list: the Nitro's effects are made for its four zones.
+            var inCategory = LaptopEffects.Where(e => e.Category == category).ToList();
+            if (inCategory.Count == 0) continue;
             var grid = new UniformGrid { Columns = 2 };
-            foreach (var effect in Effects.All.Where(e => e.Category == category))
+            foreach (var effect in inCategory)
             {
                 var tile = new ToggleButton
                 {
@@ -326,7 +345,7 @@ sealed class MainWindow : Window, IAutomationTarget
     void ChooseEffect(IEffect effect)
     {
         foreach (var (e, tile) in effectTiles) tile.IsChecked = e == effect;
-        effectTitle.Text = effect.Name;
+        effectTitle.Text = EffectName(effect);
         SelectEffect(effect);
     }
 
@@ -352,7 +371,7 @@ sealed class MainWindow : Window, IAutomationTarget
                 VerticalAlignment = VerticalAlignment.Center,
                 Child = new TextBlock
                 {
-                    Text = $"Currently on {LaptopLayouts.ShortName(ThisLaptop)}",
+                    Text = $"Currently on {LaptopLayouts.ShortName(ThisLaptop.Layout)}",
                     Foreground = Look.OnAccent,
                     FontWeight = FontWeight.SemiBold,
                     FontSize = 13,
@@ -360,7 +379,7 @@ sealed class MainWindow : Window, IAutomationTarget
             },
             new TextBlock
             {
-                Text = LaptopLayouts.Describe(ThisLaptop, Model),
+                Text = LaptopLayouts.Describe(ThisLaptop.Layout, ThisLaptop.Model),
                 Foreground = Look.Muted,
                 FontSize = 13,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -478,7 +497,9 @@ sealed class MainWindow : Window, IAutomationTarget
         content.Children.Add(profileList);
         content.Children.Add(Row(load, delete));
         content.Children.Add(new DockPanel { Children = { Docked(save, Dock.Right), profileName } });
-        content.Children.Add(Look.Note("A profile keeps the effect, colours, speed, brightness and light bar."));
+        content.Children.Add(Look.Note(ThisLaptop.HasLightBar
+            ? "A profile keeps the effect, colours, speed, brightness and light bar."
+            : "A profile keeps the effect, colours, speed and brightness."));
         var card = Look.Card(content, "Profiles");
         card.Margin = new Thickness(16, 0, 0, 0);
         return card;
@@ -506,6 +527,13 @@ sealed class MainWindow : Window, IAutomationTarget
             };
             content.Children.Add(autostart);
         }
+
+        showOnStart.IsChecked = StartupShowEnabled;
+        showOnStart.IsCheckedChanged += (_, _) => StartupShowEnabled = showOnStart.IsChecked == true;
+        content.Children.Add(showOnStart);
+        var playShow = new Button { Content = "Play the start-up show" };
+        playShow.Click += (_, _) => PlayStartupShow();
+        content.Children.Add(playShow);
 
         var handBack = new Button { Content = "Hand back: keyboard's own rainbow wave" };
         handBack.Click += (_, _) => HandBack();
@@ -641,7 +669,8 @@ sealed class MainWindow : Window, IAutomationTarget
         }
     }
 
-    static readonly IReadOnlyList<IEffect> OverlayEffects = Effects.All.Where(e => e.WorksAsOverlay).ToList();
+    static readonly IReadOnlyList<IEffect> LaptopEffects = Effects.For(ThisLaptop.Layout);
+    static readonly IReadOnlyList<IEffect> OverlayEffects = LaptopEffects.Where(e => e.WorksAsOverlay).ToList();
 
     Control BuildOverlayPicker()
     {
@@ -656,7 +685,9 @@ sealed class MainWindow : Window, IAutomationTarget
         section.Children.Add(overlayPicker);
         section.Children.Add(new TextBlock
         {
-            Text = "A typing effect drawn on top of any effect, e.g. lightning on every key press over Aurora.",
+            Text = HasFourZoneKeyboard
+                ? "A typing effect drawn on top of any effect, e.g. Zone flash over Lava lamp."
+                : "A typing effect drawn on top of any effect, e.g. lightning on every key press over Aurora.",
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12,
             Opacity = 0.65,
@@ -669,6 +700,9 @@ sealed class MainWindow : Window, IAutomationTarget
     void ApplyProfile(Profile profile)
     {
         profile.ApplyTo(engine);
+        // A profile made on the other laptop may name effects this keyboard doesn't have.
+        if (!LaptopEffects.Contains(engine.Effect)) engine.Effect = Effects.DefaultFor(ThisLaptop.Layout);
+        if (engine.Overlay is { } saved && !OverlayEffects.Contains(saved)) engine.Overlay = null;
         colorEditor.SetColors(engine.Settings.Color, engine.Settings.Color2);
         speed.Value = engine.Settings.Speed;
         if (engine.Brightness >= 0)
@@ -681,7 +715,7 @@ sealed class MainWindow : Window, IAutomationTarget
         overlayPicker.SelectedIndex = overlay is null ? 0 : OverlayEffects.ToList().IndexOf(overlay) + 1;
         engine.Overlay = overlay;
         ChooseEffect(engine.Effect);   // also sets up the key hook or audio capture the effect needs
-        lightBar.Load(profile.LightBar, send: true);   // null leaves the bar as it is
+        if (ThisLaptop.HasLightBar) lightBar.Load(profile.LightBar, send: true);   // null leaves the bar as it is
         profileName.Text = profile.Name;
     }
 
@@ -689,6 +723,7 @@ sealed class MainWindow : Window, IAutomationTarget
     {
         var name = profileName.Text?.Trim();
         if (string.IsNullOrEmpty(name)) { Notify("Type a name for the profile first."); return; }
+        EndStartupShow();
         ProfileStore.Save(Profile.Capture(name, engine, lightBar.Current));
         RefreshProfileList();
         profileList.SelectedItem = name;
@@ -739,6 +774,42 @@ sealed class MainWindow : Window, IAutomationTarget
             }
             catch (Exception e) { Notify($"Could not set the keyboard effect: {e.Message}"); }
         }, DispatcherPriority.Background);
+    }
+
+    // ---- Start-up show ----
+
+    const string StartupShowKey = "StartupShow";
+
+    /// <summary>On unless turned off: the party lights when RaptorSense starts, which is when the laptop starts with "Start with Windows" on.</summary>
+    static bool StartupShowEnabled
+    {
+        get => AppearanceSettings.Get(StartupShowKey) != "off";
+        set => AppearanceSettings.Set(StartupShowKey, value ? null : "off");
+    }
+
+    /// <summary>Plays the show, then goes back to the effect that was playing (unless another one is picked meanwhile).</summary>
+    void PlayStartupShow()
+    {
+        if (engine.Effect != startupShow) afterShow = engine.Effect;
+        startupShow.Restart();
+        SelectEffect(startupShow);
+        effectTitle.Text = startupShow.Name;
+        foreach (var tile in effectTiles.Values) tile.IsChecked = false;
+
+        showTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(200), DispatcherPriority.Background, (_, _) =>
+        {
+            if (engine.Effect != startupShow) { showTimer!.Stop(); afterShow = null; }   // something else was picked
+            else if (startupShow.Finished) EndStartupShow();
+        });
+        showTimer.Start();
+    }
+
+    /// <summary>Ends the show now, if it is playing, so nothing saves it in place of the user's effect.</summary>
+    void EndStartupShow()
+    {
+        showTimer?.Stop();
+        if (engine.Effect == startupShow) ChooseEffect(afterShow ?? Effects.DefaultFor(ThisLaptop.Layout));
+        afterShow = null;
     }
 
     // The Nitro's own rainbow wave, through the helper.
@@ -860,13 +931,17 @@ sealed class MainWindow : Window, IAutomationTarget
     void SaveLast()
     {
         // While a rule is showing its own lighting, the user's setup is what it will go back to.
+        EndStartupShow();
         try { ProfileStore.SaveLast(automations.LightingBefore ?? Profile.Capture("", engine, lightBar.Current)); }
         catch (IOException) { }
     }
 
     // Musical note and keyboard symbols. This file is UTF-8: edit it with UTF-8-aware tools (Windows PowerShell 5.1's
     // Get-Content/Set-Content without -Encoding utf8 garbles these).
-    static string DisplayName(IEffect e) => e.UsesAudio ? $"{e.Name}  ♪" : e.UsesKeys ? $"{e.Name}  ⌨" : e.Name;
+    static string DisplayName(IEffect e) => e.UsesAudio ? $"{EffectName(e)}  ♪" : e.UsesKeys ? $"{EffectName(e)}  ⌨" : EffectName(e);
+
+    // On the Nitro, painting colours whole zones.
+    static string EffectName(IEffect e) => HasFourZoneKeyboard && e == Effects.Painted ? "Paint zones" : e.Name;
 
     static TextBlock Caption(string text) => new() { Text = text, Foreground = Look.Muted, FontSize = 13, Margin = new Thickness(0, 4, 0, 0) };
 

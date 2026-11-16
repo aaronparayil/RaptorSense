@@ -30,12 +30,14 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
     PowerProfile? knownProfile;
     long profileReadAt;
     string? model;
-    string? refusal;   // set on a laptop the helper only reads on
+    string? refusal;   // set on a laptop that isn't fully verified: what the helper answers to a change it won't make
+    bool fansAllowed;  // the fan commands have been checked on this model
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
         using var wmi = AcerGamingWmi.Open();
         model = LaptopModels.ReadModel();
+        fansAllowed = LaptopModels.HasFanControl(model);
         if (LaptopModels.IsVerified(model))
         {
             firmware = wmi;
@@ -43,21 +45,23 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
         }
         else
         {
-            // Nothing that writes is handed out: the fan rules, the light bar and every request see only reads.
+            // Only what has been checked on this model is handed out: the fans (and their safety rules) where they
+            // have been, reads otherwise. The light bar and power modes see only reads.
             refusal = LaptopModels.Refusal(model);
-            firmware = new ReadOnlyFirmware(wmi, refusal);
+            firmware = fansAllowed ? new FansOnlyFirmware(wmi, refusal) : new ReadOnlyFirmware(wmi, refusal);
         }
         if (LaptopModels.HasFourZoneKeyboard(model)) keyboard = wmi;
         fans = new FanController(firmware);
         lock (firmwareLock)
         {
             supported = firmware.SupportedProfiles();
-            if (refusal is null) fans.RecoverOnStart();
+            if (fansAllowed) fans.RecoverOnStart();
         }
         if (refusal is null)
             log.LogInformation("RaptorSense helper started on {Model}. Profiles: {Profiles}", model, string.Join(", ", supported));
         else
-            log.LogWarning("RaptorSense helper started on {Model}, which hasn't been tested: it only reads here.", LaptopModels.Describe(model));
+            log.LogWarning("RaptorSense helper started on {Model}, which hasn't been fully tested: {What}", LaptopModels.Describe(model),
+                fansAllowed ? "it changes the fans, not the power mode." : "it only reads here.");
 
         var pipe = ServePipeAsync(stop);
         try
@@ -132,8 +136,9 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
         if (request is null || firmware is null || fans is null) return ThermalStatus.Failed("Bad request.");
         lock (firmwareLock)
         {
-            // The keyboard is the one change allowed on a read-only laptop, and only when it has been checked there.
-            bool allowed = request.Command == "status" || (request.Command == "keyboard" && keyboard is not null);
+            // On a laptop that isn't fully verified, only what has been checked there: the fans, a 4-zone keyboard.
+            bool allowed = request.Command == "status" || (request.Command == "keyboard" && keyboard is not null) ||
+                           (request.Command == "fans" && fansAllowed);
             if (refusal is not null && !allowed) return Status(refusal) with { Ok = false };
             try
             {
@@ -195,7 +200,8 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
         GpuPercent = fans.GpuPercent,
         SafetyOverride = fans.SafetyOverride,
         Model = model,
-        ReadOnly = refusal is not null,
+        ReadOnly = refusal is not null && !fansAllowed,
+        PowerControl = refusal is null,
         HelperRevision = ThermalProtocol.HelperRevision,
         FourZoneKeyboard = keyboard is not null,
     };

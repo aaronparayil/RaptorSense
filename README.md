@@ -65,7 +65,8 @@ Linux is planned.
   same app drives it. It picks the laptop by its model: the Lighting tab says **Currently on Nitro** (or **Currently on
   Helios**) and draws that keyboard. On the Nitro the Lighting tab's effects play on the four zones, each showing the
   average of its keys, a few times a second; a **Keyboard zones** tab sets a colour per zone or one of the keyboard's
-  own effects. Both go through the helper. Fans and power stay read-only on it for now.
+  own effects. Both go through the helper. Fan control (Auto, Max, Custom, with the same safety rules) was checked
+  on it too; power modes haven't been, so they aren't shown there.
 
 RaptorSense comes with no warranty (see the [licence](LICENSE)). If you try it on another model, please
 [open an issue](https://github.com/aaronparayil/RaptorSense/issues) and say how it went, whether it worked or not.
