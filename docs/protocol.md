@@ -162,6 +162,9 @@ and `LIGHTBAR_REVERSE_ENGINEERING.md`), checked on this unit. Parameter sizes he
 - **Not to copy:** the Linux module can set an embedded-controller flag (EC register 0x03, bit 4) that PredatorSense
   is said to set on Windows. Writing EC registers directly is outside what RaptorSense does.
 
+These layouts are written down as code in `FourZoneProtocol` (`src/RaptorSense.Core/Hardware/FourZoneKeyboard.cs`),
+with tests that pin them to the sources above. Nothing calls it yet.
+
 On the Helios, Windows' `SetGamingLED` takes a 12-byte array, not a `u64`, so the turn-on call may need a different
 shape on Windows; the probe's list of method parameters will tell.
 
