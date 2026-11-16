@@ -52,11 +52,13 @@ Recorded on an earlier version: the effects are the same, the window has a new l
 
 ## Will it work on my laptop?
 
-Tested on one machine so far: **Predator Helios 16 PH16-71**, BIOS V1.18, keyboard `04F2:0117`. Windows only for now;
-Linux is planned.
+Tested on two machines so far: **Predator Helios 16 PH16-71** (BIOS V1.18, per-key keyboard `04F2:0117`) and
+**Nitro 5 AN515-57** (BIOS V1.22, 4-zone keyboard). One download works on both: the app reads the laptop's model
+when it starts and shows what works on it. Windows only for now; Linux is planned.
 
-- **Lighting** looks for keyboards `04F2:0117`, `011A` and `0119`. If yours isn't one of these, the app says
-  "Keyboard not found" and does nothing. A similar keyboard may have its keys mapped differently.
+- **Per-key lighting** looks for keyboards `04F2:0117`, `011A` and `0119`. If yours isn't one of these and the laptop
+  isn't the Nitro below, the app says "Keyboard not found" and does nothing. A similar keyboard may have its keys
+  mapped differently.
 - **Fans, power modes and the light bar** use Acer's gaming firmware interface, and RaptorSense only changes them
   on models that have been tested: so far the PH16-71. Firmware differs between laptops, so on any other model it
   shows temperatures and fan speeds but changes nothing, until that model has been checked. The readings may be off
@@ -65,8 +67,10 @@ Linux is planned.
   same app drives it. It picks the laptop by its model: the Lighting tab says **Currently on Nitro** (or **Currently on
   Helios**) and draws that keyboard. On the Nitro the Lighting tab's effects play on the four zones, each showing the
   average of its keys, a few times a second; a **Keyboard zones** tab sets a colour per zone or one of the keyboard's
-  own effects. Both go through the helper. Fan control (Auto, Max, Custom, with the same safety rules) was checked
-  on it too; power modes haven't been, so they aren't shown there.
+  own effects. It also gets 16 effects made for four zones, among them colour drift, scanner, lava lamp, ocean swell,
+  music zones and typing speed. All of this goes through the helper, so on the Nitro lighting needs fan control
+  installed. Fan control (Auto, Max, Custom, with the same safety rules) was checked on it too; power modes haven't
+  been, so they aren't shown there. The Nitro has no light bar, so there is no Light bar tab.
 
 RaptorSense comes with no warranty (see the [licence](LICENSE)). If you try it on another model, please
 [open an issue](https://github.com/aaronparayil/RaptorSense/issues) and say how it went, whether it worked or not.
@@ -114,6 +118,8 @@ changed the helper too.
 | A choice of nine background colours for the window | Works |
 | Tray icon: runs in the background, with profiles, pause and quit | Works |
 | Start with Windows (no admin needed), starts hidden with your last setup | Works |
+| Start-up light show: a few seconds of rainbow, strobes and flashes when RaptorSense starts | Works on both keyboards. **Off unless you switch it on** (Lighting tab), because it flashes |
+| Nitro 5 AN515-57: 4-zone keyboard with a colour per zone, the keyboard's own effects, 16 zone effects, and fans | Works; needs fan control installed. At most ten changes a second, so it is less smooth than per-key |
 | Power profiles, fans (Auto / Max / Custom) and live temperatures | Works; needs fan control installed (a button on the Performance tab). Changes nothing on models that haven't been tested |
 | Rear light bar: a colour per zone, brightness, and its 6 built-in animations | Works; needs fan control installed. No live effects or music sync on it yet |
 | Battery: charge cycles and health, from Windows' battery driver | Works |

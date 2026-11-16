@@ -780,11 +780,15 @@ sealed class MainWindow : Window, IAutomationTarget
 
     const string StartupShowKey = "StartupShow";
 
-    /// <summary>On unless turned off: the party lights when RaptorSense starts, which is when the laptop starts with "Start with Windows" on.</summary>
+    /// <summary>
+    /// The party lights when RaptorSense starts, which is when the laptop starts with "Start with Windows" on.
+    /// Off unless turned on: the show strobes and flashes white, which nobody should get from an update without
+    /// having asked for it.
+    /// </summary>
     static bool StartupShowEnabled
     {
-        get => AppearanceSettings.Get(StartupShowKey) != "off";
-        set => AppearanceSettings.Set(StartupShowKey, value ? null : "off");
+        get => AppearanceSettings.Get(StartupShowKey) == "on";
+        set => AppearanceSettings.Set(StartupShowKey, value ? "on" : null);
     }
 
     /// <summary>Plays the show, then goes back to the effect that was playing (unless another one is picked meanwhile).</summary>
