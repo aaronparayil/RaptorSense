@@ -33,14 +33,16 @@ sealed class KeyboardView : UserControl
     /// <summary>Raised when a button goes down on the keyboard, before any <see cref="KeyPainted"/> for that drag.</summary>
     public event Action? StrokeStarted;
 
-    public KeyboardView()
+    /// <param name="caps">Key caps printed differently on this laptop, by key-map label (the Nitro's own key).</param>
+    /// <param name="zoneOf">For a zoned keyboard: the zone (0 = left) of each key, named in its tooltip.</param>
+    public KeyboardView(IReadOnlyDictionary<string, string>? caps = null, Func<Key, int>? zoneOf = null)
     {
         var canvas = new Canvas { Width = PhysicalLayout.Width, Height = PhysicalLayout.Height, Background = Brushes.Transparent };
         foreach (var key in KeyMap.Keys)
         {
             if (PhysicalLayout.For(key.Label) is not { } rect) continue;
             var fill = new SolidColorBrush(Colors.Black);
-            var text = CapText.GetValueOrDefault(key.Label, key.Label);
+            var text = caps?.GetValueOrDefault(key.Label) ?? CapText.GetValueOrDefault(key.Label, key.Label);
             // Shrink long labels to fit the key's width (about 0.62 em per character) instead of wrapping.
             int longest = text.Split('\n').Max(line => line.Length);
             double fontSize = Math.Clamp((rect.Width - 10) / (longest * 0.62), 8, rect.Height < 40 ? 10 : 13);
@@ -66,7 +68,7 @@ sealed class KeyboardView : UserControl
                 Child = label,
                 Cursor = new Cursor(StandardCursorType.Hand),
             };
-            ToolTip.SetTip(view, $"{key.Label} (cell {key.Cell})");
+            ToolTip.SetTip(view, zoneOf is null ? $"{key.Label} (cell {key.Cell})" : $"{text.Replace('\n', ' ')} (zone {zoneOf(key) + 1})");
             Canvas.SetLeft(view, rect.X);
             Canvas.SetTop(view, rect.Y);
             canvas.Children.Add(view);

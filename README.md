@@ -61,6 +61,11 @@ Linux is planned.
   on models that have been tested: so far the PH16-71. Firmware differs between laptops, so on any other model it
   shows temperatures and fan speeds but changes nothing, until that model has been checked. The readings may be off
   there too.
+- **Nitro 5 AN515-57** (BIOS V1.22): its keyboard lights in four zones through the same firmware interface, and the
+  same app drives it. It picks the laptop by its model: the Lighting tab says **Currently on Nitro** (or **Currently on
+  Helios**) and draws that keyboard. On the Nitro the Lighting tab's effects play on the four zones, each showing the
+  average of its keys, a few times a second; a **Keyboard zones** tab sets a colour per zone or one of the keyboard's
+  own effects. Both go through the helper. Fans and power stay read-only on it for now.
 
 RaptorSense comes with no warranty (see the [licence](LICENSE)). If you try it on another model, please
 [open an issue](https://github.com/aaronparayil/RaptorSense/issues) and say how it went, whether it worked or not.

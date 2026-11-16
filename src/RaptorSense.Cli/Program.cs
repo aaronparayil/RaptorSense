@@ -23,12 +23,15 @@ const string Usage = """
       raptorsense lightbar <RRGGBB> [<RRGGBB> <RRGGBB>]   Rear light bar: one colour, or left, centre, right (needs the helper)
       raptorsense lightbar off
       raptorsense lightbar <mode> [--color RRGGBB]        breathing | neon | rainbow | wave | ripple | scanner | strobe
+      raptorsense zones <RRGGBB> [x4]       4-zone keyboard (Nitro 5 AN515-57): one colour, or four left to right (needs the helper)
+      raptorsense zones off
+      raptorsense zones <mode> [--color RRGGBB] [--direction left|right]   breathing | neon | wave | shifting | zoom
 
     Options:
       --color RRGGBB      main colour
       --color2 RRGGBB     second colour (spectrum top, pulse peak)
-      --speed N           run: speed multiplier (1 = normal); builtin: 1 slowest .. 12 fastest; lightbar mode: 0..10
-      --brightness N      0..50 (default: keyboard's current level); lightbar: 0..100 (default 100)
+      --speed N           run: speed multiplier (1 = normal); builtin: 1 slowest .. 12 fastest; lightbar mode: 0..10; zones mode: 1..9
+      --brightness N      0..50 (default: keyboard's current level); lightbar and zones: 0..100 (default 100)
       --auto on|off       run: rainbow "Auto" colours instead of --color
       --overlay <id>      run: a typing effect on top, e.g. --overlay typing-lightning (or none)
       --seconds N         run: stop after N seconds
@@ -58,6 +61,7 @@ try
         case "power": return SetPower(positional.FirstOrDefault());
         case "fans": return SetFans(positional);
         case "lightbar": return SetLightBar(positional, options);
+        case "zones": return SetZones(positional, options);
         case "profile": return RunProfile(positional.FirstOrDefault(), options);
         case "animations": return ListAnimations();
         case "animation": return RunAnimation(positional.FirstOrDefault(), options);
@@ -206,6 +210,34 @@ static int SetLightBar(List<string> args, Dictionary<string, string> options)
 
     var status = ThermalClient.SetLightBarAsync(request).GetAwaiter().GetResult();
     if (status.Ok) Console.WriteLine("Light bar set.");
+    else Console.Error.WriteLine(status.Error ?? ThermalClient.HelperMissing);
+    return status.Ok ? 0 : 1;
+}
+
+static int SetZones(List<string> args, Dictionary<string, string> options)
+{
+    const string ZonesUsage = "Usage: raptorsense zones <RRGGBB> [x4] | off | <mode> [--color RRGGBB] [--speed 1..9] [--brightness 0..100] [--direction left|right]";
+    if (args.Count == 0) throw new ArgumentException(ZonesUsage);
+
+    int brightness = options.TryGetValue("brightness", out var b) ? int.Parse(b) : FourZoneProtocol.MaxBrightness;
+    var request = new FourZoneRequest { Brightness = brightness };
+    if (args[0].Equals("off", StringComparison.OrdinalIgnoreCase))
+        request = request with { Colors = [Rgb.Black.ToString()] };
+    else if (Enum.TryParse<FourZoneMode>(args[0], ignoreCase: true, out var mode) && !char.IsDigit(args[0][0]) && mode != FourZoneMode.Static)
+        request = request with
+        {
+            Mode = mode,
+            Colors = [(options.TryGetValue("color", out var c) ? Rgb.Parse(c) : Rgb.White).ToString()],
+            Speed = options.TryGetValue("speed", out var s) ? int.Parse(s) : FourZoneProtocol.DefaultSpeed,
+            Direction = options.TryGetValue("direction", out var d) && d.StartsWith("r", StringComparison.OrdinalIgnoreCase)
+                ? FourZoneDirection.LeftToRight   // "right": moving towards the right
+                : FourZoneDirection.RightToLeft,
+        };
+    else
+        request = request with { Colors = args.Select(a => Rgb.Parse(a).ToString()).ToList() };
+
+    var status = ThermalClient.SetKeyboardAsync(request).GetAwaiter().GetResult();
+    if (status.Ok) Console.WriteLine("Keyboard zones set.");
     else Console.Error.WriteLine(status.Error ?? ThermalClient.HelperMissing);
     return status.Ok ? 0 : 1;
 }

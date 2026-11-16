@@ -24,6 +24,7 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
     readonly object firmwareLock = new();
     IGamingFirmware? firmware;
     ILightBar? lightBar;
+    IFourZoneKeyboard? keyboard;   // only on a laptop whose 4-zone keyboard has been checked, whatever the fans' state
     FanController? fans;
     IReadOnlyList<PowerProfile> supported = [];
     PowerProfile? knownProfile;
@@ -46,6 +47,7 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
             refusal = LaptopModels.Refusal(model);
             firmware = new ReadOnlyFirmware(wmi, refusal);
         }
+        if (LaptopModels.HasFourZoneKeyboard(model)) keyboard = wmi;
         fans = new FanController(firmware);
         lock (firmwareLock)
         {
@@ -130,7 +132,9 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
         if (request is null || firmware is null || fans is null) return ThermalStatus.Failed("Bad request.");
         lock (firmwareLock)
         {
-            if (refusal is not null && request.Command != "status") return Status(refusal) with { Ok = false };
+            // The keyboard is the one change allowed on a read-only laptop, and only when it has been checked there.
+            bool allowed = request.Command == "status" || (request.Command == "keyboard" && keyboard is not null);
+            if (refusal is not null && !allowed) return Status(refusal) with { Ok = false };
             try
             {
                 switch (request.Command)
@@ -157,6 +161,15 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
                         log.LogInformation("Light bar set: {Mode}, colours {Colours}, brightness {Brightness}",
                             bar.Mode?.ToString() ?? "static", string.Join(" ", bar.Colors), bar.Brightness);
                         break;
+                    case "keyboard" when request.Keyboard is { } zones && keyboard is not null:
+                        zones.ApplyTo(keyboard);
+                        // The app's effects stream frames several times a second: those aren't worth a log line each.
+                        if (zones.Confirm) log.LogInformation("Keyboard set: {Mode}, colours {Colours}, brightness {Brightness}",
+                            zones.Mode ?? FourZoneMode.Static, string.Join(" ", zones.Colors), zones.Brightness);
+                        // On a read-only laptop the usual error is the refusal, which this change didn't hit.
+                        return Status(refusal is null ? fans.LastError : null);
+                    case "keyboard" when keyboard is null:
+                        return Status("This laptop has no 4-zone keyboard that RaptorSense has been tested on.") with { Ok = false };
                     default:
                         return ThermalStatus.Failed($"Unknown request '{request.Command}'.");
                 }
@@ -184,6 +197,7 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
         Model = model,
         ReadOnly = refusal is not null,
         HelperRevision = ThermalProtocol.HelperRevision,
+        FourZoneKeyboard = keyboard is not null,
     };
 
     // Called with the firmware lock held. A failed read is not kept, so the next reply tries again.

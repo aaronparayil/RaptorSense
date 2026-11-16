@@ -23,7 +23,18 @@ namespace RaptorSense.App;
 
 sealed class MainWindow : Window, IAutomationTarget
 {
-    readonly EffectEngine engine = new(Ph16Keyboard.TryOpen);
+    // One app for every laptop: the model picks the keyboard drawn and how effects reach it. Reading it needs no
+    // administrator rights. On the Nitro the per-key USB keyboard isn't there, so the engine doesn't look for it.
+    static readonly string? Model = OperatingSystem.IsWindows() ? LaptopModels.ReadModel() : null;
+    static readonly LaptopLayout ThisLaptop = LaptopLayouts.For(Model);
+    static readonly bool HasFourZoneKeyboard = ThisLaptop == LaptopLayout.Nitro;
+
+    readonly EffectEngine engine = new(HasFourZoneKeyboard ? NoPerKeyKeyboard : Ph16Keyboard.TryOpen);
+    readonly KeyboardZonesPanel zonesPanel = new();
+    ZoneStreamer? zoneStreamer;
+    readonly Rgb[] zonePreview = new Rgb[Frame.CellCount];
+
+    static Ph16Keyboard? NoPerKeyKeyboard() => null;
     readonly Frame preview = new();
     // The strip along the top holds the window's title, the tabs and its own buttons, and drags the window.
     const double TopBarHeight = 64;
@@ -31,7 +42,7 @@ sealed class MainWindow : Window, IAutomationTarget
     // Room for the window's own minimise, maximise and close buttons at the right of the strip.
     const double CaptionButtonsWidth = 146;
 
-    readonly KeyboardView keyboard = new();
+    readonly KeyboardView keyboard = HasFourZoneKeyboard ? new(LaptopLayouts.NitroCaps, FourZoneLayout.ZoneOf) : new();
     // Connection and frame rates: only shown, and only kept up to date, while the info panel is open.
     readonly TextBlock status = new() { FontSize = 13, TextWrapping = TextWrapping.Wrap };
     readonly TextBlock frameRates = new() { FontSize = 13, Foreground = Look.Muted };
@@ -99,6 +110,8 @@ sealed class MainWindow : Window, IAutomationTarget
                 new TabItem { Header = "Lighting", Content = lighting },
                 new TabItem { Header = "Animations", Content = new AnimationsPanel(engine, () => ChooseEffect(Effects.Animation)) },
                 new TabItem { Header = "Light bar", Content = lightBar },
+                // Only on laptops whose 4-zone keyboard has been checked. Reading the model needs no administrator rights.
+                new TabItem { Header = "Keyboard zones", Content = zonesPanel, IsVisible = HasFourZoneKeyboard },
                 new TabItem { Header = "Performance", Content = new PerformancePanel() },
                 new TabItem { Header = "Automations", Content = new AutomationsPanel(automations) },
             },
@@ -148,6 +161,17 @@ sealed class MainWindow : Window, IAutomationTarget
         RefreshProfileList();
 
         engine.Start();
+        if (HasFourZoneKeyboard)
+        {
+            zoneStreamer = new ZoneStreamer(engine, () => engine.OutputEnabled);
+            // A colour set on the Keyboard zones tab stays: the Lighting tab's effects stop sending until turned back on.
+            zonesPanel.Applied += () =>
+            {
+                if (output.IsChecked != true) return;
+                output.IsChecked = false;
+                Notify("Lighting tab effects paused: turn on \"Controlling the keyboard\" to play them again.");
+            };
+        }
         uiTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(33), DispatcherPriority.Render, (_, _) => RefreshPreview());
         uiTimer.Start();
         automations.Start();
@@ -235,6 +259,8 @@ sealed class MainWindow : Window, IAutomationTarget
         var picker = new StackPanel { Spacing = 4 };
         foreach (var category in EffectCategory.Order)
         {
+            // The Helios's keyboard runs these itself; the Nitro's own effects are on its Keyboard zones tab.
+            if (HasFourZoneKeyboard && category == EffectCategory.Keyboard) continue;
             var grid = new UniformGrid { Columns = 2 };
             foreach (var effect in Effects.All.Where(e => e.Category == category))
             {
@@ -310,13 +336,47 @@ sealed class MainWindow : Window, IAutomationTarget
     /// The keyboard is the centrepiece, with what plays on it named above. Colours, speed and profiles sit in cards
     /// below it; the effects and the rarely changed keyboard settings scroll in a column on the right.
     /// </summary>
+    /// <summary>"Currently on Nitro" or "Currently on Helios": which keyboard this window draws and drives.</summary>
+    static Control LaptopBadge() => new StackPanel
+    {
+        Orientation = Orientation.Horizontal,
+        Spacing = 10,
+        Margin = new Thickness(0, 0, 0, 10),
+        Children =
+        {
+            new Border
+            {
+                Background = Look.AccentFill,
+                CornerRadius = new CornerRadius(999),
+                Padding = new Thickness(12, 4),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = $"Currently on {LaptopLayouts.ShortName(ThisLaptop)}",
+                    Foreground = Look.OnAccent,
+                    FontWeight = FontWeight.SemiBold,
+                    FontSize = 13,
+                },
+            },
+            new TextBlock
+            {
+                Text = LaptopLayouts.Describe(ThisLaptop, Model),
+                Foreground = Look.Muted,
+                FontSize = 13,
+                VerticalAlignment = VerticalAlignment.Center,
+            },
+        },
+    };
+
     Control BuildLighting()
     {
         keyboard.KeyPainted += PaintKey;
 
         var hint = new TextBlock
         {
-            Text = "Click or drag over keys to paint them with colour 1 · right-click to erase",
+            Text = HasFourZoneKeyboard
+                ? "Click or drag over keys to paint them · each of the 4 zones shows the average of its keys"
+                : "Click or drag over keys to paint them with colour 1 · right-click to erase",
             Foreground = Look.Muted,
             FontSize = 13,
             VerticalAlignment = VerticalAlignment.Bottom,
@@ -331,7 +391,7 @@ sealed class MainWindow : Window, IAutomationTarget
                 hint,
                 new StackPanel
                 {
-                    Children = { new TextBlock { Text = "Now playing on your keyboard", Foreground = Look.Muted, FontSize = 13 }, effectTitle },
+                    Children = { LaptopBadge(), new TextBlock { Text = "Now playing on your keyboard", Foreground = Look.Muted, FontSize = 13 }, effectTitle },
                 },
             },
         };
@@ -532,6 +592,12 @@ sealed class MainWindow : Window, IAutomationTarget
 
     void ShowEngineStatus()
     {
+        if (zoneStreamer is not null)
+        {
+            status.Text = zoneStreamer.Status;
+            frameRates.Text = $"{engine.RenderFps:N0} fps rendered, {zoneStreamer.SendFps:N1} zone updates a second";
+            return;
+        }
         status.Text = engine.Status;
         frameRates.Text = $"{engine.RenderFps:N0} fps rendered, {engine.SendFps:N0} fps sent";
     }
@@ -659,6 +725,11 @@ sealed class MainWindow : Window, IAutomationTarget
     void HandBack()
     {
         output.IsChecked = false;   // the engine lets go of the keyboard on its next frame
+        if (HasFourZoneKeyboard)
+        {
+            _ = HandBackZones();
+            return;
+        }
         Dispatcher.UIThread.Post(() =>
         {
             try
@@ -670,11 +741,27 @@ sealed class MainWindow : Window, IAutomationTarget
         }, DispatcherPriority.Background);
     }
 
+    // The Nitro's own rainbow wave, through the helper.
+    async Task HandBackZones()
+    {
+        var status = await ThermalClient.SetKeyboardAsync(new FourZoneRequest
+        {
+            Colors = [Rgb.White.ToString()], Mode = FourZoneMode.Wave, Speed = FourZoneProtocol.DefaultSpeed,
+        });
+        if (!status.Ok) Notify($"Could not set the keyboard effect: {status.Error ?? ThermalClient.HelperMissing}");
+    }
+
     void RefreshPreview()
     {
         if (WindowState == WindowState.Minimized) return;   // nothing of it is on screen
         engine.CopyLatestFrame(preview);
-        keyboard.Show(preview.Cells);
+        if (HasFourZoneKeyboard)
+        {
+            // Shown as the keyboard will light: every key in a zone takes the zone's colour.
+            FourZoneLayout.Spread(FourZoneLayout.Average(preview.Cells), zonePreview);
+            keyboard.Show(zonePreview);
+        }
+        else keyboard.Show(preview.Cells);
 
         if (!brightnessSynced && engine.Brightness >= 0)
         {
@@ -765,6 +852,7 @@ sealed class MainWindow : Window, IAutomationTarget
         uiTimer.Stop();
         keyHook?.Dispose();
         if (OperatingSystem.IsWindows()) specialKeys?.Dispose();
+        zoneStreamer?.Dispose();
         engine.Dispose();
         audio?.Dispose();
     }

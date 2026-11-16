@@ -12,7 +12,7 @@ namespace RaptorSense.Thermal;
 /// (the light bar's are not: nothing in the firmware reads a zone colour back reliably).
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class AcerGamingWmi : IGamingFirmware, ILightBar
+public sealed class AcerGamingWmi : IGamingFirmware, ILightBar, IFourZoneKeyboard
 {
     // The light bar only takes a colour change reliably when the whole round is sent a few times, 65 ms apart.
     const int LightBarRounds = 3;
@@ -25,6 +25,7 @@ public sealed class AcerGamingWmi : IGamingFirmware, ILightBar
     const ulong CpuFanId = 1, GpuFanId = 4;
 
     readonly ManagementObject instance;
+    bool zonesEnabled;
 
     AcerGamingWmi(ManagementObject instance) => this.instance = instance;
 
@@ -106,6 +107,34 @@ public sealed class AcerGamingWmi : IGamingFirmware, ILightBar
             Set("SetGamingKBBacklight", backlight);
             zoneColors?.Invoke();
         }
+    }
+
+    // The 4-zone keyboard (AN515-57). Order as tested there: turn the zones on, the colours, then static mode.
+    // Each zone colour is read back before the change is reported as done.
+    public void SetZones(IReadOnlyList<Rgb> zones, int brightness, bool confirm = true)
+    {
+        if (zones.Count != FourZoneProtocol.Zones) throw new ArgumentException($"The keyboard has {FourZoneProtocol.Zones} zones.", nameof(zones));
+        EnableZones();
+        for (int zone = 0; zone < FourZoneProtocol.Zones; zone++) Set("SetGamingRgbKb", FourZoneProtocol.ZoneColor(zone, zones[zone]));
+        Set("SetGamingKBBacklight", FourZoneProtocol.StaticBacklight(brightness));
+        if (!confirm) return;
+        Settle(() => Enumerable.Range(0, FourZoneProtocol.Zones).All(zone =>
+                FourZoneProtocol.ReadZoneColor(Invoke("GetGamingRgbKb", FourZoneProtocol.ZoneMask(zone))) == zones[zone]),
+            "The keyboard did not confirm the new zone colours.");
+    }
+
+    public void SetEffect(FourZoneMode mode, Rgb color, int speed, int brightness, FourZoneDirection direction)
+    {
+        EnableZones();
+        Set("SetGamingKBBacklight", FourZoneProtocol.EffectBacklight(mode, color, speed, brightness, direction));
+    }
+
+    void EnableZones()
+    {
+        if (zonesEnabled) return;
+        Get("GetGamingSysInfo", 0);   // the Linux module found this read is needed before the AN515-57 takes changes
+        Set("SetGamingLED", FourZoneProtocol.EnableAllZones);
+        zonesEnabled = true;
     }
 
     // The firmware is busy for a moment after a change and fails reads with "Generic failure" meanwhile,

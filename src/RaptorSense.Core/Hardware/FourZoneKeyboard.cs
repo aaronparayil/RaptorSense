@@ -4,22 +4,36 @@ using RaptorSense.Lighting;
 namespace RaptorSense.Hardware;
 
 /// <summary>The 4-zone keyboard's own effects, by the Linux module's numbering (docs/protocol.md, "Nitro 5 AN515-57").</summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter))]   // readable in profile files: "Mode": "Wave"
 public enum FourZoneMode : byte
 {
     Static = 0, Breathing = 1, Neon = 2, Wave = 3, Shifting = 4, Zoom = 5,
 }
 
 /// <summary>Which way <see cref="FourZoneMode.Wave"/> and the other moving effects go.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum FourZoneDirection : byte
 {
     RightToLeft = 1, LeftToRight = 2,
 }
 
+/// <summary>The keyboard of the Nitro 5 AN515-57 (four zones, left to right). Needs administrator rights, so it lives behind the helper.</summary>
+public interface IFourZoneKeyboard
+{
+    /// <summary>
+    /// One colour per zone (left to right), brightness 0..100. With <paramref name="confirm"/> the colours are read
+    /// back before the call returns; without, it is quicker, for effects that send a new frame several times a second.
+    /// </summary>
+    void SetZones(IReadOnlyList<Rgb> zones, int brightness, bool confirm = true);
+
+    /// <summary>One of the keyboard's own effects, in one colour where the effect uses one.</summary>
+    void SetEffect(FourZoneMode mode, Rgb color, int speed, int brightness, FourZoneDirection direction);
+}
+
 /// <summary>
 /// Byte layouts for the Nitro 5 AN515-57's 4-zone keyboard, which goes through the same <c>AcerGamingFunction</c> calls
-/// as the Helios's light bar. <b>A hypothesis, not checked on the laptop:</b> the layouts come from Linux sources
-/// (docs/protocol.md). Nothing sends them yet; that waits until the read-only checks on the laptop have been done.
+/// as the Helios's light bar. Static zone colours were confirmed on an AN515-57 (BIOS V1.22, 2026-11-16), including the
+/// read-back; the effect layout comes from Linux sources and only mode 2 has been sent so far (docs/protocol.md).
 /// </summary>
 public static class FourZoneProtocol
 {
@@ -28,21 +42,31 @@ public static class FourZoneProtocol
     public const int MinSpeed = 1, MaxSpeed = 9, DefaultSpeed = 5;
 
     /// <summary>
-    /// <c>SetGamingLED</c> value sent once at start, after a <c>GetGamingSysInfo(0)</c> read: bit 3 lets the keyboard
-    /// take updates, bits 40-43 pick all four zones. On Windows the method may want a byte array instead; check first.
+    /// <c>SetGamingLED</c> value (a <c>UInt64</c> on the AN515-57) sent before the first change, after a
+    /// <c>GetGamingSysInfo(0)</c> read: bit 3 lets the keyboard take updates, bits 40-43 pick all four zones.
     /// </summary>
     public const ulong EnableAllZones = 0x08UL | (0x0FUL << 40);
 
     /// <summary>
-    /// <c>SetGamingRgbKb</c> argument for one zone (0 = leftmost .. 3): the bytes <c>mask R G B</c>, so
-    /// <c>mask | r &lt;&lt; 8 | g &lt;&lt; 16 | b &lt;&lt; 24</c> with masks 1, 2, 4, 8. Unlike
+    /// <c>SetGamingRgbKb</c> argument (a <c>UInt32</c>) for one zone (0 = leftmost .. 3): the bytes <c>mask R G B</c>,
+    /// so <c>mask | r &lt;&lt; 8 | g &lt;&lt; 16 | b &lt;&lt; 24</c> with masks 1, 2, 4, 8. Unlike
     /// <see cref="LightBarProtocol.ZoneColor"/>, there is no 0x08 or mask in the upper bytes.
     /// </summary>
-    public static ulong ZoneColor(int zone, Rgb color)
+    public static uint ZoneColor(int zone, Rgb color) => ZoneMask(zone) | ((uint)color.R << 8) | ((uint)color.G << 16) | ((uint)color.B << 24);
+
+    /// <summary>The zone's bit, which is also the <c>GetGamingRgbKb</c> argument that reads it back.</summary>
+    public static uint ZoneMask(int zone)
     {
         if (zone is < 0 or >= Zones) throw new ArgumentOutOfRangeException(nameof(zone));
-        return (1UL << zone) | ((ulong)color.R << 8) | ((ulong)color.G << 16) | ((ulong)color.B << 24);
+        return 1u << zone;
     }
+
+    /// <summary>
+    /// The colour in a <c>GetGamingRgbKb</c> reply: status in byte 0, then R, G, B (e.g. <c>0xFF00AA00</c> is AA00FF).
+    /// Null when the status isn't 0.
+    /// </summary>
+    public static Rgb? ReadZoneColor(ulong output) =>
+        (output & 0xFF) != 0 ? null : new Rgb((byte)(output >> 8), (byte)(output >> 16), (byte)(output >> 24));
 
     /// <summary>The 16-byte <c>SetGamingKBBacklight</c> payload sent after the zone colours, to keep them static.</summary>
     public static byte[] StaticBacklight(int brightness) =>

@@ -134,9 +134,25 @@ and `LIGHTBAR_REVERSE_ENGINEERING.md`), checked on this unit. Parameter sizes he
 - No handshake or mutex is needed. COM objects are thread-affine, so use one WMI instance per thread.
 - `GetGamingLED*` (ids 4, 11, 13) read all zeros or an error status on this laptop; the bar does not use them for reads.
 
-## Nitro 5 AN515-57: 4-zone keyboard (hypothesis, not yet seen)
+## Nitro 5 AN515-57: 4-zone keyboard
 
-**Not checked on the laptop yet.** Gathered on 2026-11-15, before the AN515-57 arrived, from two Linux sources:
+**Static zone colours confirmed on Windows (2026-11-16), AN515-57, BIOS V1.22**, with administrator rights:
+
+- The keyboard is not USB (the only vendor-defined HID device was `248A:5B4A`, a mouse receiver). It is `AcerGamingFunction`.
+- Parameter types on this firmware: `SetGamingLED` and `SetGamingKBBacklight` as below, but `SetGamingLED` takes a
+  `UInt64` here (not the Helios's 12-byte array), and `SetGamingRgbKb` / `GetGamingRgbKb` take a `UInt32`.
+  `GetGamingKBBacklight` returns 15 bytes and a `gmReturn` byte.
+- **Zone colours read back.** `GetGamingRgbKb(mask)` with mask 1, 2, 4 or 8 returns `status | R << 8 | G << 16 | B << 24`,
+  the same packing as the write with the mask replaced by the status. Mask 15 fails (status 2). Factory colour: `AA00FF`.
+- While one of the keyboard's own effects runs, zone colours are stored but not shown. The sequence that worked:
+  `GetGamingSysInfo(0)`, `SetGamingLED(0xF0000000008)`, four `SetGamingRgbKb` calls (status 0; the first three answered
+  `0x200000000`), then `SetGamingKBBacklight(00 00 64 00 00 00 00 00 00 01 …)`. All four zones showed their colours.
+- The factory effect read back as `02 05 64 FF 00 …`: mode 2 (neon), speed 5, brightness 100. In a read, byte 3 is
+  `FF` and byte 4 is the direction: after sending mode 2 with direction 1 it read `02 05 64 FF 01`. So reads don't
+  carry the wave flag where writes do.
+- Only modes 0 and 2 have been sent. The other effect modes and the brightness keys are still unchecked.
+
+What follows was gathered on 2026-11-15, before the AN515-57 arrived, from two Linux sources:
 [acer-predator-turbo-and-rgb-keyboard-linux-module](https://github.com/JafarAkhondali/acer-predator-turbo-and-rgb-keyboard-linux-module)
 (`src/facer.c`, `facer_rgb.py`; its table lists AN515-55, -56, -57 and -58 with RGB "tested"), and an RFC patch adding
 4-zone RGB for the AN515-58 to mainline `acer-wmi`
@@ -163,7 +179,8 @@ and `LIGHTBAR_REVERSE_ENGINEERING.md`), checked on this unit. Parameter sizes he
   is said to set on Windows. Writing EC registers directly is outside what RaptorSense does.
 
 These layouts are written down as code in `FourZoneProtocol` (`src/RaptorSense.Core/Hardware/FourZoneKeyboard.cs`),
-with tests that pin them to the sources above. Nothing calls it yet.
+with tests that pin them to the sources above. `AcerGamingWmi` sends them through the helper's `keyboard` command,
+which the helper accepts only on models in `LaptopModels.FourZoneKeyboards`, even where fans and power are read-only.
 
 On the Helios, Windows' `SetGamingLED` takes a 12-byte array, not a `u64`, so the turn-on call may need a different
 shape on Windows; the probe's list of method parameters will tell.
@@ -173,9 +190,12 @@ a few milliseconds): four zone
 calls per frame would allow roughly 10 frames a second at best. So static colours, the firmware's own effects and
 slow changes look possible; 60 fps effects and quick music sync probably don't. Measure it on the laptop first.
 
-To check on the AN515-57: the keyboard's USB IDs (in case it is USB after all), whether the methods above exist under
-these names in Windows' `AcerGamingFunction`, the read-only `GetGamingKBBacklight` and `GetGamingLED` values with
-NitroSense's colours set, and then, with the owner's go-ahead, one static zone colour.
+The app plays its per-key effects on the zones by averaging the keys in each zone (`FourZoneLayout`: the main block
+in three equal parts by key position, then the arrows and numpad). It sends a frame only when a zone changes, and at
+most ten a second, with `Confirm = false` so the helper skips the read-back.
+
+Still to check on the AN515-57: the effect modes other than 2, the wave direction, how long a 4-zone update takes
+(for anything faster than static colours), and the brightness keys.
 
 ## Battery: Windows battery driver
 

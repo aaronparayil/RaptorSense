@@ -15,17 +15,28 @@ public static class LaptopModels
     /// <summary>Model codes as one word of what Windows reports (Win32_ComputerSystem.Model, e.g. "Predator PH16-71").</summary>
     public static readonly IReadOnlyList<string> Verified = ["PH16-71"];
 
-    public static bool IsVerified(string? model) =>
+    /// <summary>
+    /// Laptops whose 4-zone keyboard has been checked on the real machine. Only the keyboard: on these the helper changes
+    /// the keyboard's colours and nothing else unless the model is also in <see cref="Verified"/>.
+    /// </summary>
+    public static readonly IReadOnlyList<string> FourZoneKeyboards = ["AN515-57"];
+
+    public static bool IsVerified(string? model) => Matches(model, Verified);
+
+    public static bool HasFourZoneKeyboard(string? model) => Matches(model, FourZoneKeyboards);
+
+    static bool Matches(string? model, IReadOnlyList<string> codes) =>
         !string.IsNullOrWhiteSpace(model) &&
         model.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-            .Any(word => Verified.Contains(word, StringComparer.OrdinalIgnoreCase));
+            .Any(word => codes.Contains(word, StringComparer.OrdinalIgnoreCase));
 
     public static string Describe(string? model) => string.IsNullOrWhiteSpace(model) ? "model unknown" : model.Trim();
 
     /// <summary>What the helper answers to a change it won't make on this model.</summary>
     public static string Refusal(string? model) =>
         $"RaptorSense hasn't been tested on this laptop ({Describe(model)}), so it doesn't change the fans, power " +
-        "mode or light bar here. To help add it, see \"Other laptops\" in the README.";
+        "mode or light bar here" + (HasFourZoneKeyboard(model) ? " (the keyboard's colours still work)" : "") +
+        ". To help add it, see \"Other laptops\" in the README.";
 
     /// <summary>The model as Windows reports it, or null if it can't be read (which counts as not verified).</summary>
     [SupportedOSPlatform("windows")]
