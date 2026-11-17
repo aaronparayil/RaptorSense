@@ -29,7 +29,7 @@ Created by [aaronparayil](https://github.com/aaronparayil). Free and open source
 
 ## Where it stands
 
-The current release is **1.8.5**, for Windows. One download works on both tested laptops: the app reads the laptop's
+The current release is **1.8.6**, for Windows. One download works on both tested laptops: the app reads the laptop's
 model when it starts and shows what works on it.
 
 | | Predator Helios 16 PH16-71 | Nitro 5 AN515-57 |
