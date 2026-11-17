@@ -14,6 +14,48 @@ public static class Effects
     /// <summary>One colour everywhere. Shared by both laptops' lists, so a profile finds the same one on either.</summary>
     public static StaticEffect Static { get; } = new();
 
+    /// <summary>
+    /// The hundred effects added in 1.9, by collection. They are listed with <see cref="All"/>, in their categories.
+    /// Declared before <see cref="All"/>, which includes them.
+    /// </summary>
+    public static IReadOnlyList<IEffect> Collections { get; } =
+    [
+        // Ambient
+        new CandlelightEffect(), new TideEffect(), new DriftingCloudsEffect(), new SunsetEffect(), new FirefliesEffect(),
+        new BreathingWaveEffect(), new DeepSeaEffect(), new ZenGardenEffect(), new MoonlightEffect(), new LavaBlobsEffect(),
+        // Patterns
+        new PlasmaEffect(), new KaleidoscopeEffect(), new SpiralEffect(), new TunnelEffect(), new CheckerboardEffect(),
+        new StripesEffect(), new MoireEffect(), new LivingCellsEffect(), new ChevronsEffect(), new DiamondsEffect(),
+        new InterferenceEffect(), new DissolveEffect(), new TurningGradientEffect(), new RibbonsEffect(),
+        // Nature
+        new OceanWavesEffect(), new SunriseEffect(), new ForestCanopyEffect(), new WaterfallEffect(), new LavaFlowEffect(),
+        new RainstormEffect(), new FallingLeavesEffect(), new BubblesEffect(), new CoralReefEffect(), new VolcanoEffect(),
+        new FrostEffect(), new MeadowEffect(),
+        // Space
+        new WarpSpeedEffect(), new GalaxyEffect(), new NebulaEffect(), new ShootingStarsEffect(), new OrbitsEffect(),
+        new BlackHoleEffect(), new PulsarEffect(), new EclipseEffect(), new ConstellationsEffect(), new SolarSurfaceEffect(),
+        // Retro
+        new GameOfLifeEffect(), new FallingBlocksEffect(), new BouncingBallEffect(), new PaddleRallyEffect(),
+        new SnakeHuntEffect(), new SortingEffect(), new LoadingBarEffect(), new EightBitRainbowEffect(),
+        // Sci-fi
+        new CircuitBoardEffect(), new ScanBeamEffect(), new HologramEffect(), new DataStreamEffect(), new HudRingsEffect(),
+        new GlitchEffect(), new ReactorCoreEffect(), new DnaHelixEffect(), new TerminalEffect(), new ChargingEffect(),
+        // Celebrations
+        new FireworksEffect(), new FestiveLightsEffect(), new DiyasEffect(), new ColourFestivalEffect(), new CandyCaneEffect(),
+        new HeartsEffect(),
+        // Handy
+        new ClockEffect(), new GamingKeysEffect(), new TypingGuideEffect(), new FocusTimerEffect(), new ShortcutKeysEffect(),
+        new NightLightEffect(),
+        // Music
+        new VuMeterEffect(), new MirroredSpectrumEffect(), new SpectrogramEffect(), new BeatRingsEffect(), new MusicFireEffect(),
+        new BassWaveEffect(), new TrebleSparkleEffect(), new DiscoFloorEffect(), new MusicAuroraEffect(), new MoodColourEffect(),
+        new RowEqualiserEffect(), new CircularSpectrumEffect(),
+        // Typing
+        new RainbowKeysEffect(), new LightTrailEffect(), new ColumnBeamEffect(), new RowSweepEffect(), new KeyFireworksEffect(),
+        new FrostKeysEffect(), new PaintAsYouTypeEffect(), new BloomEffect(), new ElectricArcEffect(), new DroppingKeysEffect(),
+        new ShadowKeysEffect(), new ChainReactionEffect(),
+    ];
+
     /// <summary>The effects for the Helios's per-key keyboard (and laptops the app doesn't know).</summary>
     public static IReadOnlyList<IEffect> All { get; } =
     [
@@ -31,6 +73,7 @@ public static class Effects
         new ReactiveKeysEffect(), new RippleEffect(), new TypingLightningEffect(), new TypingFireballEffect(),
         new CometEffect(), new BurstEffect(), new SplashEffect(), new CrosshairEffect(),
         new HeatmapEffect(), new ConfettiEffect(), new SparkleEffect(),
+        .. Collections,
         // Run by the keyboard itself; previewed with the closest software effect
         new KeyboardEffect(BuiltInEffect.Static, "static"), new KeyboardEffect(BuiltInEffect.Breathing, "breathing"),
         new KeyboardEffect(BuiltInEffect.Wave, "rainbow"), new KeyboardEffect(BuiltInEffect.Snake, "snake"),
@@ -40,6 +83,18 @@ public static class Effects
         new KeyboardEffect(BuiltInEffect.Fireball, "fireball"), new KeyboardEffect(BuiltInEffect.Snow, "snow"),
         new KeyboardEffect(BuiltInEffect.Heartbeat, "heartbeat"),
     ];
+
+    /// <summary>
+    /// A new copy of an effect with its own state, for drawing it somewhere besides the keyboard (the gallery's
+    /// previews) without disturbing the one that plays. Null for the two that are the user's own work (painting
+    /// and the animation), which have one shared copy.
+    /// </summary>
+    public static IEffect? CreateCopy(IEffect effect) => effect switch
+    {
+        PaintedEffect or AnimationEffect => null,
+        KeyboardEffect keyboard => Find(keyboard.PreviewId) is { } preview ? CreateCopy(preview) : null,
+        _ => effect.GetType().GetConstructor(Type.EmptyTypes) is { } constructor ? (IEffect)constructor.Invoke(null) : null,
+    };
 
     /// <summary>
     /// The effects for the Nitro 5's 4-zone keyboard (NitroEffects.cs): made for four zones, not the Helios's per-key
@@ -78,6 +133,9 @@ public static class Effects
 public sealed class KeyboardEffect(BuiltInEffect effect, string previewId) : IEffect
 {
     public BuiltInEffect Effect => effect;
+
+    /// <summary>The software effect the preview shows.</summary>
+    public string PreviewId => previewId;
     public string Id => "kb-" + effect.ToString().ToLowerInvariant();
     public string Name => effect == BuiltInEffect.Raindrop ? "Rain drop" : effect.ToString();
     public string Category => EffectCategory.Keyboard;

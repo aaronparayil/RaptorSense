@@ -35,7 +35,7 @@ model when it starts and shows what works on it.
 | | Predator Helios 16 PH16-71 | Nitro 5 AN515-57 |
 |---|---|---|
 | Keyboard lighting | Every key on its own, 60 fps, no admin rights | Four zones, about ten changes a second; needs fan control installed |
-| Effects | 20, plus 2 music and 11 typing effects, and the keyboard's 13 built-in ones | 16 made for four zones (2 follow music, 4 react to typing), and the keyboard's 5 built-in ones |
+| Effects | 96, plus 14 music and 23 typing effects, and the keyboard's 13 built-in ones, all in a gallery of live previews | 16 made for four zones (2 follow music, 4 react to typing), and the keyboard's 5 built-in ones |
 | Static colour, painting, your own animations | Works, key by key | Works, zone by zone: each zone shows the average of its keys |
 | Fans (Auto, Max, Custom) and temperatures | Works | Works |
 | Power modes | Works | Not offered yet: not checked on this model |
@@ -56,8 +56,8 @@ Music and typing effects, fans, power and automations are still to come on Linux
 
 - **Two laptops, one download.** A Helios 16 with a per-key keyboard and a Nitro 5 with a 4-zone one, each seeing its
   own controls.
-- **Lighting that follows the real keys.** 20 animated and static effects, 2 that move to your music and 11 that react
-  to typing, all drawn on a live preview of your keyboard at 60 fps. Paint single keys by hand, pick two colours or
+- **Lighting that follows the real keys.** 147 effects: 96 animated and static ones, 14 that move to your music, 23 that
+  react to typing and the keyboard's own 13, all drawn on a live preview of your keyboard at 60 fps. Paint single keys by hand, pick two colours or
   let it run a rainbow.
 - **Your own animations.** Paint frames, set how long each one stays and fades, and play the loop on the keyboard.
   Start from a ready-made one, undo freely, and share animations as files. An animation can follow your music too:
@@ -133,9 +133,10 @@ changed the helper too.
 | Feature | State |
 |---|---|
 | Per-key RGB at 60 fps, no admin rights | Works |
-| 20 lighting effects using real key positions, with two colours or Auto rainbow: static, gradient, breathing, rainbow wave, neon, snake, radar, aurora, matrix rain, fire, lightning and more | Works |
-| 2 music effects: spectrum and bass pulse (listens to your PC's audio output, never the microphone) | Works |
-| 11 typing effects: reactive keys, ripple, lightning, fireball, comet, burst, splash, crosshair, heatmap, confetti, sparkle | Works |
+| 96 lighting effects using real key positions, in collections: Animated, Ambient (candlelight, tide, fireflies, lava lamp), Patterns (plasma, kaleidoscope, tunnel, moiré), Nature (ocean waves, waterfall, rainstorm, coral reef), Space (warp speed, galaxy, black hole, eclipse), Retro (Game of Life, falling blocks, paddle rally, snake hunt, sorting), Sci-fi (circuit board, hologram, DNA helix, terminal), Celebrations (fireworks, festive lights, diyas, colour festival) and Handy (clock, gaming keys, typing guide, focus timer, night light) | Works |
+| 14 music effects: spectrum, bass pulse, VU meter, spectrogram, beat rings, music fire, disco floor, mood colour and more (listens to your PC's audio output, never the microphone) | Works |
+| 23 typing effects: reactive keys, ripple, lightning, comet, rainbow keys, light trail, key fireworks, frost keys, paint as you type, electric arc, chain reaction and more | Works |
+| Effect gallery: every effect playing at once on its own little keyboard, by collection, with search, favourites and **Play them all**, a showcase that plays each one on the keyboard in turn | Works |
 | Typing overlay: layer a typing effect over another effect, such as lightning on key presses over Aurora | Works |
 | The keyboard's 13 built-in effects, which keep running when RaptorSense is closed | Works |
 | Key painting: click or drag keys in the preview, right-click to erase | Works |
@@ -161,12 +162,28 @@ changed the helper too.
 The **Lighting** tab is the one in the picture at the top. The keyboard in the middle shows what the real one is
 doing, and the name of the effect is above it.
 
-- Pick an effect from the list on the right. A ♪ marks the ones that follow your music, a ⌨ the ones that react to typing.
+- Pick an effect from the list on the right, grouped by collection, or search it by name. A ♪ marks the ones that
+  follow your music, a ⌨ the ones that react to typing. Effects you star in the gallery are listed first.
 - **Colours** has two colours, a wheel, saved swatches and an eyedropper that takes a colour from any key in the preview.
   Colour 1 is also the paint brush: click or drag over keys to paint them, right-click to erase.
 - **Adjust** has speed, brightness and the typing overlay, which draws a typing effect on top of any other effect.
 - **Profiles** save the effect, colours, speed, brightness and light bar under a name. The app also restores your
   last setup when it starts.
+
+### Gallery
+
+The **Gallery** tab shows every effect at once, each playing on its own little keyboard as it would on yours, in
+your colours. Pick a collection along the top or search by name, and click any of them to play it on the keyboard.
+The star adds it to your favourites, at the top of the Lighting tab's list. The previews of music and typing effects
+use a pretend beat and pretend typing, so they move even when nothing is playing.
+
+**Play them all** plays every effect in view on the real keyboard, one after another, for 5 to 30 seconds each:
+**Keep this one** stops on the effect you like, **Stop** goes back to what was playing before. During the showcase,
+typing effects get pretend typing and music effects follow the demo beat while your computer is quiet.
+
+None of the effects flash: each is checked against the screen flash rule (no more than three flashes a second) at
+normal and double speed. The previews move only while the Gallery tab is in sight, slow down when another window is
+in front, and are let go of when the window closes.
 
 The round **i** button at the top right opens a small panel with the keyboard connection, the frame rates, a choice
 of background colours for the window, and the version. It also has a **Drawing** switch. RaptorSense draws its

@@ -45,10 +45,12 @@ public sealed class NitroEffectTests
     public void TheNitroHasNoKeyboardBuiltInEffects() =>
         Assert.DoesNotContain(Effects.Nitro, e => e.Category == EffectCategory.Keyboard);
 
+    // The Helios's extra collections (ambient, space, retro and so on) are per-key effects, so the Nitro only has
+    // the core groups.
     [Fact]
-    public void EveryCategoryButBuiltInHasNitroEffects()
+    public void EveryCoreCategoryHasNitroEffects()
     {
-        foreach (var category in EffectCategory.Order.Where(c => c != EffectCategory.Keyboard))
+        foreach (var category in new[] { EffectCategory.Basic, EffectCategory.Animated, EffectCategory.Nature, EffectCategory.Music, EffectCategory.Typing })
             Assert.Contains(Effects.Nitro, e => e.Category == category);
     }
 
