@@ -352,7 +352,7 @@ static Dictionary<string, string> ParseOptions(string[] args, out List<string> p
     positional = [];
     for (int i = 0; i < args.Length; i++)
     {
-        if (!args[i].StartsWith("--")) { positional.Add(args[i]); continue; }
+        if (!args[i].StartsWith("--", StringComparison.Ordinal)) { positional.Add(args[i]); continue; }
         if (i + 1 >= args.Length) throw new ArgumentException($"Option {args[i]} needs a value.");
         options[args[i][2..]] = args[++i];
     }

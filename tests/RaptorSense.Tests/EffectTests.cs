@@ -35,7 +35,8 @@ public sealed class EffectTests
                 effect.Render(frame, new EffectContext(time, i * delta, delta, settings, null, presses));
                 foreach (int cell in KeyGeometry.Cells) lit |= frame[cell] != Rgb.Black;
             }
-            if (!DarkWithoutInput.Contains(id)) Assert.True(lit, $"{id} never lit a key (speed {speed}, auto {auto})");
+            // Music effects have no audio here; CollectionTests plays them the demo beat.
+            if (!DarkWithoutInput.Contains(id) && !effect.UsesAudio) Assert.True(lit, $"{id} never lit a key (speed {speed}, auto {auto})");
         }
     }
 

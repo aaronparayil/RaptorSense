@@ -21,7 +21,7 @@ using Key = RaptorSense.Layout.Key;
 
 namespace RaptorSense.App;
 
-sealed class MainWindow : Window, IAutomationTarget
+sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
 {
     // One app for every laptop: the model picks the keyboard drawn, how effects reach it and which tabs show.
     // On the Nitro the per-key USB keyboard isn't there, so the engine doesn't look for it.
@@ -52,7 +52,15 @@ sealed class MainWindow : Window, IAutomationTarget
     readonly Border toast;
     bool infoOpen;
     readonly TextBlock effectTitle = new() { FontSize = 30, FontWeight = FontWeight.SemiBold };
-    readonly Dictionary<IEffect, ToggleButton> effectTiles = [];
+    // An effect can have two tiles: in its category, and under Favourites.
+    readonly Dictionary<IEffect, List<ToggleButton>> effectTiles = [];
+    readonly TextBox effectSearch = new() { PlaceholderText = "Search effects" };
+    readonly List<(Expander Box, string Category, List<(IEffect Effect, ToggleButton Tile)> Tiles)> pickerGroups = [];
+    readonly StackPanel favouritesGroup = new() { Spacing = 4 };
+    readonly TabItem galleryTab = new() { Header = "Gallery", Content = new Panel() };
+    TabControl? tabs;
+    EffectGallery? gallery;
+    bool demoMusic;
     readonly CheckBox autoColor = new() { Content = "Auto (rainbow colours)" };
     readonly ComboBox overlayPicker = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ColorEditor colorEditor = new(wide: true);
@@ -102,7 +110,7 @@ sealed class MainWindow : Window, IAutomationTarget
         automations = new AutomationRunner(this);
         automations.EnabledChanged += () => TrayStateChanged?.Invoke();
 
-        var tabs = new TabControl
+        tabs = new TabControl
         {
             Margin = new Thickness(0, (TopBarHeight - 40) / 2, 0, 0),
             Padding = new Thickness(0),
@@ -110,6 +118,7 @@ sealed class MainWindow : Window, IAutomationTarget
             Items =
             {
                 new TabItem { Header = "Lighting", Content = lighting },
+                galleryTab,
                 new TabItem { Header = "Animations", Content = new AnimationsPanel(engine, () => ChooseEffect(Effects.Animation)) },
                 new TabItem { Header = "Light bar", Content = lightBar, IsVisible = ThisLaptop.HasLightBar },
                 // Only on laptops whose 4-zone keyboard has been checked. Reading the model needs no administrator rights.
@@ -158,6 +167,8 @@ sealed class MainWindow : Window, IAutomationTarget
         };
 
         Content = new Grid { Children = { dragStrip, tabs, info, toast } };
+        // The gallery is built the first time it is opened, and its previews move only while it is in sight.
+        tabs.SelectionChanged += (_, _) => UpdateGallery();
 
         ApplyProfile(ProfileStore.LoadLast() ?? new Profile());
         RefreshProfileList();
@@ -274,58 +285,167 @@ sealed class MainWindow : Window, IAutomationTarget
 
     Control BuildEffectPicker()
     {
-        var picker = new StackPanel { Spacing = 4 };
+        var picker = new StackPanel { Spacing = 8 };
+        var browse = new Button
+        {
+            Content = $"Browse all {LaptopEffects.Count} in the gallery",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+        };
+        browse.Click += (_, _) => OpenGallery();
+        picker.Children.Add(effectSearch);
+        picker.Children.Add(browse);
+        picker.Children.Add(favouritesGroup);
+        RefreshFavourites();
+        Favourites.Changed += RefreshFavourites;
+
         foreach (var category in EffectCategory.Order)
         {
             // Each laptop has its own list: the Nitro's effects are made for its four zones.
             var inCategory = LaptopEffects.Where(e => e.Category == category).ToList();
             if (inCategory.Count == 0) continue;
             var grid = new UniformGrid { Columns = 2 };
+            var tiles = new List<(IEffect, ToggleButton)>();
             foreach (var effect in inCategory)
             {
-                var tile = new ToggleButton
-                {
-                    Content = DisplayName(effect),
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
-                    Margin = new Thickness(0, 0, 6, 6),
-                    Padding = new Thickness(14, 8),
-                };
-                tile.Click += (_, _) =>
-                {
-                    if (effect == Effects.Animation && !EnsureAnimation())
-                    {
-                        ChooseEffect(engine.Effect);   // undoes the tile's own toggle
-                        Notify("Build an animation in the Animations tab first.");
-                        return;
-                    }
-                    ChooseEffect(effect);
-                };
-                effectTiles[effect] = tile;
+                var tile = MakeTile(effect);
+                tiles.Add((effect, tile));
                 grid.Children.Add(tile);
             }
 
+            Control content = grid;
             if (category == EffectCategory.Keyboard)
-            {
-                var section = new StackPanel { Spacing = 6 };
-                section.Children.Add(new TextBlock
+                content = new StackPanel
                 {
-                    Text = "Run by the keyboard itself: they keep going when RaptorSense is closed and use no CPU. " +
-                           "The preview here is an approximation.",
-                    TextWrapping = TextWrapping.Wrap,
-                    FontSize = 12,
-                    Opacity = 0.65,
-                });
-                section.Children.Add(grid);
-                picker.Children.Add(new Expander { Header = category, Content = section, HorizontalAlignment = HorizontalAlignment.Stretch });
-            }
-            else
+                    Spacing = 6,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = "Run by the keyboard itself: they keep going when RaptorSense is closed and use no CPU. " +
+                                   "The preview here is an approximation.",
+                            TextWrapping = TextWrapping.Wrap,
+                            FontSize = 12,
+                            Opacity = 0.65,
+                        },
+                        grid,
+                    },
+                };
+            var box = new Expander
             {
-                picker.Children.Add(new TextBlock { Text = category, Opacity = 0.65, FontSize = 12, Margin = new Thickness(0, 6, 0, 2) });
-                picker.Children.Add(grid);
-            }
+                Header = $"{category}  ·  {inCategory.Count}",
+                Content = content,
+                IsExpanded = category == EffectCategory.Basic,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+            };
+            pickerGroups.Add((box, category, tiles));
+            picker.Children.Add(box);
         }
+        effectSearch.TextChanged += (_, _) => FilterPicker();
         return picker;
+    }
+
+    ToggleButton MakeTile(IEffect effect)
+    {
+        var tile = new ToggleButton
+        {
+            // Two to a row inside a group: long names end in "..." and show in full in the tooltip.
+            Content = new TextBlock { Text = DisplayName(effect), TextTrimming = TextTrimming.CharacterEllipsis },
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 0, 6, 6),
+            Padding = new Thickness(12, 8),
+            IsChecked = effect == engine.Effect,
+        };
+        ToolTip.SetTip(tile, DisplayName(effect));
+        AutomationProperties.SetName(tile, effect.Name);
+        tile.Click += (_, _) =>
+        {
+            if (effect == Effects.Animation && !EnsureAnimation())
+            {
+                ChooseEffect(engine.Effect);   // undoes the tile's own toggle
+                Notify("Build an animation in the Animations tab first.");
+                return;
+            }
+            ChooseEffect(effect);
+        };
+        if (!effectTiles.TryGetValue(effect, out var list)) effectTiles[effect] = list = [];
+        list.Add(tile);
+        return tile;
+    }
+
+    /// <summary>The starred effects, at the top of the list. Rebuilt when a star changes in the gallery.</summary>
+    void RefreshFavourites()
+    {
+        foreach (var old in favouritesGroup.Children.OfType<UniformGrid>().SelectMany(w => w.Children.OfType<ToggleButton>()))
+            foreach (var list in effectTiles.Values) list.Remove(old);
+        favouritesGroup.Children.Clear();
+        var starred = Favourites.Ids.Select(id => LaptopEffects.FirstOrDefault(e => e.Id.Equals(id, StringComparison.OrdinalIgnoreCase)))
+            .OfType<IEffect>().ToList();
+        if (starred.Count == 0) return;
+        favouritesGroup.Children.Add(new TextBlock { Text = "★ Favourites", FontFamily = Look.Symbols, Opacity = 0.65, FontSize = 12, Margin = new Thickness(0, 4, 0, 2) });
+        var grid = new UniformGrid { Columns = 2 };
+        foreach (var effect in starred) grid.Children.Add(MakeTile(effect));
+        favouritesGroup.Children.Add(grid);
+    }
+
+    /// <summary>Shows only the tiles whose name matches the search, opening the groups that have any.</summary>
+    void FilterPicker()
+    {
+        string text = effectSearch.Text?.Trim() ?? "";
+        favouritesGroup.IsVisible = text.Length == 0;
+        foreach (var (box, category, tiles) in pickerGroups)
+        {
+            int shown = 0;
+            foreach (var (effect, tile) in tiles)
+            {
+                bool match = text.Length == 0 || effect.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
+                             || category.Contains(text, StringComparison.OrdinalIgnoreCase);
+                tile.IsVisible = match;
+                if (match) shown++;
+            }
+            box.IsVisible = shown > 0;
+            box.IsExpanded = text.Length > 0 ? shown > 0 : category == EffectCategory.Basic || category == engine.Effect.Category;
+        }
+    }
+
+    void OpenGallery()
+    {
+        if (tabs is not null) tabs.SelectedItem = galleryTab;
+    }
+
+    void UpdateGallery()
+    {
+        bool showing = tabs?.SelectedItem == galleryTab;
+        // Hidden in the tray, the gallery isn't kept: the memory goes back, and it is built again when next opened.
+        // A showcase still playing keeps it until it ends.
+        if (!IsVisible && gallery is { Showcasing: false })
+        {
+            gallery.Close();
+            gallery = null;
+            galleryTab.Content = new Panel();
+            return;
+        }
+        if (showing && IsVisible && gallery is null) galleryTab.Content = gallery = new EffectGallery(this, LaptopEffects, HasFourZoneKeyboard);
+        gallery?.SetActive(showing && IsVisible);
+    }
+
+    EffectEngine IGalleryHost.Engine => engine;
+
+    void IGalleryHost.Choose(IEffect effect)
+    {
+        if (effect == Effects.Animation && !EnsureAnimation())
+        {
+            Notify("Build an animation in the Animations tab first.");
+            return;
+        }
+        ChooseEffect(effect);
+    }
+
+    void IGalleryHost.SetDemoMusic(bool on)
+    {
+        demoMusic = on;
+        UpdateAudio();
     }
 
     /// <summary>Makes sure "Your animation" has something to play: the one last used, or else the first saved.</summary>
@@ -344,7 +464,12 @@ sealed class MainWindow : Window, IAutomationTarget
     /// <summary>Highlights the effect's tile and switches the engine to it.</summary>
     void ChooseEffect(IEffect effect)
     {
-        foreach (var (e, tile) in effectTiles) tile.IsChecked = e == effect;
+        foreach (var (e, tiles) in effectTiles)
+            foreach (var tile in tiles) tile.IsChecked = e == effect;
+        // Open its group in the list, so an effect picked in the gallery can be found here too.
+        if (effectSearch.Text is not { Length: > 0 })
+            foreach (var (box, category, _) in pickerGroups)
+                if (category == effect.Category) box.IsExpanded = true;
         effectTitle.Text = EffectName(effect);
         SelectEffect(effect);
     }
@@ -638,17 +763,18 @@ sealed class MainWindow : Window, IAutomationTarget
     }
 
     // Audio capture only exists while the effect follows the music ("Your animation" does only if the animation asks).
+    // During the gallery's showcase the demo beat stands in while nothing is playing.
     void UpdateAudio()
     {
         bool needed = engine.Effect.UsesAudio;
         if (needed && audio is null && OperatingSystem.IsWindows())
         {
-            try { audio = new LoopbackSpectrum(); engine.Audio = audio; }
+            try { audio = new LoopbackSpectrum(); }
             catch (Exception e) { Notify($"Could not capture audio: {e.Message}"); }
         }
-        else if (!needed && audio is not null)
+        engine.Audio = !needed ? null : demoMusic ? new FallbackAudio(audio) : audio;
+        if (!needed && audio is not null)
         {
-            engine.Audio = null;
             audio.Dispose();
             audio = null;
         }
@@ -798,7 +924,7 @@ sealed class MainWindow : Window, IAutomationTarget
         startupShow.Restart();
         SelectEffect(startupShow);
         effectTitle.Text = startupShow.Name;
-        foreach (var tile in effectTiles.Values) tile.IsChecked = false;
+        foreach (var tile in effectTiles.Values.SelectMany(t => t)) tile.IsChecked = false;
 
         showTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(200), DispatcherPriority.Background, (_, _) =>
         {
@@ -908,6 +1034,7 @@ sealed class MainWindow : Window, IAutomationTarget
         if (change.Property == IsVisibleProperty)
         {
             if (IsVisible) uiTimer.Start(); else uiTimer.Stop();
+            UpdateGallery();
         }
     }
 

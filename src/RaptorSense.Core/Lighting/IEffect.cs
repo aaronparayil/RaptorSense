@@ -26,14 +26,42 @@ public readonly record struct EffectContext(
 
     /// <summary>The colour typing effects draw with: colour 2, or with Auto colour the given hue.</summary>
     public Rgb Accent(double hue) => Settings.AutoColor ? Rgb.FromHsv(hue) : Settings.Color2;
+
+    /// <summary>Colour 2, or with Auto colour the rainbow hue opposite <see cref="Primary"/>.</summary>
+    public Rgb Secondary(double u) => Settings.AutoColor ? Rgb.FromHsv(u * 300 + Time * 60 + 180) : Settings.Color2;
+
+    /// <summary>Colour 1 at <paramref name="t"/> = 0 to colour 2 at 1 (Auto colour: two flowing rainbow hues).</summary>
+    public Rgb Blend(double t, double u) => Rgb.Lerp(Primary(u), Secondary(u), t);
 }
 
 public static class EffectCategory
 {
     public const string Basic = "Basic", Animated = "Animated", Nature = "Nature", Music = "Music", Typing = "Typing";
+    public const string Ambient = "Ambient", Patterns = "Patterns", Space = "Space", Retro = "Retro", SciFi = "Sci-fi";
+    public const string Celebrations = "Celebrations", Handy = "Handy";
     public const string Keyboard = "Built into the keyboard";
 
-    public static IReadOnlyList<string> Order { get; } = [Basic, Animated, Nature, Music, Typing, Keyboard];
+    public static IReadOnlyList<string> Order { get; } =
+        [Basic, Animated, Ambient, Patterns, Nature, Space, Retro, SciFi, Celebrations, Handy, Music, Typing, Keyboard];
+
+    /// <summary>One line on what a category holds, for the effect gallery.</summary>
+    public static string Describe(string category) => category switch
+    {
+        Basic => "Plain colours, your painting and your own animations.",
+        Animated => "Classic moving effects.",
+        Ambient => "Slow and calm, for working or the evening.",
+        Patterns => "Shapes and colour fields in motion.",
+        Nature => "Water, fire, weather and growing things.",
+        Space => "Stars, planets and things far away.",
+        Retro => "Little games and pixel-era looks that play themselves.",
+        SciFi => "Screens, scanners and energy.",
+        Celebrations => "Festive lights for special days.",
+        Handy => "Useful layouts: the time, gaming keys, a focus timer.",
+        Music => "Follow what your computer is playing.",
+        Typing => "React to the keys you press.",
+        Keyboard => "Run by the keyboard itself, even when RaptorSense is closed.",
+        _ => "",
+    };
 }
 
 public interface IEffect

@@ -1,0 +1,90 @@
+name: My laptop report
+description: You tried RaptorSense on your Acer laptop. Say how it went, whether it worked or not.
+title: "Laptop report: <laptop model>"
+labels: ["laptop report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for trying it. RaptorSense has been tested on two laptops so far, the Predator Helios 16 PH16-71
+        and the Nitro 5 AN515-57, so a report from any other model helps, and "nothing lit up" is as useful as "it
+        all worked". Fill in what you tried and leave the rest.
+  - type: textarea
+    id: machine
+    attributes:
+      label: Your laptop
+      description: |
+        Paste what this prints in PowerShell. It only reads the model, the BIOS version and which Chicony devices
+        (the keyboard maker) are connected:
+
+        ```
+        $cs = Get-CimInstance Win32_ComputerSystem; $b = Get-CimInstance Win32_BIOS; "$($cs.Manufacturer) $($cs.Model), BIOS $($b.SMBIOSBIOSVersion)"; Get-PnpDevice -PresentOnly | Where-Object InstanceId -match 'VID_04F2&PID_([0-9A-F]{4})' | ForEach-Object { $Matches[0] + '  ' + $_.FriendlyName } | Sort-Object -Unique
+        ```
+      placeholder: |
+        Acer Predator PH16-71, BIOS V1.18
+        VID_04F2&PID_0117  HID Keyboard Device
+        ...
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: RaptorSense version
+      description: The name of the zip you downloaded.
+      placeholder: RaptorSense-1.8.6-win-x64.zip
+    validations:
+      required: true
+  - type: input
+    id: status
+    attributes:
+      label: What the Lighting tab says at the top
+      placeholder: "Currently on Helios / Keyboard not found / ..."
+  - type: dropdown
+    id: lighting
+    attributes:
+      label: Keyboard lighting
+      description: Pick an effect such as Rainbow wave and look at the real keyboard.
+      options:
+        - Every key lit up in the right place
+        - It lit up, but the pattern was in the wrong places or scrambled
+        - Some keys lit up, others stayed dark or kept their old colour
+        - It lit up in zones, not key by key
+        - Nothing lit up, or it said "Keyboard not found"
+        - Did not try
+    validations:
+      required: true
+  - type: checkboxes
+    id: extras
+    attributes:
+      label: What else worked
+      description: Tick what you tried and saw working.
+      options:
+        - label: A music effect moved with music playing
+        - label: A typing effect reacted to my typing
+        - label: The PREDATOR key opened RaptorSense
+        - label: The rear light bar changed (on laptops that have one)
+  - type: dropdown
+    id: fans
+    attributes:
+      label: Temperatures and fan speeds (Performance tab)
+      description: On a model that hasn't been checked, RaptorSense only reads these and changes nothing.
+      options:
+        - They looked right
+        - Some numbers looked wrong (say which below)
+        - Nothing showed
+        - Did not install fan control
+    validations:
+      required: true
+  - type: textarea
+    id: probe
+    attributes:
+      label: Probe report (optional)
+      description: |
+        If you built from source, `scripts\probe.ps1` reads what your laptop's firmware supports and saves a JSON
+        report. It helps add fan and power control for your model. Look it over, then attach or paste it.
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: What looked wrong, what you expected, error text, or a photo or short clip of the keyboard.
