@@ -16,16 +16,16 @@ sealed class PerformancePanel : UserControl
     readonly TextBlock cpuTemp = Value(), gpuTemp = Value(), cpuFan = Value(), gpuFan = Value();
     readonly TextBlock systemTemp = new() { Foreground = Look.Muted, Margin = new Thickness(4, 0, 0, 0) };
     readonly WrapPanel profiles = new();
-    readonly RadioButton auto = new() { Content = "Auto", GroupName = "fans" };
-    readonly RadioButton max = new() { Content = "Max", GroupName = "fans" };
-    readonly RadioButton custom = new() { Content = "Custom", GroupName = "fans" };
+    readonly RadioButton auto = new() { Content = L("Auto"), GroupName = "fans" };
+    readonly RadioButton max = new() { Content = L("Max"), GroupName = "fans" };
+    readonly RadioButton custom = new() { Content = L("Custom"), GroupName = "fans" };
     readonly Slider cpuSpeed = SpeedSlider(), gpuSpeed = SpeedSlider();
     readonly TextBlock cpuSpeedText = new(), gpuSpeedText = new();
-    readonly Button apply = new() { Content = "Apply custom speeds" };
+    readonly Button apply = new() { Content = L("Apply custom speeds") };
     readonly TextBlock safety = new() { Foreground = Look.Warning, TextWrapping = TextWrapping.Wrap, IsVisible = false };
     readonly StackPanel controls = new() { Spacing = 16 };
     readonly StackPanel fanControls = new() { Spacing = 10 };
-    readonly Button setup = new() { Content = "Install fan control" };
+    readonly Button setup = new() { Content = L("Install fan control") };
     readonly TextBlock setupNote = new() { TextWrapping = TextWrapping.Wrap, Foreground = Look.Muted };
     readonly StackPanel setupRow = new() { Spacing = 8, IsVisible = false };
     readonly string? helperExe = HelperSetup.Find();
@@ -41,16 +41,16 @@ sealed class PerformancePanel : UserControl
     public PerformancePanel()
     {
         var tiles = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -12, -12) };   // takes back the last tile's gap
-        tiles.Children.Add(Tile("CPU", cpuTemp));
-        tiles.Children.Add(Tile("GPU", gpuTemp));
-        tiles.Children.Add(Tile("CPU fan", cpuFan));
-        tiles.Children.Add(Tile("GPU fan", gpuFan));
+        tiles.Children.Add(Tile(L("CPU"), cpuTemp));
+        tiles.Children.Add(Tile(L("GPU"), gpuTemp));
+        tiles.Children.Add(Tile(L("CPU fan"), cpuFan));
+        tiles.Children.Add(Tile(L("GPU fan"), gpuFan));
 
         auto.IsCheckedChanged += (_, _) => { if (auto.IsChecked == true && !updating) { choosingCustom = false; _ = SendFans(FanMode.Auto); } };
         max.IsCheckedChanged += (_, _) => { if (max.IsChecked == true && !updating) { choosingCustom = false; _ = SendFans(FanMode.Max); } };
         custom.IsCheckedChanged += (_, _) => { if (custom.IsChecked == true && !updating) choosingCustom = true; UpdateCustomEnabled(); };
-        cpuSpeed.ValueChanged += (_, e) => cpuSpeedText.Text = $"CPU fan {e.NewValue:N0}%";
-        gpuSpeed.ValueChanged += (_, e) => gpuSpeedText.Text = $"GPU fan {e.NewValue:N0}%";
+        cpuSpeed.ValueChanged += (_, e) => cpuSpeedText.Text = L("CPU fan {0:N0}%", e.NewValue);
+        gpuSpeed.ValueChanged += (_, e) => gpuSpeedText.Text = L("GPU fan {0:N0}%", e.NewValue);
         apply.Click += async (_, _) => { await SendFans(FanMode.Custom); choosingCustom = false; };
 
         setup.Click += async (_, _) => await InstallHelper();
@@ -64,16 +64,16 @@ sealed class PerformancePanel : UserControl
         fanControls.Children.Add(gpuSpeed);
         fanControls.Children.Add(apply);
         fanControls.Children.Add(Look.Note(
-            $"Custom speeds are at least {FanController.MinCustomPercent}%. At {FanController.HotC} °C the fans go to Max until " +
-            $"everything is below {FanController.CoolC} °C, and they return to Auto when the helper stops."));
+            L("Custom speeds are at least {0}%. At {1} °C the fans go to Max until everything is below {2} °C, and they return to Auto when the helper stops.",
+              FanController.MinCustomPercent, FanController.HotC, FanController.CoolC)));
         fanControls.Children.Add(safety);
         if (ThisLaptop.HasFanControl)
         {
             // The install button stays usable while the controls are greyed out: it's how they become usable.
             var fans = new StackPanel { Spacing = 14, Children = { setupRow, fanControls } };
-            if (ThisLaptop.HasPowerControl) controls.Children.Add(Look.Card(profiles, "Power profile"));
-            else fans.Children.Add(Look.Note("Power modes haven't been tested on this laptop yet, so they aren't shown."));
-            controls.Children.Add(Look.Card(fans, "Fans"));
+            if (ThisLaptop.HasPowerControl) controls.Children.Add(Look.Card(profiles, L("Power profile")));
+            else fans.Children.Add(Look.Note(L("Power modes haven't been tested on this laptop yet, so they aren't shown.")));
+            controls.Children.Add(Look.Card(fans, L("Fans")));
         }
         else
         {
@@ -81,19 +81,18 @@ sealed class PerformancePanel : UserControl
             // which the readings above (and a 4-zone keyboard's lighting) need.
             var helper = new StackPanel { Spacing = 14, Children = { setupRow } };
             helper.Children.Add(Look.Note(
-                "Changing fan speeds and power modes hasn't been tested on this laptop yet, so RaptorSense only shows " +
-                "the readings here. They may not be exact on it either."));
-            controls.Children.Add(Look.Card(helper, "Fans and power"));
+                L("Changing fan speeds and power modes hasn't been tested on this laptop yet, so RaptorSense only shows the readings here. They may not be exact on it either.")));
+            controls.Children.Add(Look.Card(helper, L("Fans and power")));
         }
 
         var batteryTiles = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, -12, -12) };
-        batteryTiles.Children.Add(Tile("Charge cycles", batteryCycles));
-        batteryTiles.Children.Add(Tile("Health", batteryHealth));
-        batteryTiles.Children.Add(Tile("Full charge now", batteryNow));
-        batteryTiles.Children.Add(Tile("Full charge when new", batteryNew));
+        batteryTiles.Children.Add(Tile(L("Charge cycles"), batteryCycles));
+        batteryTiles.Children.Add(Tile(L("Health"), batteryHealth));
+        batteryTiles.Children.Add(Tile(L("Full charge now"), batteryNow));
+        batteryTiles.Children.Add(Tile(L("Full charge when new"), batteryNew));
         batteryContent.Children.Add(batteryTiles);
-        batteryContent.Children.Add(Look.Note("Health compares what a full charge holds now with what it held when new."));
-        batterySection = Look.Card(batteryContent, "Battery");
+        batteryContent.Children.Add(Look.Note(L("Health compares what a full charge holds now with what it held when new.")));
+        batterySection = Look.Card(batteryContent, L("Battery"));
         batterySection.IsVisible = false;
         batterySection.Margin = new Thickness(16, 0, 0, 0);
         batterySection.VerticalAlignment = VerticalAlignment.Top;
@@ -161,7 +160,7 @@ sealed class PerformancePanel : UserControl
         if (helperExe is null || installing) return;
         installing = true;
         setup.IsEnabled = false;
-        setupNote.Text = "Waiting for you to allow it in the Windows prompt…";
+        setupNote.Text = L("Waiting for you to allow it in the Windows prompt…");
         try { setupResult = await Task.Run(() => HelperSetup.Install(helperExe)); }
         finally
         {
@@ -182,20 +181,20 @@ sealed class PerformancePanel : UserControl
         if (!setupRow.IsVisible || installing) return;
 
         // Named for what it does on this laptop: fan control on the Helios, the keyboard and readings on the Nitro.
-        string what = ThisLaptop.HasFanControl ? "fan control"
-            : ThisLaptop.HasFourZoneKeyboard ? "the keyboard helper" : "the readings helper";
-        setup.Content = (outdated ? "Update " : "Install ") + what;
+        setup.Content = ThisLaptop.HasFanControl ? (outdated ? L("Update fan control") : L("Install fan control"))
+            : ThisLaptop.HasFourZoneKeyboard ? (outdated ? L("Update the keyboard helper") : L("Install the keyboard helper"))
+            : outdated ? L("Update the readings helper") : L("Install the readings helper");
         setupNote.Text = setupResult ?? (outdated
-            ? $"The helper installed is from an older RaptorSense. Updating it needs administrator rights once."
+            ? L("The helper installed is from an older RaptorSense. Updating it needs administrator rights once.")
             : ThisLaptop.HasPowerControl
-                ? "Fans, power modes and the light bar need a small helper service. Installing it needs administrator rights once."
+                ? L("Fans, power modes and the light bar need a small helper service. Installing it needs administrator rights once.")
             : ThisLaptop.HasFanControl && ThisLaptop.HasFourZoneKeyboard
-                ? "The fans and the keyboard's lighting need a small helper service. Installing it needs administrator rights once."
+                ? L("The fans and the keyboard's lighting need a small helper service. Installing it needs administrator rights once.")
             : ThisLaptop.HasFanControl
-                ? "The fans need a small helper service. Installing it needs administrator rights once."
+                ? L("The fans need a small helper service. Installing it needs administrator rights once.")
                 : ThisLaptop.HasFourZoneKeyboard
-                    ? "The keyboard's lighting and these readings need a small helper service. Installing it needs administrator rights once."
-                    : "These readings need a small helper service. Installing it needs administrator rights once.");
+                    ? L("The keyboard's lighting and these readings need a small helper service. Installing it needs administrator rights once.")
+                    : L("These readings need a small helper service. Installing it needs administrator rights once."));
     }
 
     void Show(ThermalStatus status)
@@ -205,18 +204,18 @@ sealed class PerformancePanel : UserControl
         // Helpers before revision 4 don't say; for them, "not read-only" meant power modes too.
         profiles.IsEnabled = connected && !status.ReadOnly && (status.PowerControl || status.HelperRevision < 4);
         ShowSetup(status, connected);
-        helperState.Text = !connected ? status.Error ?? ThermalClient.HelperMissing
-            : status.ReadOnly && !ThisLaptop.HasFanControl ? "Connected to the RaptorSense helper."   // the card below says why there are no controls
-            : status.ReadOnly ? LaptopModels.Refusal(status.Model) + " The readings below may not be right on it either."
-            : status.Ok ? "Connected to the RaptorSense helper." : $"The helper refused: {status.Error}";
+        helperState.Text = !connected ? status.Error ?? L(ThermalClient.HelperMissing)
+            : status.ReadOnly && !ThisLaptop.HasFanControl ? L("Connected to the RaptorSense helper.")   // the card below says why there are no controls
+            : status.ReadOnly ? LaptopModels.Refusal(status.Model) + " " + L("The readings below may not be right on it either.")
+            : status.Ok ? L("Connected to the RaptorSense helper.") : L("The helper refused: {0}", status.Error);
         if (!connected) return;
 
         var r = status.Reading!.Value;
         cpuTemp.Text = $"{r.CpuTemp} °C";
-        gpuTemp.Text = r.GpuTemp > 0 ? $"{r.GpuTemp} °C" : "asleep";
+        gpuTemp.Text = r.GpuTemp > 0 ? $"{r.GpuTemp} °C" : L("asleep");
         cpuFan.Text = $"{r.CpuFanRpm} rpm";
         gpuFan.Text = $"{r.GpuFanRpm} rpm";
-        systemTemp.Text = $"System {r.SystemTemp} °C";
+        systemTemp.Text = L("System {0} °C", r.SystemTemp);
 
         if (!shownProfiles.SequenceEqual(status.SupportedProfiles)) BuildProfileButtons(status.SupportedProfiles);
         foreach (var button in profiles.Children.OfType<Button>())
@@ -237,7 +236,7 @@ sealed class PerformancePanel : UserControl
         UpdateCustomEnabled();
 
         safety.IsVisible = status.SafetyOverride;
-        safety.Text = $"Safety: it reached {FanController.HotC} °C, so the fans are on Max until it is below {FanController.CoolC} °C.";
+        safety.Text = L("Safety: it reached {0} °C, so the fans are on Max until it is below {1} °C.", FanController.HotC, FanController.CoolC);
     }
 
     void BuildProfileButtons(IReadOnlyList<PowerProfile> supported)
@@ -245,7 +244,7 @@ sealed class PerformancePanel : UserControl
         profiles.Children.Clear();
         foreach (var profile in supported)
         {
-            var button = new Button { Content = profile.ToString(), Tag = profile, Margin = new Thickness(0, 0, 8, 8), MinWidth = 110 };
+            var button = new Button { Content = L(profile.ToString()), Tag = profile, Margin = new Thickness(0, 0, 8, 8), MinWidth = 110 };
             button.Click += async (_, _) => await SendProfile(profile);
             profiles.Children.Add(button);
         }

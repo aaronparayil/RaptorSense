@@ -50,8 +50,8 @@ sealed class EffectGallery : UserControl
     readonly List<Section> sections = [];
     readonly Dictionary<string, ToggleButton> chips = [];
     readonly ScrollViewer scroll;
-    readonly TextBox search = new() { PlaceholderText = "Search effects", Width = 260 };
-    readonly TextBlock emptyNote = new() { Text = "No effect matches.", Foreground = Look.Muted, IsVisible = false, Margin = new Thickness(4, 20) };
+    readonly TextBox search = new() { PlaceholderText = L("Search effects"), Width = 260 };
+    readonly TextBlock emptyNote = new() { Text = L("No effect matches."), Foreground = Look.Muted, IsVisible = false, Margin = new Thickness(4, 20) };
 
     // Previews
     readonly DispatcherTimer previewTimer;
@@ -70,8 +70,8 @@ sealed class EffectGallery : UserControl
     readonly Border banner;
     readonly TextBlock bannerTitle = new() { FontSize = 18, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock bannerNote = new() { FontSize = 13, Foreground = Look.Muted, VerticalAlignment = VerticalAlignment.Center };
-    readonly ComboBox interval = new() { ItemsSource = new[] { "5 s each", "8 s each", "15 s each", "30 s each" }, SelectedIndex = 1 };
-    readonly Button playAll = new() { Content = "Play them all" };
+    readonly ComboBox interval = new() { ItemsSource = new[] { 5, 8, 15, 30 }.Select(s => L("{0} s each", s)).ToArray(), SelectedIndex = 1 };
+    readonly Button playAll = new() { Content = L("Play them all") };
     readonly DispatcherTimer showcaseTimer;
     List<IEffect> playlist = [];
     int position;
@@ -86,17 +86,16 @@ sealed class EffectGallery : UserControl
         this.effects = effects;
         this.zoned = zoned;
 
-        var title = new TextBlock { Text = "Effect gallery", FontSize = 30, FontWeight = FontWeight.SemiBold };
+        var title = new TextBlock { Text = L("Effect gallery"), FontSize = 30, FontWeight = FontWeight.SemiBold };
         var subtitle = new TextBlock
         {
-            Text = $"{effects.Count} effects, each playing as it would on your keyboard. Click one to play it for real. " +
-                   "Previews of music and typing effects use a pretend beat and pretend typing.",
+            Text = L("{0} effects, each playing as it would on your keyboard. Click one to play it for real. Previews of music and typing effects use a pretend beat and pretend typing.", effects.Count),
             Foreground = Look.Muted,
             FontSize = 13,
             TextWrapping = TextWrapping.Wrap,
         };
         playAll.Click += (_, _) => StartShowcase();
-        ToolTip.SetTip(playAll, "Plays every effect in view on the keyboard, one after another");
+        ToolTip.SetTip(playAll, L("Plays every effect in view on the keyboard, one after another"));
         var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Bottom, Children = { search, playAll } };
         DockPanel.SetDock(tools, Dock.Right);
         var header = new DockPanel
@@ -106,8 +105,8 @@ sealed class EffectGallery : UserControl
         };
 
         var chipRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
-        AddChip(chipRow, AllFilter, $"All  {effects.Count}");
-        AddChip(chipRow, FavouritesFilter, "★ Favourites");
+        AddChip(chipRow, AllFilter, $"{L("All")}  {effects.Count}");
+        AddChip(chipRow, FavouritesFilter, L("★ Favourites"));
         foreach (var category in EffectCategory.Order)
         {
             int count = effects.Count(e => e.Category == category);
@@ -128,8 +127,8 @@ sealed class EffectGallery : UserControl
                 Spacing = 4,
                 Children =
                 {
-                    new TextBlock { Text = category, FontSize = 20, FontWeight = FontWeight.SemiBold },
-                    new TextBlock { Text = EffectCategory.Describe(category), Foreground = Look.Muted, FontSize = 13, Margin = new Thickness(0, 0, 0, 6) },
+                    new TextBlock { Text = L(category), FontSize = 20, FontWeight = FontWeight.SemiBold },
+                    new TextBlock { Text = L(EffectCategory.Describe(category)), Foreground = Look.Muted, FontSize = 13, Margin = new Thickness(0, 0, 0, 6) },
                     wrap,
                 },
             };
@@ -204,7 +203,7 @@ sealed class EffectGallery : UserControl
         return control;
     }
 
-    static string ShortCategory(string category) => category == EffectCategory.Keyboard ? "Keyboard's own" : category;
+    static string ShortCategory(string category) => category == EffectCategory.Keyboard ? L("Keyboard's own") : L(category);
 
     void AddChip(WrapPanel row, string key, string label)
     {
@@ -233,7 +232,7 @@ sealed class EffectGallery : UserControl
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top,
             IsVisible = false,
-            Child = new TextBlock { Text = "Playing", FontSize = 11, FontWeight = FontWeight.SemiBold, Foreground = Look.OnAccent },
+            Child = new TextBlock { Text = L("Playing"), FontSize = 11, FontWeight = FontWeight.SemiBold, Foreground = Look.OnAccent },
         };
         var star = new ToggleButton
         {
@@ -248,12 +247,12 @@ sealed class EffectGallery : UserControl
             VerticalContentAlignment = VerticalAlignment.Center,
             IsChecked = Favourites.Contains(effect.Id),
         };
-        ToolTip.SetTip(star, "Favourite: listed first on the Lighting tab");
+        ToolTip.SetTip(star, L("Favourite: listed first on the Lighting tab"));
         AutomationProperties.SetName(star, $"Favourite {effect.Name}");
         star.Click += (_, _) => Favourites.Set(effect.Id, star.IsChecked == true);
         DockPanel.SetDock(star, Dock.Right);
 
-        var name = new TextBlock { Text = effect.Name, FontSize = 14, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
+        var name = new TextBlock { Text = L(effect.Name), FontSize = 14, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
         var tag = new TextBlock { Text = Describe(effect), FontSize = 12, Foreground = Look.Muted, TextTrimming = TextTrimming.CharacterEllipsis };
         if (tag.Text.Any(ch => ch >= 0x2000)) tag.FontFamily = Look.Symbols;
         var outline = new Border
@@ -282,7 +281,7 @@ sealed class EffectGallery : UserControl
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
         };
         AutomationProperties.SetName(button, $"{effect.Name}, {effect.Category}");
-        ToolTip.SetTip(button, $"Play {effect.Name} on the keyboard");
+        ToolTip.SetTip(button, L("Play {0} on the keyboard", L(effect.Name)));
         button.Click += (_, _) =>
         {
             StopShowcase(keep: true);
@@ -293,10 +292,10 @@ sealed class EffectGallery : UserControl
     }
 
     static string Describe(IEffect effect) =>
-        effect.UsesAudio ? "♪ Follows your music"
-        : effect.UsesKeys ? "⌨ Reacts to typing"
-        : effect is KeyboardEffect ? "Runs on the keyboard itself"
-        : effect.Category;
+        effect.UsesAudio ? L("♪ Follows your music")
+        : effect.UsesKeys ? L("⌨ Reacts to typing")
+        : effect is KeyboardEffect ? L("Runs on the keyboard itself")
+        : L(effect.Category);
 
     void ApplyFilter()
     {
@@ -314,8 +313,9 @@ sealed class EffectGallery : UserControl
                     _ => card.Effect.Category == filter,
                 };
                 if (match && text.Length > 0)
-                    match = card.Effect.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
-                            || card.Effect.Category.Contains(text, StringComparison.OrdinalIgnoreCase);
+                    match = L(card.Effect.Name).Contains(text, StringComparison.OrdinalIgnoreCase)
+                            || card.Effect.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
+                            || L(card.Effect.Category).Contains(text, StringComparison.OrdinalIgnoreCase);
                 card.Button.IsVisible = match;
                 shown |= match;
             }
@@ -323,8 +323,8 @@ sealed class EffectGallery : UserControl
             any |= shown;
         }
         emptyNote.Text = filter == FavouritesFilter && text.Length == 0
-            ? "No favourites yet: press the star on any effect to add it here and to the top of the Lighting tab."
-            : "No effect matches.";
+            ? L("No favourites yet: press the star on any effect to add it here and to the top of the Lighting tab.")
+            : L("No effect matches.");
         emptyNote.IsVisible = !any;
     }
 
@@ -386,15 +386,15 @@ sealed class EffectGallery : UserControl
 
     Border BuildBanner()
     {
-        var previous = new Button { Content = "Previous" };
+        var previous = new Button { Content = L("Previous") };
         previous.Click += (_, _) => Show(position - 1);
-        var next = new Button { Content = "Next" };
+        var next = new Button { Content = L("Next") };
         next.Click += (_, _) => Show(position + 1);
-        var keep = new Button { Content = "Keep this one" };
-        ToolTip.SetTip(keep, "Stops the showcase and leaves this effect playing");
+        var keep = new Button { Content = L("Keep this one") };
+        ToolTip.SetTip(keep, L("Stops the showcase and leaves this effect playing"));
         keep.Click += (_, _) => StopShowcase(keep: true);
-        var stop = new Button { Content = "Stop" };
-        ToolTip.SetTip(stop, "Stops the showcase and goes back to what was playing before");
+        var stop = new Button { Content = L("Stop") };
+        ToolTip.SetTip(stop, L("Stops the showcase and goes back to what was playing before"));
         stop.Click += (_, _) => StopShowcase(keep: false);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { interval, previous, next, keep, stop } };
@@ -441,9 +441,9 @@ sealed class EffectGallery : UserControl
         host.Choose(effect);
         Highlight(effect);
         showUntil = Environment.TickCount64 / 1000.0 + IntervalSeconds;
-        bannerTitle.Text = $"{effect.Name}";
-        bannerNote.Text = $"Showcase: {position + 1} of {playlist.Count} · {effect.Category}" +
-                          (effect.UsesKeys ? " · pretend typing until you type" : effect.UsesAudio ? " · the demo beat while nothing is playing" : "");
+        bannerTitle.Text = L(effect.Name);
+        bannerNote.Text = L("Showcase: {0} of {1}", position + 1, playlist.Count) + " · " + L(effect.Category) +
+                          (effect.UsesKeys ? " · " + L("pretend typing until you type") : effect.UsesAudio ? " · " + L("the demo beat while nothing is playing") : "");
         ScrollIntoView(effect);
     }
 

@@ -30,7 +30,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     readonly EffectEngine engine = new(HasFourZoneKeyboard ? NoPerKeyKeyboard : Ph16Keyboard.TryOpen);
     readonly KeyboardZonesPanel zonesPanel = new();
     readonly StartupShow startupShow = new(ThisLaptop.Layout);
-    readonly ToggleSwitch showOnStart = new() { OnContent = "Light show when RaptorSense starts", OffContent = "No light show at start" };
+    readonly ToggleSwitch showOnStart = new() { OnContent = L("Light show when RaptorSense starts"), OffContent = L("No light show at start") };
     IEffect? afterShow;
     DispatcherTimer? showTimer;
     ZoneStreamer? zoneStreamer;
@@ -54,24 +54,24 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     readonly TextBlock effectTitle = new() { FontSize = 30, FontWeight = FontWeight.SemiBold };
     // An effect can have two tiles: in its category, and under Favourites.
     readonly Dictionary<IEffect, List<ToggleButton>> effectTiles = [];
-    readonly TextBox effectSearch = new() { PlaceholderText = "Search effects" };
+    readonly TextBox effectSearch = new() { PlaceholderText = L("Search effects") };
     readonly List<(Expander Box, string Category, List<(IEffect Effect, ToggleButton Tile)> Tiles)> pickerGroups = [];
     readonly StackPanel favouritesGroup = new() { Spacing = 4 };
-    readonly TabItem galleryTab = new() { Header = "Gallery", Content = new Panel() };
+    readonly TabItem galleryTab = new() { Header = L("Gallery"), Content = new Panel() };
     TabControl? tabs;
     EffectGallery? gallery;
     bool demoMusic;
-    readonly CheckBox autoColor = new() { Content = "Auto (rainbow colours)" };
+    readonly CheckBox autoColor = new() { Content = L("Auto (rainbow colours)") };
     readonly ComboBox overlayPicker = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ColorEditor colorEditor = new(wide: true);
     readonly LightBarPanel lightBar = new();
     readonly AutomationRunner automations;
     readonly Slider speed = new() { Minimum = 0.1, Maximum = 4 };
     readonly Slider brightness = new() { Minimum = 0, Maximum = Ph16Keyboard.MaxBrightness, IsEnabled = false };
-    readonly ComboBox profileList = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Saved profiles" };
-    readonly TextBox profileName = new() { PlaceholderText = "Profile name" };
-    readonly ToggleSwitch output = new() { IsChecked = true, OnContent = "Controlling the keyboard", OffContent = "Preview only" };
-    readonly ToggleSwitch autostart = new() { OnContent = "Starts with Windows", OffContent = "Start with Windows" };
+    readonly ComboBox profileList = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = L("Saved profiles") };
+    readonly TextBox profileName = new() { PlaceholderText = L("Profile name") };
+    readonly ToggleSwitch output = new() { IsChecked = true, OnContent = L("Controlling the keyboard"), OffContent = L("Preview only") };
+    readonly ToggleSwitch autostart = new() { OnContent = L("Starts with Windows"), OffContent = L("Start with Windows") };
     readonly DispatcherTimer uiTimer;
     IAudioSpectrum? audio;
     IKeyPressSource? keyHook;
@@ -117,14 +117,14 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
             Background = null,   // nothing to hit between the tabs, so the strip behind them can move the window
             Items =
             {
-                new TabItem { Header = "Lighting", Content = lighting },
+                new TabItem { Header = L("Lighting"), Content = lighting },
                 galleryTab,
-                new TabItem { Header = "Animations", Content = new AnimationsPanel(engine, () => ChooseEffect(Effects.Animation)) },
-                new TabItem { Header = "Light bar", Content = lightBar, IsVisible = ThisLaptop.HasLightBar },
+                new TabItem { Header = L("Animations"), Content = new AnimationsPanel(engine, () => ChooseEffect(Effects.Animation)) },
+                new TabItem { Header = L("Light bar"), Content = lightBar, IsVisible = ThisLaptop.HasLightBar },
                 // Only on laptops whose 4-zone keyboard has been checked. Reading the model needs no administrator rights.
-                new TabItem { Header = "Keyboard zones", Content = zonesPanel, IsVisible = HasFourZoneKeyboard },
-                new TabItem { Header = "Performance", Content = new PerformancePanel() },
-                new TabItem { Header = "Automations", Content = new AutomationsPanel(automations) },
+                new TabItem { Header = L("Keyboard zones"), Content = zonesPanel, IsVisible = HasFourZoneKeyboard },
+                new TabItem { Header = L("Performance"), Content = new PerformancePanel() },
+                new TabItem { Header = L("Automations"), Content = new AutomationsPanel(automations) },
             },
         };
 
@@ -148,7 +148,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
             Margin = new Thickness(0, (TopBarHeight - 30) / 2, CaptionButtonsWidth + 12, 0),
             Flyout = BuildInfoFlyout(),
         };
-        ToolTip.SetTip(info, "Connection and app details");
+        ToolTip.SetTip(info, L("Connection and app details"));
         AutomationProperties.SetName(info, "Info");
 
         toast = new Border
@@ -184,7 +184,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
             {
                 if (output.IsChecked != true) return;
                 output.IsChecked = false;
-                Notify("Lighting tab effects paused: turn on \"Controlling the keyboard\" to play them again.");
+                Notify(L("Lighting tab effects paused: turn on \"Controlling the keyboard\" to play them again."));
             };
         }
         uiTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(33), DispatcherPriority.Render, (_, _) => RefreshPreview());
@@ -233,7 +233,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     void IAutomationTarget.ApplyLighting(Profile profile)
     {
         ApplyProfile(profile);
-        Notify(profile.Name.Length > 0 ? $"Automation: lighting profile '{profile.Name}'." : "Automation ended: your lighting is back.");
+        Notify(profile.Name.Length > 0 ? L("Automation: lighting profile '{0}'.", profile.Name) : L("Automation ended: your lighting is back."));
     }
 
     Task<ThermalStatus> IAutomationTarget.GetStatusAsync() => ThermalClient.StatusAsync();
@@ -257,7 +257,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         {
             engine.CopyLatestFrame(preview);
             colorEditor.Pick(preview[cell]);   // takes what the key shows right now, from any effect
-            Notify($"Picked #{preview[cell]} from {hit.Label}.");
+            Notify(L("Picked #{0} from {1}.", preview[cell], hit.Label));
             return;
         }
 
@@ -288,7 +288,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         var picker = new StackPanel { Spacing = 8 };
         var browse = new Button
         {
-            Content = $"Browse all {LaptopEffects.Count} in the gallery",
+            Content = L("Browse all {0} in the gallery", LaptopEffects.Count),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Center,
         };
@@ -322,8 +322,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
                     {
                         new TextBlock
                         {
-                            Text = "Run by the keyboard itself: they keep going when RaptorSense is closed and use no CPU. " +
-                                   "The preview here is an approximation.",
+                            Text = L("Run by the keyboard itself: they keep going when RaptorSense is closed and use no CPU. The preview here is an approximation."),
                             TextWrapping = TextWrapping.Wrap,
                             FontSize = 12,
                             Opacity = 0.65,
@@ -333,7 +332,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
                 };
             var box = new Expander
             {
-                Header = $"{category}  ·  {inCategory.Count}",
+                Header = $"{L(category)}  ·  {inCategory.Count}",
                 Content = content,
                 IsExpanded = category == EffectCategory.Basic,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -364,7 +363,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
             if (effect == Effects.Animation && !EnsureAnimation())
             {
                 ChooseEffect(engine.Effect);   // undoes the tile's own toggle
-                Notify("Build an animation in the Animations tab first.");
+                Notify(L("Build an animation in the Animations tab first."));
                 return;
             }
             ChooseEffect(effect);
@@ -383,7 +382,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         var starred = Favourites.Ids.Select(id => LaptopEffects.FirstOrDefault(e => e.Id.Equals(id, StringComparison.OrdinalIgnoreCase)))
             .OfType<IEffect>().ToList();
         if (starred.Count == 0) return;
-        favouritesGroup.Children.Add(new TextBlock { Text = "★ Favourites", FontFamily = Look.Symbols, Opacity = 0.65, FontSize = 12, Margin = new Thickness(0, 4, 0, 2) });
+        favouritesGroup.Children.Add(new TextBlock { Text = L("★ Favourites"), FontFamily = Look.Symbols, Opacity = 0.65, FontSize = 12, Margin = new Thickness(0, 4, 0, 2) });
         var grid = new UniformGrid { Columns = 2 };
         foreach (var effect in starred) grid.Children.Add(MakeTile(effect));
         favouritesGroup.Children.Add(grid);
@@ -399,8 +398,10 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
             int shown = 0;
             foreach (var (effect, tile) in tiles)
             {
-                bool match = text.Length == 0 || effect.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
-                             || category.Contains(text, StringComparison.OrdinalIgnoreCase);
+                // Found by its name in the language shown or in English, and by its group's name.
+                bool match = text.Length == 0 || L(effect.Name).Contains(text, StringComparison.OrdinalIgnoreCase)
+                             || effect.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
+                             || L(category).Contains(text, StringComparison.OrdinalIgnoreCase);
                 tile.IsVisible = match;
                 if (match) shown++;
             }
@@ -436,7 +437,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     {
         if (effect == Effects.Animation && !EnsureAnimation())
         {
-            Notify("Build an animation in the Animations tab first.");
+            Notify(L("Build an animation in the Animations tab first."));
             return;
         }
         ChooseEffect(effect);
@@ -496,7 +497,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
                 VerticalAlignment = VerticalAlignment.Center,
                 Child = new TextBlock
                 {
-                    Text = $"Currently on {LaptopLayouts.ShortName(ThisLaptop.Layout)}",
+                    Text = L("Currently on {0}", LaptopLayouts.ShortName(ThisLaptop.Layout)),
                     Foreground = Look.OnAccent,
                     FontWeight = FontWeight.SemiBold,
                     FontSize = 13,
@@ -519,8 +520,8 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         var hint = new TextBlock
         {
             Text = HasFourZoneKeyboard
-                ? "Click or drag over keys to paint them · each of the 4 zones shows the average of its keys"
-                : "Click or drag over keys to paint them with colour 1 · right-click to erase",
+                ? L("Click or drag over keys to paint them · each of the 4 zones shows the average of its keys")
+                : L("Click or drag over keys to paint them with colour 1 · right-click to erase"),
             Foreground = Look.Muted,
             FontSize = 13,
             VerticalAlignment = VerticalAlignment.Bottom,
@@ -535,7 +536,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
                 hint,
                 new StackPanel
                 {
-                    Children = { LaptopBadge(), new TextBlock { Text = "Now playing on your keyboard", Foreground = Look.Muted, FontSize = 13 }, effectTitle },
+                    Children = { LaptopBadge(), new TextBlock { Text = L("Now playing on your keyboard"), Foreground = Look.Muted, FontSize = 13 }, effectTitle },
                 },
             },
         };
@@ -561,7 +562,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         main.Children.Add(InRow(cards, 2));
 
         var side = new StackPanel { Spacing = 16, Width = 372 };
-        side.Children.Add(Look.Card(BuildEffectPicker(), "Effects"));
+        side.Children.Add(Look.Card(BuildEffectPicker(), L("Effects")));
         side.Children.Add(BuildKeyboardCard());
         var sideScroll = new ScrollViewer { Content = side, Margin = new Thickness(16, 0, 0, 0) };
 
@@ -580,16 +581,16 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         };
         autoColor.IsCheckedChanged += (_, _) => engine.Settings.AutoColor = autoColor.IsChecked == true;
 
-        var fill = new Button { Content = "Fill all keys" };
+        var fill = new Button { Content = L("Fill all keys") };
         fill.Click += (_, _) => { StartPainting(); Effects.Painted.Fill(engine.Settings.Color); };
-        var clear = new Button { Content = "Clear" };
+        var clear = new Button { Content = L("Clear") };
         clear.Click += (_, _) => { StartPainting(); Effects.Painted.Fill(Rgb.Black); };
 
         var content = new StackPanel { Spacing = 10 };
         content.Children.Add(colorEditor);
         content.Children.Add(Row(autoColor, fill, clear));
-        content.Children.Add(Look.Note("Colour 1 is also the paint brush; typing effects use colour 2."));
-        return Look.Card(content, "Colours");
+        content.Children.Add(Look.Note(L("Colour 1 is also the paint brush; typing effects use colour 2.")));
+        return Look.Card(content, L("Colours"));
     }
 
     Control BuildAdjustCard()
@@ -598,24 +599,24 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         brightness.ValueChanged += (_, e) => { if (brightnessSynced) engine.Brightness = (int)Math.Round(e.NewValue); };
 
         var content = new StackPanel { Spacing = 4 };
-        content.Children.Add(Caption("Speed"));
+        content.Children.Add(Caption(L("Speed")));
         content.Children.Add(speed);
-        content.Children.Add(Caption("Brightness"));
+        content.Children.Add(Caption(L("Brightness")));
         content.Children.Add(brightness);
-        content.Children.Add(Caption("Typing overlay"));
+        content.Children.Add(Caption(L("Typing overlay")));
         content.Children.Add(BuildOverlayPicker());
-        var card = Look.Card(content, "Adjust");
+        var card = Look.Card(content, L("Adjust"));
         card.Margin = new Thickness(16, 0, 0, 0);
         return card;
     }
 
     Control BuildProfilesCard()
     {
-        var load = new Button { Content = "Load" };
+        var load = new Button { Content = L("Load") };
         load.Click += (_, _) => LoadSelectedProfile();
-        var delete = new Button { Content = "Delete" };
+        var delete = new Button { Content = L("Delete") };
         delete.Click += (_, _) => DeleteSelectedProfile();
-        var save = new Button { Content = "Save" };
+        var save = new Button { Content = L("Save") };
         save.Click += (_, _) => SaveProfile();
 
         var content = new StackPanel { Spacing = 10 };
@@ -623,9 +624,9 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         content.Children.Add(Row(load, delete));
         content.Children.Add(new DockPanel { Children = { Docked(save, Dock.Right), profileName } });
         content.Children.Add(Look.Note(ThisLaptop.HasLightBar
-            ? "A profile keeps the effect, colours, speed, brightness and light bar."
-            : "A profile keeps the effect, colours, speed and brightness."));
-        var card = Look.Card(content, "Profiles");
+            ? L("A profile keeps the effect, colours, speed, brightness and light bar.")
+            : L("A profile keeps the effect, colours, speed and brightness.")));
+        var card = Look.Card(content, L("Profiles"));
         card.Margin = new Thickness(16, 0, 0, 0);
         return card;
     }
@@ -647,7 +648,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
             autostart.IsCheckedChanged += (_, _) =>
             {
                 try { Autostart.IsEnabled = autostart.IsChecked == true; }
-                catch (Exception e) { Notify($"Could not change Start with Windows: {e.Message}"); }
+                catch (Exception e) { Notify(L("Could not change Start with Windows: {0}", e.Message)); }
                 TrayStateChanged?.Invoke();
             };
             content.Children.Add(autostart);
@@ -656,15 +657,15 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         showOnStart.IsChecked = StartupShowEnabled;
         showOnStart.IsCheckedChanged += (_, _) => StartupShowEnabled = showOnStart.IsChecked == true;
         content.Children.Add(showOnStart);
-        var playShow = new Button { Content = "Play the start-up show" };
+        var playShow = new Button { Content = L("Play the start-up show") };
         playShow.Click += (_, _) => PlayStartupShow();
         content.Children.Add(playShow);
 
-        var handBack = new Button { Content = "Hand back: keyboard's own rainbow wave" };
+        var handBack = new Button { Content = L("Hand back: keyboard's own rainbow wave") };
         handBack.Click += (_, _) => HandBack();
         content.Children.Add(handBack);
 
-        return Look.Card(content, "Keyboard");
+        return Look.Card(content, L("Keyboard"));
     }
 
     /// <summary>
@@ -677,11 +678,11 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         // A flyout is its own little window, so it doesn't inherit the main window's font and text colour.
         TextElement.SetFontFamily(panel, Look.Font);
         TextElement.SetForeground(panel, Look.Text);
-        panel.Children.Add(Look.Heading("Keyboard"));
+        panel.Children.Add(Look.Heading(L("Keyboard")));
         panel.Children.Add(status);
         panel.Children.Add(frameRates);
 
-        var backgroundHeading = Look.Heading("Background");
+        var backgroundHeading = Look.Heading(L("Background"));
         backgroundHeading.Margin = new Thickness(0, 10, 0, 0);
         panel.Children.Add(backgroundHeading);
         bool backgroundChanged = false;
@@ -705,7 +706,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
                     BorderThickness = new Thickness(1),
                 },
             };
-            ToolTip.SetTip(preset, name);
+            ToolTip.SetTip(preset, L(name));
             AutomationProperties.SetName(preset, name + " background");
             preset.Click += (_, _) =>
             {
@@ -717,19 +718,20 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         }
         panel.Children.Add(presets);
 
-        var drawingHeading = Look.Heading("Drawing");
+        var drawingHeading = Look.Heading(L("Drawing"));
         drawingHeading.Margin = new Thickness(0, 10, 0, 0);
         panel.Children.Add(drawingHeading);
-        var graphicsCard = new CheckBox { Content = "Draw this window with the graphics card", IsChecked = AppearanceSettings.UseGraphicsCard };
+        var graphicsCard = new CheckBox { Content = L("Draw this window with the graphics card"), IsChecked = AppearanceSettings.UseGraphicsCard };
         graphicsCard.IsCheckedChanged += (_, _) => AppearanceSettings.UseGraphicsCard = graphicsCard.IsChecked == true;
         panel.Children.Add(graphicsCard);
-        panel.Children.Add(Look.Note("Off keeps memory low. On can be smoother on a very large screen, but uses about 100 MB more. " +
-                                     "It changes the next time RaptorSense starts."));
+        panel.Children.Add(Look.Note(L("Off keeps memory low. On can be smoother on a very large screen, but uses about 100 MB more. It changes the next time RaptorSense starts.")));
 
-        var about = Look.Heading("About");
+        panel.Children.Add(BuildLanguageChoice());
+
+        var about = Look.Heading(L("About"));
         about.Margin = new Thickness(0, 10, 0, 0);
         panel.Children.Add(about);
-        panel.Children.Add(Look.Note($"{AppInfo.Name} {AppInfo.Version}\nCreated by {AppInfo.Author}\nFree and open source ({AppInfo.Licence})"));
+        panel.Children.Add(Look.Note($"{AppInfo.Name} {AppInfo.Version}\n" + L("Created by {0}", AppInfo.Author) + "\n" + L("Free and open source ({0})", AppInfo.Licence)));
 
         var flyout = new Flyout { Content = panel, Placement = PlacementMode.BottomEdgeAlignedRight };
         flyout.Opened += (_, _) => { infoOpen = true; ShowEngineStatus(); };
@@ -743,16 +745,49 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         return flyout;
     }
 
+    /// <summary>
+    /// The language list in the info panel: the system's language, or one picked here. The window is built once, so a
+    /// new language shows after a restart, which the button does straight away.
+    /// </summary>
+    static Control BuildLanguageChoice()
+    {
+        var languages = RaptorSense.Localization.Text.Languages;
+        var panel = new StackPanel { Spacing = 6 };
+        var heading = Look.Heading(L("Language"));
+        heading.Margin = new Thickness(0, 10, 0, 0);
+        panel.Children.Add(heading);
+
+        var system = RaptorSense.Localization.Text.FromSystem();
+        var choices = new List<string> { system is null ? L("Same as the system") : L("Same as the system ({0})", system.Name) };
+        choices.AddRange(languages.Select(l => l.Name));
+        var picker = new ComboBox { ItemsSource = choices, HorizontalAlignment = HorizontalAlignment.Stretch };
+        AutomationProperties.SetName(picker, "Language");
+        picker.SelectedIndex = RaptorSense.Localization.Text.Find(AppearanceSettings.Language) is { } chosen ? languages.ToList().IndexOf(chosen) + 1 : 0;
+
+        var restart = new Button { Content = L("Restart now"), IsVisible = false };
+        restart.Click += (_, _) => App.Restart();
+        picker.SelectionChanged += (_, _) =>
+        {
+            AppearanceSettings.Language = picker.SelectedIndex > 0 ? languages[picker.SelectedIndex - 1].Code : null;
+            var next = picker.SelectedIndex > 0 ? languages[picker.SelectedIndex - 1] : system ?? languages[0];
+            restart.IsVisible = next != RaptorSense.Localization.Text.Current;
+        };
+        panel.Children.Add(picker);
+        panel.Children.Add(Look.Note(L("The window changes language when RaptorSense starts again.")));
+        panel.Children.Add(restart);
+        return panel;
+    }
+
     void ShowEngineStatus()
     {
         if (zoneStreamer is not null)
         {
             status.Text = zoneStreamer.Status;
-            frameRates.Text = $"{engine.RenderFps:N0} fps rendered, {zoneStreamer.SendFps:N1} zone updates a second";
+            frameRates.Text = L("{0:N0} fps rendered, {1:N1} zone updates a second", engine.RenderFps, zoneStreamer.SendFps);
             return;
         }
         status.Text = engine.Status;
-        frameRates.Text = $"{engine.RenderFps:N0} fps rendered, {engine.SendFps:N0} fps sent";
+        frameRates.Text = L("{0:N0} fps rendered, {1:N0} fps sent", engine.RenderFps, engine.SendFps);
     }
 
     void SelectEffect(IEffect effect)
@@ -770,7 +805,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         if (needed && audio is null && OperatingSystem.IsWindows())
         {
             try { audio = new LoopbackSpectrum(); }
-            catch (Exception e) { Notify($"Could not capture audio: {e.Message}"); }
+            catch (Exception e) { Notify(L("Could not capture audio: {0}", e.Message)); }
         }
         engine.Audio = !needed ? null : demoMusic ? new FallbackAudio(audio) : audio;
         if (!needed && audio is not null)
@@ -786,7 +821,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         if (engine.NeedsKeys && keyHook is null && OperatingSystem.IsWindows())
         {
             try { keyHook = new WindowsKeyHook(); keyHook.CellPressed += engine.NotifyKeyPress; }
-            catch (Exception e) { Notify($"Could not watch key presses: {e.Message}"); }
+            catch (Exception e) { Notify(L("Could not watch key presses: {0}", e.Message)); }
         }
         else if (!engine.NeedsKeys && keyHook is not null)
         {
@@ -800,7 +835,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
 
     Control BuildOverlayPicker()
     {
-        overlayPicker.ItemsSource = new[] { "None" }.Concat(OverlayEffects.Select(e => e.Name)).ToList();
+        overlayPicker.ItemsSource = new[] { L("None") }.Concat(OverlayEffects.Select(e => L(e.Name))).ToList();
         overlayPicker.SelectedIndex = 0;
         overlayPicker.SelectionChanged += (_, _) =>
         {
@@ -812,8 +847,8 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         section.Children.Add(new TextBlock
         {
             Text = HasFourZoneKeyboard
-                ? "A typing effect drawn on top of any effect, e.g. Zone flash over Lava lamp."
-                : "A typing effect drawn on top of any effect, e.g. lightning on every key press over Aurora.",
+                ? L("A typing effect drawn on top of any effect, e.g. Zone flash over Lava lamp.")
+                : L("A typing effect drawn on top of any effect, e.g. lightning on every key press over Aurora."),
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12,
             Opacity = 0.65,
@@ -848,13 +883,13 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     void SaveProfile()
     {
         var name = profileName.Text?.Trim();
-        if (string.IsNullOrEmpty(name)) { Notify("Type a name for the profile first."); return; }
+        if (string.IsNullOrEmpty(name)) { Notify(L("Type a name for the profile first.")); return; }
         EndStartupShow();
         ProfileStore.Save(Profile.Capture(name, engine, lightBar.Current));
         RefreshProfileList();
         profileList.SelectedItem = name;
         TrayStateChanged?.Invoke();
-        Notify($"Saved profile '{name}'.");
+        Notify(L("Saved profile '{0}'.", name));
     }
 
     void LoadSelectedProfile()
@@ -865,9 +900,9 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     public void LoadProfile(string name)
     {
         var profile = ProfileStore.Load(name);
-        if (profile is null) { Notify($"Could not read profile '{name}'."); return; }
+        if (profile is null) { Notify(L("Could not read profile '{0}'.", name)); return; }
         ApplyProfile(profile);
-        Notify($"Loaded profile '{name}'.");
+        Notify(L("Loaded profile '{0}'.", name));
     }
 
     void DeleteSelectedProfile()
@@ -876,7 +911,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         ProfileStore.Delete(name);
         RefreshProfileList();
         TrayStateChanged?.Invoke();
-        Notify($"Deleted profile '{name}'.");
+        Notify(L("Deleted profile '{0}'.", name));
     }
 
     void RefreshProfileList() => profileList.ItemsSource = ProfileStore.List();
@@ -898,7 +933,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
                 using var keyboard = Ph16Keyboard.TryOpen();
                 keyboard?.SetBuiltInEffect(BuiltInEffect.Wave, Rgb.Black, 6, Math.Max(engine.Brightness, 1));
             }
-            catch (Exception e) { Notify($"Could not set the keyboard effect: {e.Message}"); }
+            catch (Exception e) { Notify(L("Could not set the keyboard effect: {0}", e.Message)); }
         }, DispatcherPriority.Background);
     }
 
@@ -923,7 +958,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         if (engine.Effect != startupShow) afterShow = engine.Effect;
         startupShow.Restart();
         SelectEffect(startupShow);
-        effectTitle.Text = startupShow.Name;
+        effectTitle.Text = L(startupShow.Name);
         foreach (var tile in effectTiles.Values.SelectMany(t => t)) tile.IsChecked = false;
 
         showTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(200), DispatcherPriority.Background, (_, _) =>
@@ -949,7 +984,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         {
             Colors = [Rgb.White.ToString()], Mode = FourZoneMode.Wave, Speed = FourZoneProtocol.DefaultSpeed,
         });
-        if (!status.Ok) Notify($"Could not set the keyboard effect: {status.Error ?? ThermalClient.HelperMissing}");
+        if (!status.Ok) Notify(L("Could not set the keyboard effect: {0}", status.Error ?? L(ThermalClient.HelperMissing)));
     }
 
     void RefreshPreview()
@@ -1072,7 +1107,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     static string DisplayName(IEffect e) => e.UsesAudio ? $"{EffectName(e)}  ♪" : e.UsesKeys ? $"{EffectName(e)}  ⌨" : EffectName(e);
 
     // On the Nitro, painting colours whole zones.
-    static string EffectName(IEffect e) => HasFourZoneKeyboard && e == Effects.Painted ? "Paint zones" : e.Name;
+    static string EffectName(IEffect e) => HasFourZoneKeyboard && e == Effects.Painted ? L("Paint zones") : L(e.Name);
 
     static TextBlock Caption(string text) => new() { Text = text, Foreground = Look.Muted, FontSize = 13, Margin = new Thickness(0, 4, 0, 0) };
 

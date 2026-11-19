@@ -2,6 +2,8 @@ using RaptorSense.Hardware;
 using RaptorSense.Lighting;
 using RaptorSense.Thermal;
 
+using static RaptorSense.Localization.Text;
+
 namespace RaptorSense.Layout;
 
 /// <summary>Which keyboard the app draws and drives. One app for both: it picks by the laptop model Windows reports.</summary>
@@ -25,9 +27,9 @@ public static class LaptopLayouts
     /// <summary>A line under the name: what the keyboard can do, and the model when it isn't the one the layout was drawn from.</summary>
     public static string Describe(LaptopLayout layout, string? model) => layout switch
     {
-        LaptopLayout.Nitro => $"{LaptopModels.Describe(model)} · 4 lighting zones",
-        _ when LaptopModels.IsVerified(model) => $"{LaptopModels.Describe(model)} · every key lit on its own",
-        _ => $"Helios 16 layout · this laptop: {LaptopModels.Describe(model)}",
+        LaptopLayout.Nitro => $"{LaptopModels.Describe(model)} · " + L("4 lighting zones"),
+        _ when LaptopModels.IsVerified(model) => $"{LaptopModels.Describe(model)} · " + L("every key lit on its own"),
+        _ => L("Helios 16 layout · this laptop: {0}", LaptopModels.Describe(model)),
     };
 
     /// <summary>Key caps printed differently on the Nitro (labels as in <see cref="KeyMap"/>).</summary>

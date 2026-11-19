@@ -34,7 +34,7 @@ sealed class ColorEditor : UserControl
     readonly NumericUpDown red = Channel(), green = Channel(), blue = Channel();
     readonly TextBox hex = new() { Width = 90, MaxLength = 7 };
     readonly WrapPanel swatches = new();
-    readonly ToggleButton eyedropper = new() { Content = "Eyedropper" };
+    readonly ToggleButton eyedropper = new() { Content = L("Eyedropper") };
     readonly List<Rgb> custom = ProfileStore.LoadSwatches().Select(s => Rgb.TryParse(s, out var c) ? c : (Rgb?)null).OfType<Rgb>().ToList();
     int target;
     bool updating;
@@ -54,7 +54,7 @@ sealed class ColorEditor : UserControl
     /// <param name="wide">Lays the wheel, the numbers and the swatches side by side instead of in one column.</param>
     public ColorEditor(string[]? names = null, Rgb[]? initial = null, bool withEyedropper = true, bool wide = false)
     {
-        this.names = names ?? ["Colour 1", "Colour 2"];
+        this.names = names ?? [L("Colour 1"), L("Colour 2")];
         colors = initial is not null && initial.Length == this.names.Length
             ? [.. initial]
             : [.. this.names.Select((_, i) => i == 0 ? Rgb.PredatorTeal : new Rgb(255, 0, 128))];
@@ -73,7 +73,7 @@ sealed class ColorEditor : UserControl
         foreach (var box in new[] { red, green, blue })
             box.ValueChanged += (_, _) => { if (!updating) Set(new Rgb((byte)(red.Value ?? 0), (byte)(green.Value ?? 0), (byte)(blue.Value ?? 0)), box); };
         hex.TextChanged += (_, _) => { if (!updating && Rgb.TryParse(hex.Text, out var c)) Set(c, hex); };
-        ToolTip.SetTip(eyedropper, "Then click a key in the preview to take its colour");
+        ToolTip.SetTip(eyedropper, L("Then click a key in the preview to take its colour"));
 
         var numbers = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
         numbers.Children.Add(Labelled("R", red));
@@ -83,7 +83,7 @@ sealed class ColorEditor : UserControl
 
         var brightnessRow = new DockPanel
         {
-            Children = { Docked(new TextBlock { Text = "Brightness", Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center }, Dock.Left), brightness },
+            Children = { Docked(new TextBlock { Text = L("Brightness"), Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center }, Dock.Left), brightness },
         };
         var layout = new StackPanel { Spacing = 8 };
         layout.Children.Add(chipRow);
@@ -213,7 +213,7 @@ sealed class ColorEditor : UserControl
         foreach (var saved in custom) swatches.Children.Add(Swatch(saved, removable: true));
 
         var add = new Button { Content = "+", Width = 26, Height = 26, Padding = new Thickness(0), CornerRadius = new CornerRadius(13) };
-        ToolTip.SetTip(add, "Save the current colour as a swatch");
+        ToolTip.SetTip(add, L("Save the current colour as a swatch"));
         add.Click += (_, _) =>
         {
             var color = colors[target];
@@ -235,7 +235,7 @@ sealed class ColorEditor : UserControl
             Background = new SolidColorBrush(ToColor(color)),
             CornerRadius = new CornerRadius(13),
         };
-        ToolTip.SetTip(button, removable ? $"#{color}  (right-click to remove)" : $"#{color}");
+        ToolTip.SetTip(button, removable ? $"#{color}  " + L("(right-click to remove)") : $"#{color}");
         button.Click += (_, _) => Set(color, null);
         if (removable)
         {

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using RaptorSense.Audio;
 using RaptorSense.Hardware;
+using static RaptorSense.Localization.Text;
 
 namespace RaptorSense.Lighting;
 
@@ -107,7 +108,7 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
             var current = effect;
             working.Fill(Rgb.Black);
             try { current.Render(working, ctx); }
-            catch (Exception e) { Status = $"Effect error: {e.Message}"; }
+            catch (Exception e) { Status = L("Effect error: {0}", e.Message); }
 
             if (overlay is { } top && top != current)
             {
@@ -117,7 +118,7 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
                     top.Render(overlayFrame, ctx);
                     for (int cell = 0; cell < Frame.CellCount; cell++) working[cell] = EffectMath.Max(working[cell], overlayFrame[cell]);
                 }
-                catch (Exception e) { Status = $"Overlay error: {e.Message}"; }
+                catch (Exception e) { Status = L("Overlay error: {0}", e.Message); }
             }
             lock (frameLock) working.CopyTo(latest);
             rendered++;
@@ -144,7 +145,7 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
                             lastHardware = request;
                             lastSentBrightness = -1;   // switching back to a software effect re-sends its frame
                         }
-                        catch (Exception e) { Disconnect($"Lost the keyboard: {e.Message}"); }
+                        catch (Exception e) { Disconnect(L("Lost the keyboard: {0}", e.Message)); }
                     }
                 }
                 else if (keyboard is not null)
@@ -164,14 +165,14 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
                         }
                         catch (Exception e)
                         {
-                            Disconnect($"Lost the keyboard: {e.Message}");
+                            Disconnect(L("Lost the keyboard: {0}", e.Message));
                         }
                     }
                 }
             }
             else if (keyboard is not null)
             {
-                Disconnect("Preview only");
+                Disconnect(L("Preview only"));
                 lastSentBrightness = -1;
                 lastHardware = null;
             }
@@ -189,7 +190,7 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
             timer.Wait(TimeSpan.FromSeconds(nextFrameAt - clock.Elapsed.TotalSeconds));
         }
 
-        Disconnect("Stopped");
+        Disconnect(L("Stopped"));
     }
 
     void Connect()
@@ -197,18 +198,18 @@ public sealed class EffectEngine(Func<Ph16Keyboard?> openKeyboard) : IDisposable
         try
         {
             keyboard = openKeyboard();
-            if (keyboard is null) { Status = "Keyboard not found"; return; }
+            if (keyboard is null) { Status = L("Keyboard not found"); return; }
             if (Brightness < 0)
             {
                 int current = keyboard.GetBrightness();
                 Brightness = current > 0 ? current : 25;
             }
             Connected = true;
-            Status = $"Connected to {keyboard.Description}";
+            Status = L("Connected to {0}", keyboard.Description);
         }
         catch (Exception e)
         {
-            Disconnect($"Could not open the keyboard: {e.Message}");
+            Disconnect(L("Could not open the keyboard: {0}", e.Message));
         }
     }
 

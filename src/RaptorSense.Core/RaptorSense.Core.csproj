@@ -15,4 +15,9 @@
     <InternalsVisibleTo Include="RaptorSense.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The app's words in other languages: "English": "translation" pairs, read by Localization/Text.cs. -->
+    <EmbeddedResource Include="Localization\*.json" LogicalName="RaptorSense.Localization.%(Filename).json" />
+  </ItemGroup>
+
 </Project>

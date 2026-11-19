@@ -74,7 +74,7 @@ sealed class AutomationRunner : IDisposable
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            saveProblem = $"Could not save the rules: {e.Message}";
+            saveProblem = L("Could not save the rules: {0}", e.Message);
         }
         Refresh();
         if (enabledChanged) EnabledChanged?.Invoke();

@@ -15,9 +15,9 @@ namespace RaptorSense.App;
 /// </summary>
 sealed class AutomationsPanel : UserControl
 {
-    const string NoChange = "No change";
+    static readonly string NoChange = L("No change");
 
-    static readonly string[] TriggerNames = ["An app is open", "On battery", "Plugged in", "Sound is playing", "Nothing is touched for", "The screen is off"];
+    static readonly string[] TriggerNames = [L("An app is open"), L("On battery"), L("Plugged in"), L("Sound is playing"), L("Nothing is touched for"), L("The screen is off")];
     static readonly AutomationTrigger[] Triggers =
     [
         AutomationTrigger.AppOpen, AutomationTrigger.OnBattery, AutomationTrigger.PluggedIn,
@@ -27,7 +27,7 @@ sealed class AutomationsPanel : UserControl
     static readonly FanMode[] FanModes = [FanMode.Auto, FanMode.Max];
 
     readonly AutomationRunner runner;
-    readonly ToggleSwitch master = new() { OnContent = "Automations on", OffContent = "Automations off" };
+    readonly ToggleSwitch master = new() { OnContent = L("Automations on"), OffContent = L("Automations off") };
     readonly StackPanel cards = new() { Spacing = 12 };
     readonly TextBlock problem = new() { Foreground = Look.Warning, TextWrapping = TextWrapping.Wrap, IsVisible = false };
     readonly List<TextBlock> activeTags = [];
@@ -43,7 +43,7 @@ sealed class AutomationsPanel : UserControl
             if (on != runner.Settings.Enabled) runner.Update(runner.Settings with { Enabled = on });
         };
 
-        var add = new Button { Content = "Add rule" };
+        var add = new Button { Content = L("Add rule") };
         add.Click += (_, _) =>
         {
             runner.Update(runner.Settings with { Rules = [.. runner.Settings.Rules, new AutomationRule()] });
@@ -53,29 +53,27 @@ sealed class AutomationsPanel : UserControl
         var intro = new StackPanel { Spacing = 10 };
         intro.Children.Add(new TextBlock
         {
-            Text = (ThisLaptop.HasPowerControl ? "Rules change your lighting, power mode and fans by themselves."
-                    : ThisLaptop.HasFanControl ? "Rules change your lighting and fans by themselves."
-                    : "Rules change your lighting by themselves.") +
-                   " When a rule ends, everything goes back to how it " +
-                   "was before it started, including anything you changed by hand in between. If two rules set the same thing, the higher one wins.",
+            Text = (ThisLaptop.HasPowerControl ? L("Rules change your lighting, power mode and fans by themselves.")
+                    : ThisLaptop.HasFanControl ? L("Rules change your lighting and fans by themselves.")
+                    : L("Rules change your lighting by themselves.")) + " " +
+                   L("When a rule ends, everything goes back to how it was before it started, including anything you changed by hand in between. If two rules set the same thing, the higher one wins."),
             TextWrapping = TextWrapping.Wrap,
             Foreground = Look.Muted,
         });
         intro.Children.Add(master);
 
         var page = new StackPanel { Spacing = 14, Margin = new Thickness(28, 12, 28, 16), MaxWidth = 1100 };
-        page.Children.Add(Look.Card(intro, "Automations"));
+        page.Children.Add(Look.Card(intro, L("Automations")));
         page.Children.Add(cards);
         page.Children.Add(add);
         page.Children.Add(problem);
         page.Children.Add(Look.Note(
-            "An app counts as open from when it is running until it closes, so switching to another window doesn't end the rule. " +
-            "Sound counts as playing after three seconds of it and as stopped after fifteen seconds of silence, whatever the volume is set to. " +
-            "\"Nothing is touched\" means no key, mouse or touchpad use, so a film you are only watching counts too. " +
-            (ThisLaptop.HasPowerControl ? "Power mode and fans need fan control installed. "
-             : ThisLaptop.HasFanControl ? "Fans need fan control installed. " : "") +
-            "RaptorSense only looks for the apps you name here, reads how loud the " +
-            "sound is but never the sound itself, and nothing leaves your laptop."));
+            L("An app counts as open from when it is running until it closes, so switching to another window doesn't end the rule.") + " " +
+            L("Sound counts as playing after three seconds of it and as stopped after fifteen seconds of silence, whatever the volume is set to.") + " " +
+            L("\"Nothing is touched\" means no key, mouse or touchpad use, so a film you are only watching counts too.") + " " +
+            (ThisLaptop.HasPowerControl ? L("Power mode and fans need fan control installed.") + " "
+             : ThisLaptop.HasFanControl ? L("Fans need fan control installed.") + " " : "") +
+            L("RaptorSense only looks for the apps you name here, reads how loud the sound is but never the sound itself, and nothing leaves your laptop.")));
         Content = new ScrollViewer { Content = page };
 
         runner.Changed += ShowState;
@@ -89,7 +87,7 @@ sealed class AutomationsPanel : UserControl
         activeTags.Clear();
         var rules = runner.Settings.Rules;
         for (int i = 0; i < rules.Count; i++) cards.Children.Add(Card(i, rules[i]));
-        if (rules.Count == 0) cards.Children.Add(new TextBlock { Text = "No rules yet.", Foreground = Look.Muted, Margin = new Thickness(4, 0, 0, 0) });
+        if (rules.Count == 0) cards.Children.Add(new TextBlock { Text = L("No rules yet."), Foreground = Look.Muted, Margin = new Thickness(4, 0, 0, 0) });
         ShowState();
     }
 
@@ -105,17 +103,17 @@ sealed class AutomationsPanel : UserControl
 
     Control Card(int index, AutomationRule rule)
     {
-        var enabled = new CheckBox { Content = "On", IsChecked = rule.Enabled };
+        var enabled = new CheckBox { Content = L("On"), IsChecked = rule.Enabled };
         var trigger = new ComboBox { ItemsSource = TriggerNames, SelectedIndex = Array.IndexOf(Triggers, rule.Trigger), MinWidth = 150 };
-        var app = new TextBox { Text = rule.App, PlaceholderText = "App name, e.g. VALORANT", Width = 220 };
-        var runningApps = new ComboBox { PlaceholderText = "Choose a running app", MinWidth = 190 };
+        var app = new TextBox { Text = rule.App, PlaceholderText = L("App name, e.g. VALORANT"), Width = 220 };
+        var runningApps = new ComboBox { PlaceholderText = L("Choose a running app"), MinWidth = 190 };
         var appControls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { app, runningApps }, IsVisible = rule.Trigger == AutomationTrigger.AppOpen };
         var minutes = new NumericUpDown
         {
             Minimum = AutomationRule.MinIdleMinutes, Maximum = AutomationRule.MaxIdleMinutes, Increment = 1, FormatString = "0",
             Value = (decimal)rule.IdleAfter.TotalMinutes, MinWidth = 120,
         };
-        var idleControls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { minutes, Caption("minutes") }, IsVisible = rule.Trigger == AutomationTrigger.Idle };
+        var idleControls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { minutes, Caption(L("minutes")) }, IsVisible = rule.Trigger == AutomationTrigger.Idle };
 
         var profiles = new List<string> { NoChange, AutomationRule.LightsOff };
         profiles.AddRange(ProfileStore.List().Where(name => name != AutomationRule.LightsOff));
@@ -124,12 +122,12 @@ sealed class AutomationsPanel : UserControl
         var power = Picker(PowerModes, rule.Power);
         var fans = Picker(FanModes, rule.Fans);
 
-        var active = new TextBlock { Text = "Active now", Foreground = Look.Accent, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
+        var active = new TextBlock { Text = L("Active now"), Foreground = Look.Accent, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
         activeTags.Add(active);
 
-        var up = new Button { Content = "Up", IsEnabled = index > 0 };
-        var down = new Button { Content = "Down", IsEnabled = index < runner.Settings.Rules.Count - 1 };
-        var remove = new Button { Content = "Remove" };
+        var up = new Button { Content = L("Up"), IsEnabled = index > 0 };
+        var down = new Button { Content = L("Down"), IsEnabled = index < runner.Settings.Rules.Count - 1 };
+        var remove = new Button { Content = L("Remove") };
 
         // Connected after the initial values are set, so building a card doesn't count as a change.
         enabled.IsCheckedChanged += (_, _) => Replace(index, r => r with { Enabled = enabled.IsChecked == true });
@@ -171,17 +169,17 @@ sealed class AutomationsPanel : UserControl
         DockPanel.SetDock(buttons, Dock.Right);
         var when = new WrapPanel { Orientation = Orientation.Horizontal, ItemSpacing = 10, LineSpacing = 6 };
         when.Children.Add(enabled);
-        when.Children.Add(Caption("When"));
+        when.Children.Add(Caption(L("When")));
         when.Children.Add(trigger);
         when.Children.Add(appControls);
         when.Children.Add(idleControls);
         when.Children.Add(active);
 
         var actions = new WrapPanel { Orientation = Orientation.Horizontal, ItemSpacing = 14, LineSpacing = 6 };
-        actions.Children.Add(Labelled("Lighting profile", lighting));
+        actions.Children.Add(Labelled(L("Lighting profile"), lighting));
         // Only what the helper changes on this laptop is offered.
-        if (ThisLaptop.HasPowerControl) actions.Children.Add(Labelled("Power mode", power));
-        if (ThisLaptop.HasFanControl) actions.Children.Add(Labelled("Fans", fans));
+        if (ThisLaptop.HasPowerControl) actions.Children.Add(Labelled(L("Power mode"), power));
+        if (ThisLaptop.HasFanControl) actions.Children.Add(Labelled(L("Fans"), fans));
 
         return Look.Card(new StackPanel
         {
@@ -225,7 +223,7 @@ sealed class AutomationsPanel : UserControl
     static ComboBox Picker<T>(T[] values, T? current) where T : struct, Enum
     {
         var items = new List<string> { NoChange };
-        items.AddRange(values.Select(v => v.ToString()));
+        items.AddRange(values.Select(v => L(v.ToString())));
         return new ComboBox
         {
             ItemsSource = items,
