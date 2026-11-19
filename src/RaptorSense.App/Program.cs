@@ -126,7 +126,7 @@ sealed class App : Application
 
         if (Autostart.IsSupported)
         {
-            var autostart = new NativeMenuItem(L("Start with Windows")) { ToggleType = MenuItemToggleType.CheckBox, IsChecked = window.StartWithWindows };
+            var autostart = new NativeMenuItem(Autostart.OffLabel) { ToggleType = MenuItemToggleType.CheckBox, IsChecked = window.StartWithWindows };
             autostart.Click += (_, _) => window.StartWithWindows = !window.StartWithWindows;
             menu.Add(autostart);
         }

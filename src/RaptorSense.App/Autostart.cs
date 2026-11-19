@@ -12,6 +12,10 @@ static class Autostart
 
     public static bool IsSupported => OperatingSystem.IsWindows();
 
+    /// <summary>What the switch says while it is off, and while it is on (on Linux it starts at sign-in).</summary>
+    public static string OffLabel => OperatingSystem.IsWindows() ? L("Start with Windows") : L("Start when you sign in");
+    public static string OnLabel => OperatingSystem.IsWindows() ? L("Starts with Windows") : L("Starts when you sign in");
+
     public static bool IsEnabled
     {
         get
