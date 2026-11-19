@@ -287,7 +287,7 @@ static int RunEngine(EffectEngine engine, Dictionary<string, string> options)
 
     using var stop = new ManualResetEventSlim();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Set(); };
-    double seconds = options.TryGetValue("seconds", out var s) ? double.Parse(s) : double.PositiveInfinity;
+    double seconds = options.TryGetValue("seconds", out var s) ? double.Parse(s, System.Globalization.CultureInfo.InvariantCulture) : double.PositiveInfinity;
     var deadline = DateTime.UtcNow + (double.IsInfinity(seconds) ? TimeSpan.MaxValue - TimeSpan.FromDays(1) : TimeSpan.FromSeconds(seconds));
 
     engine.Start();
@@ -343,7 +343,7 @@ static Dictionary<string, string> ParseOptions(string[] args, out List<string> p
     positional = [];
     for (int i = 0; i < args.Length; i++)
     {
-        if (!args[i].StartsWith("--")) { positional.Add(args[i]); continue; }
+        if (!args[i].StartsWith("--", StringComparison.Ordinal)) { positional.Add(args[i]); continue; }
         if (i + 1 >= args.Length) throw new ArgumentException($"Option {args[i]} needs a value.");
         options[args[i][2..]] = args[++i];
     }
