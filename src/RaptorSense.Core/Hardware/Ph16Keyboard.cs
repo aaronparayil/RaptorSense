@@ -53,9 +53,10 @@ public sealed class Ph16Keyboard(IHidTransport transport) : IDisposable
         var cells = frame.Cells;
         for (int c = 0; c < Frame.CellCount; c++)
         {
-            frameData[c * 4 + 1] = cells[c].R;
-            frameData[c * 4 + 2] = cells[c].G;
-            frameData[c * 4 + 3] = cells[c].B;
+            // Through the LED curve, so keys that look black in the preview are off rather than glowing faintly.
+            frameData[c * 4 + 1] = LedCurve.Apply(cells[c].R);
+            frameData[c * 4 + 2] = LedCurve.Apply(cells[c].G);
+            frameData[c * 4 + 3] = LedCurve.Apply(cells[c].B);
         }
 
         using var _ = transport.Exclusive();
