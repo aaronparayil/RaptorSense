@@ -3,7 +3,8 @@
 # RaptorSense
 
 **A free, open-source alternative to PredatorSense and NitroSense for Acer Predator and Nitro laptops.**<br>
-Keyboard lighting with your own animations, music and typing effects, plus fan and power control.
+Up to 147 keyboard lighting effects, your own animations, lighting that follows your music and your typing,<br>
+plus fan and power control. No account, no telemetry.
 
 [![Latest release](https://img.shields.io/github/v/release/aaronparayil/RaptorSense?label=release&color=a78bfa)](https://github.com/aaronparayil/RaptorSense/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/aaronparayil/RaptorSense/total?color=38bdf8)](https://github.com/aaronparayil/RaptorSense/releases)
@@ -13,19 +14,26 @@ Keyboard lighting with your own animations, music and typing effects, plus fan a
 [**Download**](https://github.com/aaronparayil/RaptorSense/releases/latest) ·
 [Where it stands](#where-it-stands) ·
 [Will it work on my laptop?](#will-it-work-on-my-laptop) ·
+[Report your laptop](https://github.com/aaronparayil/RaptorSense/issues/new?template=laptop-report.yml) ·
 [Install](#install) ·
 [Features](#features) ·
 [Privacy](#privacy) ·
 [Build from source](#build-from-source)
 
-<img src="docs/screenshot.png" alt="The Lighting tab: a rainbow wave on the keyboard preview, with colours, speed, profiles and the list of effects around it" width="920">
+<img src="docs/gallery.png" alt="The effect gallery: fourteen pattern effects, each playing on its own little keyboard, with the collections listed along the top" width="920">
 
 </div>
 
 > Unofficial. Not affiliated with or endorsed by Acer. "Predator", "Nitro", "PredatorSense" and "NitroSense" are
 > Acer trademarks, used here only to describe compatibility.
 
-Created by [aaronparayil](https://github.com/aaronparayil). Free and open source, forever.
+Created by [aaronparayil](https://github.com/aaronparayil). Free and open source, forever. Built with the help of
+[Claude Code](https://claude.com/claude-code), and tested on real laptops.
+
+**Before you download:** the app isn't code-signed, so Windows may warn "Windows protected your PC" the first time
+(choose **More info**, then **Run anyway**). Each release lists the zip's SHA-256 so you can check it, and the code is
+all here to read or [build yourself](#build-from-source). Tested on the **Predator Helios 16 PH16-71** and the
+**Nitro 5 AN515-57**; on another model, please [tell us how it went](https://github.com/aaronparayil/RaptorSense/issues/new?template=laptop-report.yml).
 
 ## Where it stands
 
@@ -78,6 +86,8 @@ Music and typing effects, fans, power and automations are still to come on Linux
 
 Recorded on an earlier version: the effects are the same, the window has a new look since.
 
+<img src="docs/screenshot.png" alt="The Lighting tab: a rainbow wave on the keyboard preview, with colours, speed, profiles and the list of effects around it" width="920">
+
 ## Will it work on my laptop?
 
 Tested on two machines so far: **Predator Helios 16 PH16-71** (BIOS V1.18, per-key keyboard `04F2:0117`) and
@@ -101,7 +111,7 @@ when it starts and shows what works on it. Windows only for now; Linux is [in pr
   been, so they aren't shown there. The Nitro has no light bar, so there is no Light bar tab.
 
 RaptorSense comes with no warranty (see the [licence](LICENSE)). If you try it on another model, please
-[open an issue](https://github.com/aaronparayil/RaptorSense/issues) and say how it went, whether it worked or not.
+[fill in a laptop report](https://github.com/aaronparayil/RaptorSense/issues/new?template=laptop-report.yml) and say how it went, whether it worked or not.
 The [probe](#other-laptops) helps add new models.
 
 ## Install
@@ -385,7 +395,7 @@ powershell -ExecutionPolicy Bypass -File scripts\probe.ps1 -Label mymodel
 ```
 
 Run it from an administrator PowerShell. It only reads from the firmware and saves a JSON report to `reports\`.
-Check the report before sharing it, then open an issue and attach it. Until a model has been checked this way,
+Check the report before sharing it, then attach it to a [laptop report](https://github.com/aaronparayil/RaptorSense/issues/new?template=laptop-report.yml). Until a model has been checked this way,
 RaptorSense only reads its fans and power mode.
 
 ## Licence
