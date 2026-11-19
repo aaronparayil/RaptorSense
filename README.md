@@ -82,9 +82,9 @@ Music and typing effects, fans, power and automations are still to come on Linux
 
 ## See it in action
 
-![Typing effects, a rainbow wave and more, matching on the screen and the real keyboard of a Predator Helios 16](docs/demo.gif)
+![The effect gallery on the screen of a Predator Helios 16 while its real keyboard changes with each effect picked: a rainbow wave, cyan, pink, blue, green](docs/demo.gif)
 
-Recorded on an earlier version: the effects are the same, the window has a new look since.
+Filmed on a Predator Helios 16 with RaptorSense 1.8.8, sped up twice: the gallery plays every effect at once, and a click puts one on the real keyboard.
 
 <img src="docs/screenshot.png" alt="The Lighting tab: a rainbow wave on the keyboard preview, with colours, speed, profiles and the list of effects around it" width="920">
 
