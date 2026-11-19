@@ -164,6 +164,7 @@ changed the helper too.
 | Battery: charge cycles and health, from Windows' battery driver | Works |
 | Automations: when an app is open, on battery or plugged in, while sound is playing, after some minutes untouched, or while the screen is off, switch the lighting profile, power mode and fans, then put them back | Works; power mode and fans need fan control installed. The screen-off rule has not been tried on a real screen yet |
 | PREDATOR key opens the window; Fn+F11 / Fn+F12 change the brightness | Works |
+| The window in English, Deutsch, Español, Français, Português (Brasil) or हिन्दी, following Windows' language or picked in the app | Works; the translations have not been checked by native speakers yet |
 | Linux | A preview to test: it builds, starts and passes its tests on Linux. Keyboard lighting is written but not yet tried on a real keyboard, and testers are wanted; see [Linux](#linux) |
 
 ## Lighting
@@ -195,7 +196,10 @@ normal and double speed. The previews move only while the Gallery tab is in sigh
 in front, and are let go of when the window closes.
 
 The round **i** button at the top right opens a small panel with the keyboard connection, the frame rates, a choice
-of background colours for the window, and the version. It also has a **Drawing** switch. RaptorSense draws its
+of background colours for the window, the language and the version. RaptorSense shows itself in Windows' language
+when it has it (English, Deutsch, Español, Français, Português do Brasil or हिन्दी), and **Language** picks another;
+**Restart now** switches straight away. The translations are new and have not been checked by native speakers yet,
+so if something reads oddly in yours, please [open an issue](https://github.com/aaronparayil/RaptorSense/issues). It also has a **Drawing** switch. RaptorSense draws its
 window on the processor, which keeps memory low and leaves the graphics card alone; while the window is open with
 an effect playing, that takes about 40% of one processor core on the Helios 16. Switching it on draws the window
 with the graphics card: lighter on the processor and smoother on a very large screen, for about 100 MB more

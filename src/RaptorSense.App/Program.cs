@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
+using RaptorSense.Localization;
 
 namespace RaptorSense.App;
 
@@ -10,9 +11,20 @@ static class Program
     const string InstanceMutexName = @"Local\RaptorSense.App";
     const string ShowEventName = @"Local\RaptorSense.Show";
 
+    /// <summary>Given with a process id by <see cref="App.Restart"/>: wait for that copy to end before starting.</summary>
+    public const string AfterArgument = "--after";
+
     [STAThread]
     public static int Main(string[] args)
     {
+        // A restart: the copy that started this one is still saving and letting go of the keyboard.
+        int after = Array.IndexOf(args, AfterArgument);
+        if (after >= 0 && after + 1 < args.Length && int.TryParse(args[after + 1], out int pid))
+        {
+            try { using var previous = System.Diagnostics.Process.GetProcessById(pid); previous.WaitForExit(15000); }
+            catch (ArgumentException) { }   // already gone
+        }
+
         // One copy only: two engines would fight over the keyboard. A second launch asks the first to show itself.
         using var instance = new Mutex(initiallyOwned: true, InstanceMutexName, out bool first);
         if (!first)
@@ -31,6 +43,8 @@ static class Program
         using var showRequests = OperatingSystem.IsWindows() ? new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName) : null;
         App.ShowRequests = showRequests;
         App.StartHidden = args.Contains(Autostart.MinimizedArgument);
+        // The chosen language, or the system's when none was chosen; read before any window is built.
+        Text.Use(AppearanceSettings.Language ?? Text.FromSystem()?.Code);
         return BuildAvaloniaApp(AppearanceSettings.UseGraphicsCard).StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
     }
 
@@ -105,7 +119,7 @@ sealed class App : Application
         if (tray is null || window is null) return;
         var menu = new NativeMenu();
 
-        var open = new NativeMenuItem("Open RaptorSense");
+        var open = new NativeMenuItem(L("Open RaptorSense"));
         open.Click += (_, _) => window.ShowFromTray();
         menu.Add(open);
         menu.Add(new NativeMenuItemSeparator());
@@ -117,14 +131,14 @@ sealed class App : Application
             item.Click += (_, _) => window.LoadProfile(name);
             profiles.Add(item);
         }
-        if (profiles.Items.Count == 0) profiles.Add(new NativeMenuItem("(no saved profiles)") { IsEnabled = false });
-        menu.Add(new NativeMenuItem("Profiles") { Menu = profiles });
+        if (profiles.Items.Count == 0) profiles.Add(new NativeMenuItem(L("(no saved profiles)")) { IsEnabled = false });
+        menu.Add(new NativeMenuItem(L("Profiles")) { Menu = profiles });
 
-        var pause = new NativeMenuItem("Pause lighting") { ToggleType = MenuItemToggleType.CheckBox, IsChecked = !window.OutputEnabled };
+        var pause = new NativeMenuItem(L("Pause lighting")) { ToggleType = MenuItemToggleType.CheckBox, IsChecked = !window.OutputEnabled };
         pause.Click += (_, _) => window.OutputEnabled = !window.OutputEnabled;
         menu.Add(pause);
 
-        var automations = new NativeMenuItem("Automations") { ToggleType = MenuItemToggleType.CheckBox, IsChecked = window.AutomationsEnabled };
+        var automations = new NativeMenuItem(L("Automations")) { ToggleType = MenuItemToggleType.CheckBox, IsChecked = window.AutomationsEnabled };
         automations.Click += (_, _) => window.AutomationsEnabled = !window.AutomationsEnabled;
         menu.Add(automations);
 
@@ -136,11 +150,19 @@ sealed class App : Application
         }
 
         menu.Add(new NativeMenuItemSeparator());
-        var quit = new NativeMenuItem("Quit");
+        var quit = new NativeMenuItem(L("Quit"));
         quit.Click += (_, _) => Quit();
         menu.Add(quit);
 
         tray.Menu = menu;
+    }
+
+    /// <summary>Starts a fresh copy, which waits for this one to end, and quits. Used after the language changes.</summary>
+    public static void Restart()
+    {
+        if (Environment.ProcessPath is { } path)
+            System.Diagnostics.Process.Start(path, [Program.AfterArgument, Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+        (Current as App)?.Quit();
     }
 
     void Quit()

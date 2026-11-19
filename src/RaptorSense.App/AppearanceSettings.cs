@@ -24,6 +24,18 @@ static class AppearanceSettings
         set => Set(RenderingKey, value ? GraphicsCard : null);
     }
 
+    /// <summary>
+    /// The language picked in the app, such as "de", or null to follow the system's. Read once at start; a change
+    /// applies the next time the app starts.
+    /// </summary>
+    public static string? Language
+    {
+        get => Get(LanguageKey);
+        set => Set(LanguageKey, value);
+    }
+
+    const string LanguageKey = "Language";
+
     public static string? Get(string key) => Read().GetValueOrDefault(key);
 
     /// <summary>Saves one value and keeps the others. Null removes it.</summary>

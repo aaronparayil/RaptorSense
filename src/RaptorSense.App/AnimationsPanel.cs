@@ -31,14 +31,14 @@ sealed class AnimationsPanel : UserControl
 
     static readonly IBrush Accent = Look.Accent;
     static readonly IBrush Unselected = Look.Unselected;
-    static readonly FilePickerFileType AnimationFile = new("RaptorSense animation") { Patterns = ["*.json"] };
+    static readonly FilePickerFileType AnimationFile = new(L("RaptorSense animation")) { Patterns = ["*.json"] };
 
     static readonly (MusicReaction Reaction, string Label, string Note)[] MusicChoices =
     [
-        (MusicReaction.None, "Off", ""),
-        (MusicReaction.Beat, "Step on the beat", "Each beat moves to the next frame. \"Stays for\" isn't used, and \"Then fades\" is how long the change takes."),
-        (MusicReaction.Speed, "Faster when louder", "Plays slowly when it's quiet and faster the louder the music gets."),
-        (MusicReaction.Pulse, "Pulse with the bass", "Plays at its own times and gets brighter with the bass."),
+        (MusicReaction.None, L("Off"), ""),
+        (MusicReaction.Beat, L("Step on the beat"), L("Each beat moves to the next frame. \"Stays for\" isn't used, and \"Then fades\" is how long the change takes.")),
+        (MusicReaction.Speed, L("Faster when louder"), L("Plays slowly when it's quiet and faster the louder the music gets.")),
+        (MusicReaction.Pulse, L("Pulse with the bass"), L("Plays at its own times and gets brighter with the bass.")),
     ];
 
     // Undo keeps whole copies of the frames, so it is capped by how many frames it holds in total (about 2 MB).
@@ -47,16 +47,16 @@ sealed class AnimationsPanel : UserControl
     readonly EffectEngine engine;
     readonly Action useAnimation;
     readonly KeyboardView keyboard = new();
-    readonly ComboBox picker = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Your animations" };
-    readonly TextBox nameBox = new() { PlaceholderText = "Name" };
-    readonly Button deleteAnimation = new() { Content = "Delete" };
-    readonly Button exportAnimation = new() { Content = "Export" }, copyAnimation = new() { Content = "Make a copy" };
-    readonly Button undoButton = new() { Content = "Undo" }, redoButton = new() { Content = "Redo" };
-    readonly ToggleButton play = new() { Content = "▶  Play on the keyboard", FontFamily = Look.Symbols, HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly ComboBox picker = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = L("Your animations") };
+    readonly TextBox nameBox = new() { PlaceholderText = L("Name") };
+    readonly Button deleteAnimation = new() { Content = L("Delete") };
+    readonly Button exportAnimation = new() { Content = L("Export") }, copyAnimation = new() { Content = L("Make a copy") };
+    readonly Button undoButton = new() { Content = L("Undo") }, redoButton = new() { Content = L("Redo") };
+    readonly ToggleButton play = new() { Content = "▶  " + L("Play on the keyboard"), FontFamily = Look.Symbols, HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ComboBox musicPicker = new() { Width = 190, ItemsSource = MusicChoices.Select(c => c.Label).ToList(), SelectedIndex = 0 };
     readonly TextBlock musicNote = new() { TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = 0.65, IsVisible = false };
     readonly NumericUpDown hold = Seconds(AnimationFrame.MaxHold), fade = Seconds(AnimationFrame.MaxFade);
-    readonly ColorEditor brush = new(["Brush"], [Rgb.PredatorTeal], withEyedropper: false);
+    readonly ColorEditor brush = new([L("Brush")], [Rgb.PredatorTeal], withEyedropper: false);
     readonly StackPanel strip = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
     readonly ScrollViewer stripScroll;
     readonly TextBlock summary = new() { Foreground = Look.Muted, Margin = new Thickness(4, 12, 0, 8) };
@@ -113,7 +113,7 @@ sealed class AnimationsPanel : UserControl
         Grid.SetColumn(controls, 1);
         var hint = new TextBlock
         {
-            Text = "Click or drag over keys to paint the selected frame with the brush · right-click to erase",
+            Text = L("Click or drag over keys to paint the selected frame with the brush · right-click to erase"),
             Foreground = Look.Muted,
             FontSize = 13,
             Margin = new Thickness(4, 4, 0, 12),
@@ -156,11 +156,11 @@ sealed class AnimationsPanel : UserControl
     {
         var panel = new StackPanel { Spacing = 8, Width = 340 };
 
-        panel.Children.Add(Heading("Animation"));
+        panel.Children.Add(Heading(L("Animation")));
         panel.Children.Add(picker);
-        var create = new Button { Content = "New" };
+        var create = new Button { Content = L("New") };
         create.Click += (_, _) => CreateNew();
-        ToolTip.SetTip(create, "A blank animation with one empty frame");
+        ToolTip.SetTip(create, L("A blank animation with one empty frame"));
         var starters = new MenuFlyout();
         foreach (var starter in AnimationStarters.Names)
         {
@@ -168,27 +168,27 @@ sealed class AnimationsPanel : UserControl
             item.Click += (_, _) => CreateFromStarter(starter);
             starters.Items.Add(item);
         }
-        var fromStarter = new Button { Content = "From a starter ▾", Flyout = starters };
-        ToolTip.SetTip(fromStarter, "A ready-made animation in the brush colour, to change into your own");
+        var fromStarter = new Button { Content = L("From a starter") + " ▾", Flyout = starters };
+        ToolTip.SetTip(fromStarter, L("A ready-made animation in the brush colour, to change into your own"));
         copyAnimation.Click += (_, _) => CopyAnimation();
         panel.Children.Add(Row(create, fromStarter, copyAnimation));
 
-        var import = new Button { Content = "Import" };
-        ToolTip.SetTip(import, "Add animation files someone shared with you");
+        var import = new Button { Content = L("Import") };
+        ToolTip.SetTip(import, L("Add animation files someone shared with you"));
         import.Click += (_, _) => Import();
-        ToolTip.SetTip(exportAnimation, "Save this animation as a file you can share");
+        ToolTip.SetTip(exportAnimation, L("Save this animation as a file you can share"));
         exportAnimation.Click += (_, _) => Export();
         deleteAnimation.Click += (_, _) => DeleteAnimation();
         panel.Children.Add(Row(import, exportAnimation, deleteAnimation));
-        var rename = new Button { Content = "Rename" };
+        var rename = new Button { Content = L("Rename") };
         rename.Click += (_, _) => Rename();
         nameBox.KeyDown += (_, e) => { if (e.Key == Avalonia.Input.Key.Enter) Rename(); };
         panel.Children.Add(new DockPanel { Children = { Docked(rename, Dock.Right), nameBox } });
 
         var edit = new StackPanel { Spacing = 8 };
         edit.Children.Add(play);
-        ToolTip.SetTip(musicPicker, "Makes this animation follow the music the laptop is playing. It never listens to the microphone.");
-        edit.Children.Add(Labelled("With music", musicPicker));
+        ToolTip.SetTip(musicPicker, L("Makes this animation follow the music the laptop is playing. It never listens to the microphone."));
+        edit.Children.Add(Labelled(L("With music"), musicPicker));
         edit.Children.Add(musicNote);
         ToolTip.SetTip(undoButton, "Ctrl+Z");
         ToolTip.SetTip(redoButton, "Ctrl+Y");
@@ -196,33 +196,33 @@ sealed class AnimationsPanel : UserControl
         redoButton.Click += (_, _) => Redo();
         edit.Children.Add(Row(undoButton, redoButton));
 
-        edit.Children.Add(Heading("Selected frame"));
-        edit.Children.Add(Labelled("Stays for (s)", hold));
-        edit.Children.Add(Labelled("Then fades (s)", fade));
-        var allTimes = new Button { Content = "Use these times for every frame" };
+        edit.Children.Add(Heading(L("Selected frame")));
+        edit.Children.Add(Labelled(L("Stays for (s)"), hold));
+        edit.Children.Add(Labelled(L("Then fades (s)"), fade));
+        var allTimes = new Button { Content = L("Use these times for every frame") };
         allTimes.Click += (_, _) => ApplyTimesToAll();
         edit.Children.Add(allTimes);
 
-        var add = new Button { Content = "New frame" };
+        var add = new Button { Content = L("New frame") };
         add.Click += (_, _) => Insert(new EditFrame { Hold = frames[selected].Hold, Fade = frames[selected].Fade });
-        var copy = new Button { Content = "Copy frame" };
+        var copy = new Button { Content = L("Copy frame") };
         copy.Click += (_, _) => Insert(frames[selected].Copy());
-        var remove = new Button { Content = "Delete frame" };
+        var remove = new Button { Content = L("Delete frame") };
         remove.Click += (_, _) => RemoveFrame();
         edit.Children.Add(Row(add, copy, remove));
 
-        var earlier = new Button { Content = "Move earlier" };
+        var earlier = new Button { Content = L("Move earlier") };
         earlier.Click += (_, _) => MoveFrame(-1);
-        var later = new Button { Content = "Move later" };
+        var later = new Button { Content = L("Move later") };
         later.Click += (_, _) => MoveFrame(1);
         edit.Children.Add(Row(earlier, later));
 
-        edit.Children.Add(new TextBlock { Text = "Copy the frame moved one key:", FontSize = 12, Opacity = 0.65 });
+        edit.Children.Add(new TextBlock { Text = L("Copy the frame moved one key:"), FontSize = 12, Opacity = 0.65 });
         var moves = Row();
         foreach (var (arrow, direction) in new[] { ("◀", KeyShift.Direction.Left), ("▶", KeyShift.Direction.Right), ("▲", KeyShift.Direction.Up), ("▼", KeyShift.Direction.Down) })
         {
             var button = new Button { Content = arrow, Width = 48, FontFamily = Look.Symbols, HorizontalContentAlignment = HorizontalAlignment.Center };
-            ToolTip.SetTip(button, "Adds a new frame after this one with every lit key moved one key over. Press it again to keep going.");
+            ToolTip.SetTip(button, L("Adds a new frame after this one with every lit key moved one key over. Press it again to keep going."));
             button.Click += (_, _) =>
             {
                 var moved = frames[selected].Copy();
@@ -233,22 +233,21 @@ sealed class AnimationsPanel : UserControl
         }
         edit.Children.Add(moves);
 
-        edit.Children.Add(Heading("Brush"));
+        edit.Children.Add(Heading(L("Brush")));
         edit.Children.Add(brush);
-        var fill = new Button { Content = "Fill frame" };
+        var fill = new Button { Content = L("Fill frame") };
         fill.Click += (_, _) => { Remember(); Array.Fill(frames[selected].Cells, brush.CurrentColor); Edited(); };
-        var clear = new Button { Content = "Clear frame" };
+        var clear = new Button { Content = L("Clear frame") };
         clear.Click += (_, _) => { Remember(); Array.Clear(frames[selected].Cells); Edited(); };
         edit.Children.Add(Row(fill, clear));
-        var fromKeyboard = new Button { Content = "Use the keyboard's current lighting" };
-        ToolTip.SetTip(fromKeyboard, "Copies what the keyboard shows right now into this frame");
+        var fromKeyboard = new Button { Content = L("Use the keyboard's current lighting") };
+        ToolTip.SetTip(fromKeyboard, L("Copies what the keyboard shows right now into this frame"));
         fromKeyboard.Click += (_, _) => CopyKeyboard();
         edit.Children.Add(fromKeyboard);
 
         edit.Children.Add(new TextBlock
         {
-            Text = "Pick \"Your animation\" on the Lighting tab to use it any time. Speed and brightness there apply to it, " +
-                   "a typing overlay plays on top, and saving a profile remembers which animation it uses.",
+            Text = L("Pick \"Your animation\" on the Lighting tab to use it any time. Speed and brightness there apply to it, a typing overlay plays on top, and saving a profile remembers which animation it uses."),
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12,
             Opacity = 0.65,
@@ -291,7 +290,7 @@ sealed class AnimationsPanel : UserControl
     {
         if (saveTimer.IsEnabled) Save();
         var animation = AnimationStore.Load(name);
-        if (animation is null) { Problem($"Could not read the animation '{name}'."); return; }
+        if (animation is null) { Problem(L("Could not read the animation '{0}'.", name)); return; }
         bool wasPlaying = play.IsChecked == true;
 
         LoadFrames(animation);
@@ -321,7 +320,7 @@ sealed class AnimationsPanel : UserControl
         StopPlaying();
         if (saveTimer.IsEnabled) Save();   // the animation being left
         LoadFrames(new KeyAnimation());
-        StartAnimation(AnimationStore.UniqueName("Animation"));
+        StartAnimation(AnimationStore.UniqueName(L("Animation")));
     }
 
     void CreateFromStarter(string starter)
@@ -339,7 +338,7 @@ sealed class AnimationsPanel : UserControl
         if (current is null) return;
         if (saveTimer.IsEnabled) Save();
         ForgetHistory();
-        StartAnimation(AnimationStore.UniqueName(current + " copy"));
+        StartAnimation(AnimationStore.UniqueName(L("{0} copy", current)));
     }
 
     async void Import()
@@ -347,7 +346,7 @@ sealed class AnimationsPanel : UserControl
         if (TopLevel.GetTopLevel(this) is not { } top) return;
         var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Import animations",
+            Title = L("Import animations"),
             AllowMultiple = true,
             FileTypeFilter = [AnimationFile],
             SuggestedStartLocation = await top.StorageProvider.TryGetWellKnownFolderAsync(WellKnownFolder.Downloads),
@@ -374,8 +373,8 @@ sealed class AnimationsPanel : UserControl
             Open(last);
         }
         if (failures.Count > 0) Problem(string.Join("\n", failures));
-        else if (imported == 1) Note($"Imported '{last}'.");
-        else if (imported > 1) Note($"Imported {imported} animations.");
+        else if (imported == 1) Note(L("Imported '{0}'.", last));
+        else if (imported > 1) Note(L("Imported {0} animations.", imported));
     }
 
     async void Export()
@@ -385,7 +384,7 @@ sealed class AnimationsPanel : UserControl
         var invalid = Path.GetInvalidFileNameChars();
         var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Export animation",
+            Title = L("Export animation"),
             SuggestedFileName = new string(current.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray()),
             DefaultExtension = "json",
             FileTypeChoices = [AnimationFile],
@@ -396,11 +395,11 @@ sealed class AnimationsPanel : UserControl
         try
         {
             AnimationStore.Export(ToAnimation(), path);
-            Note($"Exported to {path}");
+            Note(L("Exported to {0}", path));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            Problem($"Could not export it: {e.Message}");
+            Problem(L("Could not export it: {0}", e.Message));
         }
     }
 
@@ -428,17 +427,17 @@ sealed class AnimationsPanel : UserControl
         {
             // Animations take a while to make, so deleting takes a second click.
             deleteArmed = true;
-            deleteAnimation.Content = "Click again to delete";
-            DispatcherTimer.RunOnce(() => { deleteArmed = false; deleteAnimation.Content = "Delete"; }, TimeSpan.FromSeconds(3));
+            deleteAnimation.Content = L("Click again to delete");
+            DispatcherTimer.RunOnce(() => { deleteArmed = false; deleteAnimation.Content = L("Delete"); }, TimeSpan.FromSeconds(3));
             return;
         }
         deleteArmed = false;
-        deleteAnimation.Content = "Delete";
+        deleteAnimation.Content = L("Delete");
         saveTimer.Stop();
         StopPlaying();
         bool wasShowing = ShowingThis;
         try { AnimationStore.Delete(current); }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Problem($"Could not delete it: {e.Message}"); return; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Problem(L("Could not delete it: {0}", e.Message)); return; }
         if (wasShowing) Effects.Animation.Show(null);
         current = null;
         frames.Clear();
@@ -454,7 +453,7 @@ sealed class AnimationsPanel : UserControl
         if (current is null || string.IsNullOrEmpty(name) || name == current) return;
         if (!string.Equals(name, current, StringComparison.OrdinalIgnoreCase) && AnimationStore.Exists(name))
         {
-            Problem($"There is already an animation called '{name}'.");
+            Problem(L("There is already an animation called '{0}'.", name));
             return;
         }
         var old = current;
@@ -464,7 +463,7 @@ sealed class AnimationsPanel : UserControl
         if (!string.Equals(name, old, StringComparison.OrdinalIgnoreCase))
         {
             try { AnimationStore.Delete(old); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Problem($"Saved as '{name}', but could not remove '{old}': {e.Message}"); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Problem(L("Saved as '{0}', but could not remove '{1}': {2}", name, old, e.Message)); }
         }
         if (wasShowing) Effects.Animation.Show(Compile(), Effects.Animation.PinnedFrame);
         Refresh();
@@ -482,7 +481,7 @@ sealed class AnimationsPanel : UserControl
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            Problem($"Could not save the animation: {e.Message}");
+            Problem(L("Could not save the animation: {0}", e.Message));
             return false;
         }
     }
@@ -499,7 +498,7 @@ sealed class AnimationsPanel : UserControl
         editor.IsEnabled = current is not null && frames.Count > 0;
         nameBox.IsEnabled = deleteAnimation.IsEnabled = exportAnimation.IsEnabled = copyAnimation.IsEnabled = current is not null;
         ShowHistory();
-        if (current is null) summary.Text = names.Count == 0 ? "No animations yet. Press New to start one." : "";
+        if (current is null) summary.Text = names.Count == 0 ? L("No animations yet. Press New to start one.") : "";
     }
 
     // ---- Editing ----
@@ -567,7 +566,7 @@ sealed class AnimationsPanel : UserControl
 
     void Insert(EditFrame frame)
     {
-        if (frames.Count >= KeyAnimation.MaxFrames) { Problem($"An animation can have up to {KeyAnimation.MaxFrames} frames."); return; }
+        if (frames.Count >= KeyAnimation.MaxFrames) { Problem(L("An animation can have up to {0} frames.", KeyAnimation.MaxFrames)); return; }
         Remember();
         frames.Insert(selected + 1, frame);
         selected++;
@@ -601,7 +600,7 @@ sealed class AnimationsPanel : UserControl
     {
         if (ShowingThis)
         {
-            Note("The keyboard is already showing this animation. Pick another effect on the Lighting tab, then come back and press this.");
+            Note(L("The keyboard is already showing this animation. Pick another effect on the Lighting tab, then come back and press this."));
             return;
         }
         Remember();
@@ -705,7 +704,7 @@ sealed class AnimationsPanel : UserControl
             Effects.Animation.Show(Compile(), fromStart: true);
             if (engine.Effect != Effects.Animation) useAnimation();
             else EnsureAudio();
-            if (!engine.OutputEnabled) Problem("The keyboard is set to Preview only, so it plays here but not on the keys.");
+            if (!engine.OutputEnabled) Problem(L("The keyboard is set to Preview only, so it plays here but not on the keys."));
             foreach (var (card, _, _) in thumbs) card.BorderBrush = Unselected;
             playTimer.Start();
         }
@@ -740,8 +739,8 @@ sealed class AnimationsPanel : UserControl
         if (any)
         {
             summary.Text = music == MusicReaction.Beat
-                ? $"Frame {selected + 1} of {frames.Count}   ·   one frame per beat"
-                : $"Frame {selected + 1} of {frames.Count}   ·   one loop takes {Compile().Length:0.##} s at normal speed";
+                ? L("Frame {0} of {1}", selected + 1, frames.Count) + "   ·   " + L("one frame per beat")
+                : L("Frame {0} of {1}", selected + 1, frames.Count) + "   ·   " + L("one loop takes {0:0.##} s at normal speed", Compile().Length);
         }
     }
 
@@ -779,7 +778,7 @@ sealed class AnimationsPanel : UserControl
         var frame = frames[index];
         thumb.Cells = frame.Cells;
         thumb.InvalidateVisual();
-        label.Text = frame.Fade > 0 ? $"{index + 1}  ·  {frame.Hold:0.##} s + {frame.Fade:0.##} fade" : $"{index + 1}  ·  {frame.Hold:0.##} s";
+        label.Text = frame.Fade > 0 ? $"{index + 1}  ·  " + L("{0:0.##} s + {1:0.##} fade", frame.Hold, frame.Fade) : $"{index + 1}  ·  " + L("{0:0.##} s", frame.Hold);
     }
 
     void Problem(string? message)

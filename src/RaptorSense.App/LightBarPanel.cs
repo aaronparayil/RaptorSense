@@ -15,22 +15,22 @@ namespace RaptorSense.App;
 /// </summary>
 sealed class LightBarPanel : UserControl
 {
-    static readonly string[] ZoneNames = ["Left", "Centre", "Right"];
+    static readonly string[] ZoneNames = [L("Left"), L("Centre"), L("Right")];
 
     readonly Rgb[] zones = [Rgb.PredatorTeal, Rgb.PredatorTeal, Rgb.PredatorTeal];
     readonly ColorEditor editor;
-    readonly ComboBox mode = new() { ItemsSource = new[] { "Static" }.Concat(Enum.GetNames<LightBarMode>()).ToList(), SelectedIndex = 0, MinWidth = 160 };
+    readonly ComboBox mode = new() { ItemsSource = new[] { L("Static") }.Concat(Enum.GetNames<LightBarMode>().Select(L)).ToList(), SelectedIndex = 0, MinWidth = 160 };
     readonly Slider brightness = new() { Minimum = 0, Maximum = LightBarProtocol.MaxBrightness, Value = LightBarProtocol.MaxBrightness };
     readonly Slider speed = new() { Minimum = LightBarProtocol.MinSpeed, Maximum = LightBarProtocol.MaxSpeed, Value = LightBarProtocol.DefaultSpeed, TickFrequency = 1, IsSnapToTickEnabled = true };
     readonly TextBlock brightnessText = new(), speedText = new();
     readonly TextBlock animationNote = new()
     {
-        Text = "Animations use the Left colour for the whole bar.", Foreground = Look.Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap,
+        Text = L("Animations use the Left colour for the whole bar."), Foreground = Look.Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap,
     };
     readonly TextBlock result = new() { TextWrapping = TextWrapping.Wrap, Foreground = Look.Muted };
-    readonly Button apply = new() { Content = "Apply" };
-    readonly Button off = new() { Content = "Off" };
-    readonly Button copyToAll = new() { Content = "Use this colour on all zones" };
+    readonly Button apply = new() { Content = L("Apply") };
+    readonly Button off = new() { Content = L("Off") };
+    readonly Button copyToAll = new() { Content = L("Use this colour on all zones") };
     bool busy;
 
     /// <summary>
@@ -67,10 +67,10 @@ sealed class LightBarPanel : UserControl
             editor.SetColors(zones);
         };
         mode.SelectionChanged += (_, _) => UpdateEnabled();
-        brightness.ValueChanged += (_, e) => brightnessText.Text = $"Brightness {e.NewValue:N0}%";
-        speed.ValueChanged += (_, e) => speedText.Text = $"Animation speed {e.NewValue:N0}";
-        brightnessText.Text = $"Brightness {brightness.Value:N0}%";
-        speedText.Text = $"Animation speed {speed.Value:N0}";
+        brightness.ValueChanged += (_, e) => brightnessText.Text = L("Brightness {0:N0}%", e.NewValue);
+        speed.ValueChanged += (_, e) => speedText.Text = L("Animation speed {0:N0}", e.NewValue);
+        brightnessText.Text = L("Brightness {0:N0}%", brightness.Value);
+        speedText.Text = L("Animation speed {0:N0}", speed.Value);
 
         apply.Click += async (_, _) => await Apply();
         off.Click += async (_, _) => await Send(new LightBarRequest { Colors = [Rgb.Black.ToString()], Brightness = (int)brightness.Value });
@@ -86,7 +86,7 @@ sealed class LightBarPanel : UserControl
         {
             Orientation = Orientation.Horizontal,
             Spacing = 10,
-            Children = { new TextBlock { Text = "Mode", VerticalAlignment = VerticalAlignment.Center, Foreground = Look.Muted }, mode },
+            Children = { new TextBlock { Text = L("Mode"), VerticalAlignment = VerticalAlignment.Center, Foreground = Look.Muted }, mode },
         });
         settings.Children.Add(animationNote);
         settings.Children.Add(brightnessText);
@@ -95,7 +95,7 @@ sealed class LightBarPanel : UserControl
         settings.Children.Add(speed);
         settings.Children.Add(buttons);
         settings.Children.Add(result);
-        var settingsCard = Look.Card(settings, "Mode and brightness");
+        var settingsCard = Look.Card(settings, L("Mode and brightness"));
         settingsCard.Margin = new Thickness(16, 0, 0, 0);
         settingsCard.VerticalAlignment = VerticalAlignment.Top;
         Grid.SetColumn(settingsCard, 1);
@@ -103,12 +103,12 @@ sealed class LightBarPanel : UserControl
         var page = new StackPanel { Spacing = 14, Margin = new Thickness(28, 12, 28, 16), MaxWidth = 900 };
         page.Children.Add(new TextBlock
         {
-            Text = "The rear light bar goes through the RaptorSense helper (see README: Fans and power modes). Pick a colour for each zone, then Apply.",
+            Text = L("The rear light bar goes through the RaptorSense helper (see README: Fans and power modes). Pick a colour for each zone, then Apply."),
             TextWrapping = TextWrapping.Wrap,
             Foreground = Look.Muted,
             Margin = new Thickness(4, 0, 0, 0),
         });
-        page.Children.Add(new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), Children = { Look.Card(colours, "Zone colours"), settingsCard } });
+        page.Children.Add(new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), Children = { Look.Card(colours, L("Zone colours")), settingsCard } });
         Content = new ScrollViewer { Content = page };
 
         UpdateEnabled();
@@ -126,7 +126,7 @@ sealed class LightBarPanel : UserControl
         ? new LightBarRequest
         {
             Colors = [zones[0].ToString()],
-            Mode = Enum.Parse<LightBarMode>((string)mode.SelectedItem!),
+            Mode = Enum.GetValues<LightBarMode>()[mode.SelectedIndex - 1],
             Speed = (int)speed.Value,
             Brightness = (int)brightness.Value,
         }
@@ -138,11 +138,11 @@ sealed class LightBarPanel : UserControl
         busy = true;
         Current = request;   // what the panel was told to show, whether or not the helper is there to carry it out
         apply.IsEnabled = off.IsEnabled = false;
-        result.Text = "Sending…";
+        result.Text = L("Sending…");
         try
         {
             var status = await ThermalClient.SetLightBarAsync(request);
-            result.Text = status.Ok ? "Light bar updated." : status.Error ?? ThermalClient.HelperMissing;
+            result.Text = status.Ok ? L("Light bar updated.") : status.Error ?? L(ThermalClient.HelperMissing);
         }
         finally
         {

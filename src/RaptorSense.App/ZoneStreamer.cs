@@ -31,7 +31,7 @@ sealed class ZoneStreamer : IDisposable
     }
 
     /// <summary>What the info panel shows in place of the per-key keyboard's status.</summary>
-    public string Status { get; private set; } = "Starting";
+    public string Status { get; private set; } = L("Starting");
 
     /// <summary>Zone updates sent in the last second.</summary>
     public double SendFps { get; private set; }
@@ -65,13 +65,13 @@ sealed class ZoneStreamer : IDisposable
                 if (!enabled())
                 {
                     last = null;
-                    Status = "Preview only";
+                    Status = L("Preview only");
                     continue;
                 }
                 if (engine.Effect is KeyboardEffect)
                 {
                     last = null;
-                    Status = "That effect is built into the Helios's keyboard; pick another one for the Nitro.";
+                    Status = L("That effect is built into the Helios's keyboard; pick another one for the Nitro.");
                     continue;
                 }
 
@@ -95,13 +95,13 @@ sealed class ZoneStreamer : IDisposable
                     lastBrightness = brightness;
                     lastSentMs = Environment.TickCount64;
                     sent++;
-                    Status = $"Playing on the 4 keyboard zones ({watch.ElapsedMilliseconds} ms per update)";
+                    Status = L("Playing on the 4 keyboard zones ({0} ms per update)", watch.ElapsedMilliseconds);
                 }
                 else
                 {
                     last = null;
                     Status = status.Reading is not null && status.HelperRevision < ThermalProtocol.FourZoneRevision
-                        ? "The helper is from an older RaptorSense. Update it on the Performance tab to light this keyboard."
+                        ? L("The helper is from an older RaptorSense. Update it on the Performance tab to light this keyboard.")
                         : status.Error ?? ThermalClient.HelperMissing;
                     await Task.Delay(RetryAfterFailureMs, cancel);
                 }

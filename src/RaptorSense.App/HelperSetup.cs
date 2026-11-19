@@ -38,19 +38,19 @@ static class HelperSetup
                 Verb = "runas",
                 WindowStyle = ProcessWindowStyle.Hidden,
             });
-            if (install is null) return "Windows didn't start the install.";
+            if (install is null) return L("Windows didn't start the install.");
             install.WaitForExit();
             return install.ExitCode == 0
-                ? "Fan control is installed."
-                : $"The install didn't finish (code {install.ExitCode}). Try Install fan control.cmd in the RaptorSense folder, which shows what went wrong.";
+                ? L("Fan control is installed.")
+                : L("The install didn't finish (code {0}). Try Install fan control.cmd in the RaptorSense folder, which shows what went wrong.", install.ExitCode);
         }
         catch (Win32Exception e) when (e.NativeErrorCode == CancelledByUser)
         {
-            return "Cancelled: the helper needs administrator rights once, to install.";
+            return L("Cancelled: the helper needs administrator rights once, to install.");
         }
         catch (Win32Exception e)
         {
-            return $"Couldn't start the install: {e.Message}";
+            return L("Couldn't start the install: {0}", e.Message);
         }
     }
 }

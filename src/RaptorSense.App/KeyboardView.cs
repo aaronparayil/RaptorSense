@@ -68,7 +68,7 @@ sealed class KeyboardView : UserControl
                 Child = label,
                 Cursor = new Cursor(StandardCursorType.Hand),
             };
-            ToolTip.SetTip(view, zoneOf is null ? $"{key.Label} (cell {key.Cell})" : $"{text.Replace('\n', ' ')} (zone {zoneOf(key) + 1})");
+            ToolTip.SetTip(view, zoneOf is null ? $"{key.Label} (cell {key.Cell})" : L("{0} (zone {1})", text.Replace('\n', ' '), zoneOf(key) + 1));
             Canvas.SetLeft(view, rect.X);
             Canvas.SetTop(view, rect.Y);
             canvas.Children.Add(view);
