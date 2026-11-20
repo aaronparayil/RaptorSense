@@ -39,7 +39,7 @@ all here to read or [build yourself](#build-from-source). Tested on the **Predat
 
 ## Where it stands
 
-The current release is **1.8.8**, for Windows. One download works on both tested laptops: the app reads the laptop's
+The current release is **1.8.9**, for Windows. One download works on both tested laptops: the app reads the laptop's
 model when it starts and shows what works on it.
 
 | | Predator Helios 16 PH16-71 | Nitro 5 AN515-57 |
