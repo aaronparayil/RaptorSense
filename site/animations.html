@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Animations · RaptorSense</title>
+  <meta name="description" content="Keyboard animations made with RaptorSense's animation builder and shared by the people who made them. Watch them play, download one, and share your own.">
+  <meta property="og:title" content="RaptorSense animations">
+  <meta property="og:description" content="Keyboard animations made in RaptorSense, shared by the people who made them.">
+  <meta property="og:image" content="https://aaronparayil.github.io/RaptorSense/media/animations.png">
+  <meta name="theme-color" content="#0c0f15">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="assets/style.css">
+  <script type="module" src="assets/animations.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./">RaptorSense</a>
+      <nav class="nav" aria-label="Main">
+        <a class="wide" href="./#features">Features</a>
+        <a class="wide" href="./#laptops">Laptops</a>
+        <a href="animations.html" aria-current="page">Animations</a>
+        <a class="wide" href="./#faq">FAQ</a>
+        <a href="https://github.com/aaronparayil/RaptorSense">GitHub</a>
+      </nav>
+      <a class="btn primary" href="https://github.com/aaronparayil/RaptorSense/releases/latest">Download</a>
+    </div>
+  </header>
+
+
+  <main>
+    <div class="page-head">
+      <div class="wrap">
+        <h1>Animations, <span class="grad">made by people</span></h1>
+        <p class="lead">Everything here was painted frame by frame in RaptorSense's Animations tab and shared by whoever made it. Each one plays below exactly as it would on a Predator Helios 16 keyboard.</p>
+        <div class="actions">
+          <a class="btn primary" href="#share">Share yours</a>
+          <a class="btn" href="#use">How to use one</a>
+        </div>
+      </div>
+    </div>
+
+    <section class="tight" aria-label="Shared animations">
+      <div class="wrap">
+        <div class="toolbar">
+          <label class="search">
+            <span class="visually-hidden">Search animations</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="search" type="search" placeholder="Search by name or who made it" autocomplete="off">
+          </label>
+          <div class="chips" role="group" aria-label="Show">
+            <button class="chip" type="button" data-filter="all" aria-pressed="true">All</button>
+            <button class="chip" type="button" data-filter="music" aria-pressed="false">Follows the music</button>
+          </div>
+          <div class="chips" role="group" aria-label="Order">
+            <button class="chip" type="button" data-sort="new" aria-pressed="true">Newest</button>
+            <button class="chip" type="button" data-sort="name" aria-pressed="false">A to Z</button>
+          </div>
+          <span class="count" id="count" aria-live="polite"></span>
+        </div>
+        <div class="anims" id="anims"></div>
+        <p class="note"><b>Add to RaptorSense</b> opens the app and adds the animation in one click. It needs RaptorSense 1.8.9 or newer, started at least once. On an older version, use <b>Download</b> and then <b>Import</b> in the Animations tab.</p>
+        <p class="empty" id="empty" hidden>Nothing matches that. <button class="link-btn" type="button" id="clear">Show everything</button></p>
+        <noscript><p class="empty">The animations play with JavaScript on. You can still download them from <a href="https://github.com/aaronparayil/RaptorSense/tree/main/site/animations">the folder on GitHub</a>.</p></noscript>
+      </div>
+    </section>
+
+    <section id="use">
+      <div class="wrap">
+        <h2 style="margin-bottom:24px">How to use one</h2>
+        <ol class="steps">
+          <li>Press <b>Add to RaptorSense</b> under the animation and let your browser open RaptorSense. It's added and starts playing on your keyboard.</li>
+          <li>Or browse from inside the app: the <b>Shared</b> button in the <b>Animations</b> tab lists everything on this page, with an <b>Add</b> button for each.</li>
+          <li>Keep it on by picking <b>Your animation</b> on the Lighting tab, and change it as much as you like. An animation holds only colours and times, never code, and never replaces one you already have.</li>
+        </ol>
+        <p class="small" style="margin-top:16px">Made for the Predator Helios 16's per-key keyboard. On the Nitro's four zones, each zone shows the average of its keys.</p>
+      </div>
+    </section>
+
+    <section id="share">
+      <div class="wrap">
+        <div class="callout">
+          <div>
+            <h2>Share yours</h2>
+            <p>In the Animations tab, pick your animation and press <b>Export</b>. Then fill in the short form on GitHub and drop the file in. It's checked automatically and, if all is well, appears here within a few minutes with your name on it, and you get a reply with the link. Animations that flash more than three times a second can't go up, for people who are sensitive to flashing.</p>
+          </div>
+          <div class="actions">
+            <a class="btn primary" href="https://github.com/aaronparayil/RaptorSense/issues/new?template=share-animation.yml">Share an animation</a>
+          </div>
+        </div>
+        <p class="small" style="margin-top:14px">The form needs a free GitHub account.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <nav aria-label="More">
+        <a href="./">Home</a>
+        <a href="https://github.com/aaronparayil/RaptorSense">Source code</a>
+        <a href="https://github.com/aaronparayil/RaptorSense/releases/latest">Download</a>
+        <a href="https://github.com/aaronparayil/RaptorSense/blob/main/LICENSE">Licence (GPL-3.0-or-later)</a>
+      </nav>
+      <p>Shared animations belong to the people who made them, who agreed that anyone may download, use and change them.</p>
+      <p>Unofficial. Not affiliated with or endorsed by Acer. No analytics or tracking on this site; its fonts come from Google Fonts.</p>
+    </div>
+  </footer>
+</body>
+</html>

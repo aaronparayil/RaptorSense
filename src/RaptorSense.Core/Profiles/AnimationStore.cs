@@ -67,15 +67,23 @@ public static class AnimationStore
         var file = new FileInfo(path);
         if (!file.Exists) throw new InvalidDataException("That file isn't there any more.");
         if (file.Length > MaxImportBytes) throw new InvalidDataException("That file is too big to be a RaptorSense animation.");
+        return ImportText(File.ReadAllText(path), Path.GetFileNameWithoutExtension(path), folder);
+    }
 
+    /// <summary>
+    /// <see cref="Import"/> for an animation's text, such as one fetched from the website. <paramref name="fallbackName"/>
+    /// names it if the text doesn't.
+    /// </summary>
+    public static KeyAnimation ImportText(string json, string fallbackName, string? folder = null)
+    {
         KeyAnimation? animation;
-        try { animation = JsonSerializer.Deserialize<KeyAnimation>(File.ReadAllText(path), Json); }
+        try { animation = JsonSerializer.Deserialize<KeyAnimation>(json, Json); }
         catch (Exception e) when (e is JsonException or NotSupportedException) { animation = null; }
         if (animation?.Frames is not { Count: > 0 } || animation.Frames.All(f => f is null))
             throw new InvalidDataException("That file isn't a RaptorSense animation.");
 
         var name = CleanName(animation.Name);
-        if (name.Length == 0) name = CleanName(Path.GetFileNameWithoutExtension(path));
+        if (name.Length == 0) name = CleanName(fallbackName);
         if (name.Length == 0) name = "Animation";
         var cleaned = animation.Cleaned() with { Name = UniqueName(name, folder) };
         Save(cleaned, folder);

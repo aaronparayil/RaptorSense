@@ -180,6 +180,9 @@ sealed class AnimationsPanel : UserControl
         exportAnimation.Click += (_, _) => Export();
         deleteAnimation.Click += (_, _) => DeleteAnimation();
         panel.Children.Add(Row(import, exportAnimation, deleteAnimation));
+        var shared = new Button { Content = L("Shared by others") + " ▾", HorizontalAlignment = HorizontalAlignment.Stretch, Flyout = BuildSharedFlyout() };
+        ToolTip.SetTip(shared, L("Animations people shared on the RaptorSense website, to add with one click"));
+        panel.Children.Add(shared);
         var rename = new Button { Content = L("Rename") };
         rename.Click += (_, _) => Rename();
         nameBox.KeyDown += (_, e) => { if (e.Key == Avalonia.Input.Key.Enter) Rename(); };
@@ -375,6 +378,105 @@ sealed class AnimationsPanel : UserControl
         if (failures.Count > 0) Problem(string.Join("\n", failures));
         else if (imported == 1) Note(L("Imported '{0}'.", last));
         else if (imported > 1) Note(L("Imported {0} animations.", imported));
+    }
+
+    // ---- Shared on the website ----
+
+    static readonly Lazy<HttpClient> Http = new(() => SharedAnimations.CreateClient());
+
+    /// <summary>
+    /// The website's list, fetched each time it opens (and only then), each animation with an Add button. The app is
+    /// otherwise offline; this asks the website for its list and the files picked, and sends nothing else.
+    /// </summary>
+    Flyout BuildSharedFlyout()
+    {
+        var status = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Look.Muted, FontSize = 13 };
+        var rows = new StackPanel { Spacing = 10 };
+        var website = new Button { Content = L("Open the website") };
+        website.Click += (_, _) => TopLevel.GetTopLevel(this)?.Launcher.LaunchUriAsync(SharedAnimations.Page);
+        var panel = new StackPanel
+        {
+            Width = 380,
+            Spacing = 10,
+            Children =
+            {
+                new TextBlock { Text = L("Shared on the RaptorSense website"), FontWeight = FontWeight.SemiBold },
+                status,
+                new ScrollViewer { Content = rows, MaxHeight = 380, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled },
+                website,
+            },
+        };
+        var flyout = new Flyout { Content = panel, Placement = PlacementMode.BottomEdgeAlignedLeft };
+        CancellationTokenSource? loading = null;
+        flyout.Opened += async (_, _) =>
+        {
+            loading?.Cancel();
+            var cancel = loading = new CancellationTokenSource();
+            rows.Children.Clear();
+            status.Text = L("Getting the list from the website…");
+            try
+            {
+                var list = await SharedAnimations.ListAsync(Http.Value, cancel.Token);
+                if (cancel.IsCancellationRequested) return;
+                status.Text = list.Count == 0 ? L("Nothing has been shared yet.") : L("{0} animations, newest first.", list.Count);
+                foreach (var shared in list) rows.Children.Add(SharedRow(shared, flyout));
+            }
+            catch (OperationCanceledException) when (cancel.IsCancellationRequested) { }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+            {
+                status.Text = L("Could not reach the RaptorSense website. Check the internet connection and try again.");
+            }
+            catch (InvalidDataException e) { status.Text = e.Message; }
+        };
+        flyout.Closed += (_, _) => loading?.Cancel();
+        return flyout;
+    }
+
+    Control SharedRow(SharedAnimation shared, Flyout flyout)
+    {
+        var details = L("by {0}", shared.Author) + " · " + L("{0} frames", shared.Frames)
+            + (shared.Music is null ? "" : " · ♪ " + L("follows the music"));
+        var add = new Button { Content = L("Add"), VerticalAlignment = VerticalAlignment.Center };
+        add.Click += (_, _) => { flyout.Hide(); AddShared(shared.Slug); };
+        var text = new StackPanel
+        {
+            Spacing = 2,
+            Children =
+            {
+                new TextBlock { Text = shared.Name, FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
+                new TextBlock { Text = details, Foreground = Look.Muted, FontSize = 12, FontFamily = Look.Symbols, TextTrimming = TextTrimming.CharacterEllipsis },
+            },
+        };
+        if (shared.About.Length > 0)
+            text.Children.Add(new TextBlock { Text = shared.About, Foreground = Look.Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap, MaxHeight = 34 });
+        ToolTip.SetTip(text, shared.About.Length > 0 ? shared.About : shared.Name);
+        return new DockPanel { Children = { Docked(add, Dock.Right), text } };
+    }
+
+    /// <summary>
+    /// Fetches the website's animation <paramref name="slug"/>, adds it like an import (a clashing name gets a number),
+    /// opens it and plays it on the keyboard.
+    /// </summary>
+    public async void AddShared(string slug)
+    {
+        Note(L("Getting the animation from the website…"));
+        try
+        {
+            var animation = await SharedAnimations.AddAsync(Http.Value, slug);
+            if (saveTimer.IsEnabled) Save();
+            StopPlaying();
+            Open(animation.Name);
+            if (current is not null) play.IsChecked = true;   // it was asked for to be seen
+            Note(L("Added '{0}' from the website.", animation.Name));
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        {
+            Problem(L("Could not reach the RaptorSense website. Check the internet connection and try again."));
+        }
+        catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            Problem(L("Could not add the animation: {0}", e.Message));
+        }
     }
 
     async void Export()

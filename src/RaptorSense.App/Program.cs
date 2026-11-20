@@ -26,9 +26,13 @@ static class Program
         }
 
         // One copy only: two engines would fight over the keyboard. A second launch asks the first to show itself.
+        // An "Add to RaptorSense" link from the website, if that is what started this copy.
+        string? sharedAnimation = AnimationLinks.FromArguments(args);
+
         using var instance = new Mutex(initiallyOwned: true, InstanceMutexName, out bool first);
         if (!first)
         {
+            if (sharedAnimation is not null) AnimationLinks.Leave(sharedAnimation);   // picked up when the window shows
             if (OperatingSystem.IsWindows())
             {
                 try { EventWaitHandle.OpenExisting(ShowEventName).Set(); }
@@ -42,7 +46,8 @@ static class Program
         // Linux desktop without a tray, starting RaptorSense again is the only way back to a closed window.
         using var showRequests = OperatingSystem.IsWindows() ? new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName) : null;
         App.ShowRequests = showRequests;
-        App.StartHidden = args.Contains(Autostart.MinimizedArgument);
+        App.StartHidden = args.Contains(Autostart.MinimizedArgument) && sharedAnimation is null;
+        App.SharedAnimation = sharedAnimation;
         // The chosen language, or the system's when none was chosen; read before any window is built.
         Text.Use(AppearanceSettings.Language ?? Text.FromSystem()?.Code);
         return BuildAvaloniaApp(AppearanceSettings.UseGraphicsCard).StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
@@ -83,6 +88,9 @@ sealed class App : Application
 
     public static bool StartHidden { get; set; }
 
+    /// <summary>The website animation to add once the window is up, when a link started the app.</summary>
+    public static string? SharedAnimation { get; set; }
+
     MainWindow? window;
     TrayIcon? tray;
 
@@ -110,6 +118,11 @@ sealed class App : Application
 
             desktop.ShutdownRequested += (_, _) => window.Shutdown();   // Windows sign-out or shutdown
             WatchShowRequests();
+
+            // Links from the website: added now if one started the app, and from now on opened by this copy.
+            foreach (var slug in AnimationLinks.Take().Append(SharedAnimation).OfType<string>().Distinct())
+                window.AddSharedAnimation(slug);
+            Task.Run(AnimationLinks.Register);
         }
         base.OnFrameworkInitializationCompleted();
     }
@@ -172,6 +185,13 @@ sealed class App : Application
         (ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
     }
 
+    // A second launch asked for the window, perhaps with website animations to add (AnimationLinks).
+    void OnShowRequest()
+    {
+        window?.ShowFromTray();
+        foreach (var slug in AnimationLinks.Take()) window?.AddSharedAnimation(slug);
+    }
+
     // A second launch signals this event; show the window on the UI thread.
     void WatchShowRequests()
     {
@@ -179,7 +199,7 @@ sealed class App : Application
         {
             new Thread(() =>
             {
-                while (signal.WaitOne()) Dispatcher.UIThread.Post(() => window?.ShowFromTray());
+                while (signal.WaitOne()) Dispatcher.UIThread.Post(OnShowRequest);
             })
             { IsBackground = true, Name = "RaptorSense show requests" }.Start();
         }
@@ -194,7 +214,7 @@ sealed class App : Application
                         using var pipe = new System.IO.Pipes.NamedPipeServerStream(Program.ShowPipeName, System.IO.Pipes.PipeDirection.In, 1,
                             System.IO.Pipes.PipeTransmissionMode.Byte, System.IO.Pipes.PipeOptions.CurrentUserOnly);
                         pipe.WaitForConnection();
-                        Dispatcher.UIThread.Post(() => window?.ShowFromTray());
+                        Dispatcher.UIThread.Post(OnShowRequest);
                     }
                     catch (Exception e) when (e is IOException or UnauthorizedAccessException)
                     {

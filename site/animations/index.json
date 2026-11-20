@@ -1,0 +1,47 @@
+[
+  {
+    "file": "sweep.json",
+    "name": "Sweep",
+    "author": "RaptorSense",
+    "about": "A soft column of light crossing the keyboard from left to right.",
+    "frames": 21,
+    "music": null,
+    "added": "2026-11-20"
+  },
+  {
+    "file": "pulse.json",
+    "name": "Pulse",
+    "author": "RaptorSense",
+    "about": "The whole keyboard slowly breathing between bright and dim.",
+    "frames": 2,
+    "music": null,
+    "added": "2026-11-20"
+  },
+  {
+    "file": "ripple.json",
+    "name": "Ripple",
+    "author": "RaptorSense",
+    "about": "A ring spreading out from the middle of the keyboard.",
+    "frames": 16,
+    "music": null,
+    "added": "2026-11-20"
+  },
+  {
+    "file": "waterfall.json",
+    "name": "Waterfall",
+    "author": "RaptorSense",
+    "about": "A band of light falling from the F keys to the space bar.",
+    "frames": 14,
+    "music": null,
+    "added": "2026-11-20"
+  },
+  {
+    "file": "rainbow-drift.json",
+    "name": "Rainbow drift",
+    "author": "RaptorSense",
+    "about": "A rainbow across the keyboard, sliding sideways.",
+    "frames": 12,
+    "music": null,
+    "added": "2026-11-20"
+  }
+]

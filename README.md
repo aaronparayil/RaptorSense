@@ -12,6 +12,8 @@ plus fan and power control. No account, no telemetry.
 ![Runs on Windows](https://img.shields.io/badge/runs%20on-Windows-38bdf8)
 
 [**Download**](https://github.com/aaronparayil/RaptorSense/releases/latest) ·
+[Website](https://aaronparayil.github.io/RaptorSense/) ·
+[Shared animations](https://aaronparayil.github.io/RaptorSense/animations.html) ·
 [Where it stands](#where-it-stands) ·
 [Will it work on my laptop?](#will-it-work-on-my-laptop) ·
 [Report your laptop](https://github.com/aaronparayil/RaptorSense/issues/new?template=laptop-report.yml) ·
@@ -37,7 +39,7 @@ all here to read or [build yourself](#build-from-source). Tested on the **Predat
 
 ## Where it stands
 
-The current release is **1.8.8**, for Windows. One download works on both tested laptops: the app reads the laptop's
+The current release is **1.8.9**, for Windows. One download works on both tested laptops: the app reads the laptop's
 model when it starts and shows what works on it.
 
 | | Predator Helios 16 PH16-71 | Nitro 5 AN515-57 |
@@ -136,6 +138,7 @@ changed the helper too.
 1. If you installed fan control, double-click `Remove fan control.cmd`.
 2. Turn off **Start with Windows** in the app if you turned it on.
 3. Quit from the tray and delete the folder. Your profiles are in `%APPDATA%\RaptorSense`; delete that too if you don't want them.
+4. So `raptorsense://` links no longer look for it, run `reg delete HKCU\Software\Classesaptorsense /f`.
 
 ## Features
 
@@ -250,6 +253,14 @@ They hold only colours and times (plus one word, `beat`, `speed` or `pulse`, if 
 never code, so a shared animation can't do anything else. On import, anything
 RaptorSense doesn't recognise is dropped.
 
+**Shared animations:** the [animations page](https://aaronparayil.github.io/RaptorSense/animations.html) plays
+animations other people made, right in the browser. **Add to RaptorSense** under one opens the app and adds it, playing,
+in one click; **Shared by others** in the Animations tab lists the same ones with an **Add** button each. To put yours
+there, export it and fill in the [share form](https://github.com/aaronparayil/RaptorSense/issues/new?template=share-animation.yml).
+It's checked automatically, the way the app checks an import (and it must not flash more than three times a second),
+and goes up with your name on it within a few minutes. Up to three a day per person; a name with a link or a rude word
+in it waits for a person to look first.
+
 ## Automations
 
 The **Automations** tab holds rules such as "while VALORANT is open, use my gaming profile, Turbo and Max fans" or
@@ -334,7 +345,14 @@ effects (breathing, neon, wave, shifting or zoom).
 
 ## Privacy
 
-RaptorSense has no accounts or telemetry, and sends nothing anywhere.
+RaptorSense has no accounts or telemetry, and sends nothing anywhere. It goes online only when you ask for an
+animation someone shared: when you open **Shared by others** in the Animations tab, or press **Add to RaptorSense** on
+the website. Then it fetches the website's list or that one animation file from the website's own folder, and sends
+nothing but the request. See `src/RaptorSense.Core/Profiles/SharedAnimations.cs`.
+
+So the website's button can open it, RaptorSense registers `raptorsense://` links for your Windows account each time
+it starts (no administrator rights; `HKCU\Software\Classesaptorsense`). Such a link can only name an animation on
+the website; it can't point the app anywhere else.
 
 Typing effects need a Windows keyboard hook. RaptorSense uses it only to learn **which key position** was
 pressed: it reads the physical scan code, turns it into a lighting cell, and passes the key on untouched. It never
