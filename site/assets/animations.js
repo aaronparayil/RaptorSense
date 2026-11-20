@@ -56,7 +56,26 @@ function card(entry, order, layout) {
     setTimeout(() => (copy.textContent = "Copy link"), 2000);
   });
   foot.append(download, copy);
-  body.append(tags, foot);
+  // Some browsers (Brave among them) can ignore a link to an app without a word. If the page still has focus a few
+  // seconds after the click, nothing opened, so say what else works.
+  const hint = el("p", "hint");
+  hint.setAttribute("role", "status");
+  add.addEventListener("click", () => {
+    hint.textContent = "";
+    let left = false;
+    const away = () => { left = true; };
+    addEventListener("blur", away, { once: true });
+    document.addEventListener("visibilitychange", away, { once: true });
+    setTimeout(() => {
+      removeEventListener("blur", away);
+      document.removeEventListener("visibilitychange", away);
+      if (left || !document.hasFocus()) return;
+      hint.textContent = "Nothing opened? RaptorSense 1.8.9 or newer has to be installed and started once. "
+        + "If your browser still ignores the button, add it from the app instead: Animations, Shared by others, "
+        + `${entry.name}, Add. Or use Download, then Import in the app.`;
+    }, 3000);
+  });
+  body.append(tags, foot, hint);
   article.append(screen, body);
 
   const view = new KeyboardCanvas(canvas, layout, { pad: 6 });
