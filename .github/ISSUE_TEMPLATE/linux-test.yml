@@ -39,7 +39,7 @@ body:
     attributes:
       label: Which RaptorSense build
       description: The name of the file you downloaded.
-      placeholder: RaptorSense-1.8.5-linux-x64.tar.gz
+      placeholder: RaptorSense-1.8.8-linux-x64.tar.gz
     validations:
       required: true
   - type: textarea

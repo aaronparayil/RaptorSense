@@ -53,7 +53,7 @@ model when it starts and shows what works on it.
 **On other Acer laptops:** per-key lighting works only if the keyboard is one of the known ones, and fans and power
 are read-only until the model has been checked. See [Will it work on my laptop?](#will-it-work-on-my-laptop)
 
-**Linux:** a first [preview to test](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-1) is up, separate from the
+**Linux:** a [preview to test](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-2), now at 1.8.8, is up, separate from the
 Windows download. It lights the Helios's per-key keyboard, but that has **not driven a real keyboard yet**, so testers
 are wanted: if you run Linux on a Predator with keyboard `04F2:0117`, `011A` or `0119`, please try it and
 [send a report](https://github.com/aaronparayil/RaptorSense/issues/new?template=linux-test.yml), whether it worked or not.
@@ -81,9 +81,9 @@ Music and typing effects, fans, power and automations are still to come on Linux
 
 ## See it in action
 
-![Typing effects, a rainbow wave and more, matching on the screen and the real keyboard of a Predator Helios 16](docs/demo.gif)
+![The effect gallery on the screen of a Predator Helios 16 while its real keyboard changes with each effect picked: a rainbow wave, cyan, pink, blue, green](docs/demo.gif)
 
-Recorded on an earlier version: the effects are the same, the window has a new look since.
+Filmed on a Predator Helios 16 with RaptorSense 1.8.8, sped up twice: the gallery plays every effect at once, and a click puts one on the real keyboard.
 
 <img src="docs/screenshot.png" alt="The Lighting tab: a rainbow wave on the keyboard preview, with colours, speed, profiles and the list of effects around it" width="920">
 
@@ -392,7 +392,7 @@ To build the download zip: `powershell -ExecutionPolicy Bypass -File scripts\pac
 ## Linux
 
 **A preview, for testing.** It is a separate download, the
-[Linux preview](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-1), and the Windows release stays the main one.
+[Linux preview](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-2), and the Windows release stays the main one.
 What is true today:
 
 - The app, the command-line tool and all the tests build and run on Linux (checked on Ubuntu 26.04).
@@ -408,7 +408,7 @@ What is true today:
 Everything above was checked on a Linux without the keyboard, so the first run on a real one is still to come. If you
 have a Predator with keyboard `04F2:0117`, `011A` or `0119` (`lsusb | grep -i 04f2` shows it) and run Linux:
 
-1. Download the `tar.gz` from the [Linux preview](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-1) and unpack it. It needs no .NET.
+1. Download the `tar.gz` from the [Linux preview](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-2) and unpack it. It needs no .NET.
 2. Follow `linux/FIRST-RUN.txt` in it: six short steps, about ten minutes.
 3. [Send a report](https://github.com/aaronparayil/RaptorSense/issues/new?template=linux-test.yml). It asks for what the steps
    printed and what the keyboard did.
