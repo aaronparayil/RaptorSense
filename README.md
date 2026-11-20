@@ -12,6 +12,8 @@ plus fan and power control. No account, no telemetry.
 ![Runs on Windows](https://img.shields.io/badge/runs%20on-Windows-38bdf8)
 
 [**Download**](https://github.com/aaronparayil/RaptorSense/releases/latest) ·
+[Website](https://aaronparayil.github.io/RaptorSense/) ·
+[Shared animations](https://aaronparayil.github.io/RaptorSense/animations.html) ·
 [Where it stands](#where-it-stands) ·
 [Will it work on my laptop?](#will-it-work-on-my-laptop) ·
 [Report your laptop](https://github.com/aaronparayil/RaptorSense/issues/new?template=laptop-report.yml) ·
@@ -250,6 +252,12 @@ Animations are readable JSON files in `%APPDATA%\RaptorSense\animations`, with k
 They hold only colours and times (plus one word, `beat`, `speed` or `pulse`, if the animation follows the music),
 never code, so a shared animation can't do anything else. On import, anything
 RaptorSense doesn't recognise is dropped.
+
+**Shared animations:** the [animations page](https://aaronparayil.github.io/RaptorSense/animations.html) plays
+animations other people made, right in the browser, ready to download and import. To put yours there, export it and
+fill in the [share form](https://github.com/aaronparayil/RaptorSense/issues/new?template=share-animation.yml). Once
+approved, it is checked the way the app checks an import (and must not flash more than three times a second) and goes
+up with your name on it.
 
 ## Automations
 

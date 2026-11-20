@@ -1,0 +1,85 @@
+name: Add a shared animation
+
+# When the repository's owner labels a "Share an animation" issue "approved animation", this cleans and checks the
+# animation (scripts/site/add_animation.py), runs the website tests, adds it to site/animations on main, replies on
+# the issue and closes it, then publishes the website. If it can't be added, it says why on the issue and takes the
+# label off again, so it can be approved once more after a fix.
+#
+# The issue's text is only ever handed over through environment variables, never written into a command.
+on:
+  issues:
+    types: [labeled]
+
+permissions: {}
+
+concurrency:
+  group: share-animation
+  cancel-in-progress: false
+
+jobs:
+  add:
+    if: github.event.label.name == 'approved animation' && github.event.sender.login == github.repository_owner
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      issues: write
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NUMBER: ${{ github.event.issue.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Read and check the animation
+        id: read
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+        run: python -I scripts/site/add_animation.py
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Check it the way the app reads it
+        run: |
+          dotnet build tests/RaptorSense.Tests/RaptorSense.Tests.csproj -c Release -v q
+          dotnet run --project tests/RaptorSense.Tests/RaptorSense.Tests.csproj -c Release --no-build -- -class RaptorSense.Tests.SiteTests
+
+      - name: Add it to the website
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/animations
+          git commit -m "Add the animation shared in issue #$NUMBER"
+          git push origin HEAD:main
+
+      - name: Reply and close
+        run: |
+          gh issue comment "$NUMBER" --body-file result.md
+          gh issue close "$NUMBER" --reason completed
+
+      - name: Say what went wrong
+        if: failure()
+        env:
+          READ: ${{ steps.read.outcome }}
+        run: |
+          # The script explains its own refusals; anything after it is the website's problem, not the sharer's.
+          if [ "$READ" = success ] || [ ! -s result.md ]; then
+            echo "This animation couldn't be added because of a problem on the website's side, not with your file. It will be looked into." > result.md
+          fi
+          gh issue comment "$NUMBER" --body-file result.md
+          gh issue edit "$NUMBER" --remove-label "approved animation"
+
+  publish:
+    needs: add
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/site.yml

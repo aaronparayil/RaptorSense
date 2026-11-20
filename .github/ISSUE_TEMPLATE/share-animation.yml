@@ -1,0 +1,45 @@
+name: Share an animation
+description: Put an animation you made in RaptorSense's Animations tab on the website, for everyone to download.
+title: "Animation: "
+labels: ["animation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing! In RaptorSense, open the **Animations** tab, pick your animation and press **Export**. That saves it as a `.json` file.
+
+        Once it's looked at and approved, it goes on the [animations page](https://aaronparayil.github.io/RaptorSense/animations.html) automatically, and you'll get a reply here with the link. Animations that flash more than three times a second can't go up, for people who are sensitive to flashing.
+  - type: input
+    id: name
+    attributes:
+      label: Animation name
+      description: As it should show on the website. Up to 60 characters.
+      placeholder: Neon rain
+    validations:
+      required: true
+  - type: input
+    id: credit
+    attributes:
+      label: Credit it to
+      description: The name shown under it. Leave empty to use your GitHub name.
+      placeholder: Your name or handle
+  - type: textarea
+    id: about
+    attributes:
+      label: What it looks like
+      description: One or two sentences. Optional.
+      placeholder: Blue drops falling down the keys, faster on the right.
+  - type: textarea
+    id: file
+    attributes:
+      label: Animation file
+      description: Drag the exported `.json` file into this box. If GitHub won't take the file, open it in Notepad and paste all of its text here instead.
+    validations:
+      required: true
+  - type: checkboxes
+    id: sharing
+    attributes:
+      label: Sharing
+      options:
+        - label: I made this animation myself, and anyone may download, use and change it.
+          required: true
