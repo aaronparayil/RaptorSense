@@ -8,15 +8,18 @@
   <meta property="og:title" content="RaptorSense animations">
   <meta property="og:description" content="Keyboard animations made in RaptorSense, shared by the people who made them.">
   <meta property="og:image" content="https://aaronparayil.github.io/RaptorSense/media/animations.png">
-  <meta name="theme-color" content="#0b0b1e">
+  <meta name="theme-color" content="#0c0f15">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="assets/style.css">
   <script type="module" src="assets/animations.js"></script>
 </head>
 <body>
   <header class="top">
     <div class="wrap">
-      <a class="brand" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#logo"/></svg>RaptorSense</a>
+      <a class="brand" href="./">RaptorSense</a>
       <nav class="nav" aria-label="Main">
         <a class="wide" href="./#features">Features</a>
         <a class="wide" href="./#laptops">Laptops</a>
@@ -28,13 +31,6 @@
     </div>
   </header>
 
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <symbol id="logo" viewBox="0 0 32 32">
-      <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#38bdf8"/></linearGradient></defs>
-      <rect width="32" height="32" rx="8" fill="#15143a"/>
-      <g fill="url(#lg)"><rect x="5" y="8" width="6" height="5" rx="1.5"/><rect x="13" y="8" width="6" height="5" rx="1.5" opacity=".7"/><rect x="21" y="8" width="6" height="5" rx="1.5" opacity=".45"/><rect x="5" y="15" width="6" height="5" rx="1.5" opacity=".7"/><rect x="13" y="15" width="6" height="5" rx="1.5"/><rect x="21" y="15" width="6" height="5" rx="1.5" opacity=".7"/><rect x="5" y="22" width="22" height="3" rx="1.5" opacity=".55"/></g>
-    </symbol>
-  </svg>
 
   <main>
     <div class="page-head">
@@ -67,6 +63,7 @@
           <span class="count" id="count" aria-live="polite"></span>
         </div>
         <div class="anims" id="anims"></div>
+        <p class="note"><b>Add to RaptorSense</b> opens the app and adds the animation in one click. It needs RaptorSense 1.8.9 or newer, started at least once. On an older version, use <b>Download</b> and then <b>Import</b> in the Animations tab.</p>
         <p class="empty" id="empty" hidden>Nothing matches that. <button class="link-btn" type="button" id="clear">Show everything</button></p>
         <noscript><p class="empty">The animations play with JavaScript on. You can still download them from <a href="https://github.com/aaronparayil/RaptorSense/tree/main/site/animations">the folder on GitHub</a>.</p></noscript>
       </div>
@@ -76,9 +73,9 @@
       <div class="wrap">
         <h2 style="margin-bottom:24px">How to use one</h2>
         <ol class="steps">
-          <li><b>Download it</b> with the button under the animation. It's a small <code>.json</code> file holding only colours and times, never code.</li>
-          <li>In RaptorSense, open the <b>Animations</b> tab and press <b>Import</b>. Pick the file. It never replaces one you already have.</li>
-          <li>Press <b>Play on the keyboard</b>, or pick <b>Your animation</b> on the Lighting tab to keep it on. Change it as much as you like.</li>
+          <li>Press <b>Add to RaptorSense</b> under the animation and let your browser open RaptorSense. It's added and starts playing on your keyboard.</li>
+          <li>Or browse from inside the app: the <b>Shared</b> button in the <b>Animations</b> tab lists everything on this page, with an <b>Add</b> button for each.</li>
+          <li>Keep it on by picking <b>Your animation</b> on the Lighting tab, and change it as much as you like. An animation holds only colours and times, never code, and never replaces one you already have.</li>
         </ol>
         <p class="small" style="margin-top:16px">Made for the Predator Helios 16's per-key keyboard. On the Nitro's four zones, each zone shows the average of its keys.</p>
       </div>
@@ -89,7 +86,7 @@
         <div class="callout">
           <div>
             <h2>Share yours</h2>
-            <p>In the Animations tab, pick your animation and press <b>Export</b>. Then fill in the short form on GitHub and drop the file in. Once it's approved it appears here, with your name on it, and you get a reply with the link. Animations that flash more than three times a second can't go up, for people who are sensitive to flashing.</p>
+            <p>In the Animations tab, pick your animation and press <b>Export</b>. Then fill in the short form on GitHub and drop the file in. It's checked automatically and, if all is well, appears here within a few minutes with your name on it, and you get a reply with the link. Animations that flash more than three times a second can't go up, for people who are sensitive to flashing.</p>
           </div>
           <div class="actions">
             <a class="btn primary" href="https://github.com/aaronparayil/RaptorSense/issues/new?template=share-animation.yml">Share an animation</a>
@@ -109,7 +106,7 @@
         <a href="https://github.com/aaronparayil/RaptorSense/blob/main/LICENSE">Licence (GPL-3.0-or-later)</a>
       </nav>
       <p>Shared animations belong to the people who made them, who agreed that anyone may download, use and change them.</p>
-      <p>Unofficial. Not affiliated with or endorsed by Acer. This site loads nothing from other servers and has no analytics.</p>
+      <p>Unofficial. Not affiliated with or endorsed by Acer. No analytics or tracking on this site; its fonts come from Google Fonts.</p>
     </div>
   </footer>
 </body>

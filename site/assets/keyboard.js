@@ -93,7 +93,7 @@ export class KeyboardCanvas {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(s, 0, 0, s, pad * s, pad * s);
-    const r = 7;
+    const r = 6;
 
     if (this.glow) {
       // Light spilling around lit keys, drawn first and blurred so it sits under the caps.
@@ -116,15 +116,15 @@ export class KeyboardCanvas {
       const lit = R + G + B > 0;
       ctx.beginPath();
       ctx.roundRect(k.x, k.y, k.w, k.h, r);
-      // A dimly lit key never looks darker than an unlit one (#1b1a3a).
-      ctx.fillStyle = lit ? `rgb(${Math.max(R, 27)},${Math.max(G, 26)},${Math.max(B, 58)})` : "#1b1a3a";
+      // A dimly lit key never looks darker than an unlit one (#1b2130).
+      ctx.fillStyle = lit ? `rgb(${Math.max(R, 27)},${Math.max(G, 33)},${Math.max(B, 48)})` : "#1b2130";
       ctx.fill();
-      if (!lit) { ctx.strokeStyle = "rgba(167,139,250,0.10)"; ctx.lineWidth = 1 / s; ctx.stroke(); }
+      if (!lit) { ctx.strokeStyle = "rgba(232,236,245,0.07)"; ctx.lineWidth = 1 / s; ctx.stroke(); }
       if (this.labels && k.w * s > 18) {
         const text = CAPS[k.label] ?? k.label;
         const bright = 0.2126 * R + 0.7152 * G + 0.0722 * B;
-        ctx.fillStyle = !lit ? "rgba(180,179,209,0.55)" : bright > 140 ? "rgba(11,11,30,0.62)" : "rgba(255,255,255,0.78)";
-        ctx.font = `600 ${k.h < 40 ? 11 : text.length > 3 ? 12 : 15}px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif`;
+        ctx.fillStyle = !lit ? "rgba(140,149,168,0.7)" : bright > 140 ? "rgba(11,11,30,0.62)" : "rgba(255,255,255,0.78)";
+        ctx.font = `600 ${k.h < 40 ? 11 : text.length > 3 ? 12 : 15}px Inter,"Segoe UI",system-ui,sans-serif`;
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText(text, k.x + k.w / 2, k.y + k.h / 2 + 1, k.w - 8);
       }

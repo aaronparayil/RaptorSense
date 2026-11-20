@@ -39,6 +39,11 @@ function card(entry, order, layout) {
   tags.append(length, el("span", "tag", `${entry.frames} frame${entry.frames === 1 ? "" : "s"}`));
   if (entry.music) tags.append(el("span", "tag music", `♪ ${MUSIC[entry.music] ?? "Follows the music"}`));
   const foot = el("div", "foot");
+  // Opens RaptorSense (1.8.9 and newer register this link), which fetches this file from the site and adds it.
+  const add = el("a", "btn primary", "Add to RaptorSense");
+  add.href = `raptorsense://add-animation/${slug}`;
+  add.title = "Opens RaptorSense and adds this animation. Needs RaptorSense 1.8.9 or newer.";
+  foot.append(add);
   const download = el("a", "btn", "Download");
   download.href = `animations/${entry.file}`;
   download.setAttribute("download", entry.file);

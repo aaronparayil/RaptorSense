@@ -1,15 +1,32 @@
-"""Adds an animation someone shared through the "Share an animation" issue form to the website (site/animations).
+"""Puts animations people share through the "Share an animation" issue form on the website, or takes them off.
 
-Run by .github/workflows/share-animation.yml once the owner labels the issue "approved animation". Reads the issue
-from the environment (ISSUE_BODY, ISSUE_NUMBER, ISSUE_AUTHOR), never from the command line, so nothing in it can
-become a command. Writes site/animations/<name>.json and adds it to site/animations/index.json, cleaned the way the app
-cleans an imported file (KeyAnimation.Cleaned): known keys only, valid colours, times in range, at most 500 frames.
-Refuses an animation that flashes more than three times a second, by the same rule the built-in effects follow.
+Run by .github/workflows/share-animation.yml. Nobody has to approve an animation: when an issue is opened or edited,
+this checks it and, if it passes, adds it. Reads everything from the environment, never from the command line, so
+nothing in an issue can become a command:
 
-Writes what to tell the sharer to result.md. Exits with 1 when the animation can't be added.
+  MODE             "add" (default) or "remove" (the owner labelled the issue "remove animation")
+  ISSUE_BODY       the issue form's text
+  ISSUE_NUMBER     the issue
+  ISSUE_AUTHOR     the GitHub login of whoever shared it
+  ACCOUNT_CREATED  when that account was made (ISO 8601), for the new-account rule
+  OVERRIDE         "1" when the owner labelled it "approved animation": skips the hold rules and the daily limit,
+                   never the checks on the file itself
+
+The file is cleaned the way the app cleans an import (KeyAnimation.Cleaned): known keys, valid colours, times in range,
+at most 500 frames. Then one of three things happens, written to the step output "outcome" and explained in result.md:
+
+  added    it is in site/animations and index.json
+  refused  something the sharer can fix: not an animation, all dark, flashes more than three times a second (the rule
+           RaptorSense's own effects follow), a copy of one already up, or over the limit of 3 a day
+  held     it waits for the owner: the name, credit or description has a word from held-words.txt or a link, or the
+           GitHub account is under 3 days old
+  removed  (MODE=remove) the animations added from this issue are gone
+
+Exits with 0 for all of those, and with 1 only if something unexpected broke.
 
 Local try:  ISSUE_BODY="$(cat body.md)" ISSUE_NUMBER=1 ISSUE_AUTHOR=someone python3 scripts/site/add_animation.py
 """
+import codecs
 import datetime
 import json
 import math
@@ -21,25 +38,39 @@ import urllib.request
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SITE = os.path.join(ROOT, "site")
 ANIMATIONS = os.path.join(SITE, "animations")
+INDEX = os.path.join(ANIMATIONS, "index.json")
 RESULT = os.path.join(ROOT, "result.md")
+PAGE = "https://aaronparayil.github.io/RaptorSense/animations.html"
 
 MAX_BYTES = 5 * 1024 * 1024        # AnimationStore.MaxImportBytes
 MAX_FRAMES = 500                   # KeyAnimation.MaxFrames
 MAX_HOLD, MAX_FADE = 60.0, 30.0    # AnimationFrame.MaxHold, MaxFade
 MIN_FRAME_SECONDS = 1 / 60         # CompiledAnimation.MinFrameSeconds
 MAX_NAME, MAX_AUTHOR, MAX_ABOUT = 60, 40, 200
+PER_DAY = 3
+NEW_ACCOUNT_DAYS = 3
 ATTACHMENT = re.compile(r"https://github\.com/user-attachments/files/\d+/[^\s)\]]+")
+LINKISH = re.compile(r"https?://|www\.|\.(com|net|org|gg|io|xyz|ru|me|tk|ly|in|co|app|link|shop)\b|discord|telegram|"
+                     r"\bt\.me\b|whatsapp|@\w|\d{7,}", re.I)
+LEET = str.maketrans("013457@$!|", "oieastasii")
 
 
 class Refused(Exception):
-    """A reason the animation can't go on the site, worded for the person who shared it."""
+    """A reason the animation can't go on the site that the sharer can fix, worded for them."""
 
 
-def finish(message, ok):
+class Held(Exception):
+    """A reason it waits for the owner instead of going straight up."""
+
+
+def finish(outcome, message):
     with open(RESULT, "w", encoding="utf-8") as f:
         f.write(message + "\n")
-    print(message)
-    sys.exit(0 if ok else 1)
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write(f"outcome={outcome}\n")
+    print(f"{outcome}: {message}")
+    sys.exit(0)
 
 
 def clean_text(text, limit):
@@ -88,6 +119,17 @@ def read_file_text(answer):
 def load_layout():
     with open(os.path.join(SITE, "data", "keyboard.json"), encoding="utf-8") as f:
         return json.load(f)["keys"]
+
+
+def load_index():
+    with open(INDEX, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_index(index):
+    with open(INDEX, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(index, f, indent=2, ensure_ascii=False)
+        f.write("\n")
 
 
 def parse_colour(value):
@@ -161,7 +203,7 @@ def flash_count(frames, labels):
 
     def level(t):
         t %= length
-        i = max(i for i, s in enumerate(starts) if s <= t) if t >= starts[0] else 0
+        i = max(i for i, s in enumerate(starts) if s <= t)
         into = t - starts[i]
         a = colours[i]
         if into <= holds[i] or fades[i] <= 0:
@@ -186,6 +228,32 @@ def flash_count(frames, labels):
     return max((sum(1 for t in turns if s <= t < s + 60) for s in turns), default=0)
 
 
+def held_words():
+    with open(os.path.join(os.path.dirname(__file__), "held-words.txt"), encoding="utf-8") as f:
+        return {codecs.decode(line.strip(), "rot13") for line in f if line.strip() and not line.startswith("#")}
+
+
+def needs_a_look(*texts):
+    """Why a person should read this text before it goes up, or None. Errs on holding: a person decides after."""
+    words = held_words()
+    for text in texts:
+        if LINKISH.search(text):
+            return "it has something that looks like a link, a handle or a phone number in it"
+        plain = text.lower().translate(LEET)
+        tokens = re.findall(r"[a-z]+", plain)
+        squashed = "".join(tokens)
+        # Whole words, words starting with one ("...ty", "...ing"), and longer ones hidden inside run-together text.
+        if (any(t in words for t in tokens)
+                or any(len(w) >= 4 and t.startswith(w) for t in tokens for w in words)
+                or any(len(w) >= 4 and w in squashed for w in words)):
+            return "a word in it needs a person to look at it"
+    return None
+
+
+def same_frames(a, b):
+    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
 def file_name_for(name, taken):
     stem = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40].strip("-") or "animation"
     candidate, n = stem, 2
@@ -194,9 +262,10 @@ def file_name_for(name, taken):
     return candidate + ".json"
 
 
-def main():
+def add():
     number = os.environ.get("ISSUE_NUMBER", "")
-    author_login = clean_text(os.environ.get("ISSUE_AUTHOR", ""), MAX_AUTHOR)
+    login = clean_text(os.environ.get("ISSUE_AUTHOR", ""), MAX_AUTHOR)
+    override = os.environ.get("OVERRIDE") == "1"
     fields = form_fields(os.environ.get("ISSUE_BODY", ""))
     file_answer = fields.get("Animation file", "")
     if not file_answer:
@@ -218,31 +287,69 @@ def main():
                       "Longer frames or fades fix it.")
 
     name = clean_text(fields.get("Animation name", ""), MAX_NAME) or clean_text(str(data.get("Name") or ""), MAX_NAME) or "Animation"
-    author = clean_text(fields.get("Credit it to", ""), MAX_AUTHOR) or author_login or "Someone"
+    author = clean_text(fields.get("Credit it to", ""), MAX_AUTHOR) or login or "Someone"
     about = clean_text(" ".join(fields.get("What it looks like", "").split()), MAX_ABOUT)
 
-    index_path = os.path.join(ANIMATIONS, "index.json")
-    with open(index_path, encoding="utf-8") as f:
-        index = json.load(f)
+    index = load_index()
+    for entry in index:
+        if entry.get("issue") is not None and str(entry["issue"]) == number:
+            finish("added", f"**{entry['name']}** is already on the website: {PAGE}#{entry['file'][:-5]}")
+        with open(os.path.join(ANIMATIONS, entry["file"]), encoding="utf-8") as f:
+            if same_frames(json.load(f)["Frames"], frames):
+                raise Refused(f"It's the same as **{entry['name']}**, which is already on the website.")
+
+    today = datetime.datetime.now(datetime.timezone.utc)
+    if not override:
+        if login and sum(1 for e in index if e.get("login") == login and e.get("added") == today.strftime("%Y-%m-%d")) >= PER_DAY:
+            raise Refused(f"You've shared {PER_DAY} today, which is the most for one day. Edit this issue tomorrow "
+                          "(any small change will do) and it will be checked again.")
+        why = needs_a_look(name, author, about)
+        if why:
+            raise Held(f"Its name, credit or description will be read by a person first, because {why}.")
+        created = os.environ.get("ACCOUNT_CREATED", "")
+        try:
+            age = today - datetime.datetime.fromisoformat(created.replace("Z", "+00:00"))
+        except ValueError:
+            age = None
+        if age is None or age < datetime.timedelta(days=NEW_ACCOUNT_DAYS):
+            raise Held(f"Your GitHub account is new (under {NEW_ACCOUNT_DAYS} days old), so a person looks at it first.")
+
     file = file_name_for(name, set(os.listdir(ANIMATIONS)))
     with open(os.path.join(ANIMATIONS, file), "w", encoding="utf-8", newline="\n") as f:
         json.dump({"Name": name, "Frames": frames, **({"Music": music} if music else {})}, f, indent=2)
         f.write("\n")
     entry = {"file": file, "name": name, "author": author, "about": about, "frames": len(frames), "music": music,
-             "added": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")}
+             "added": today.strftime("%Y-%m-%d"), "login": login}
     if number.isdigit():
         entry["issue"] = int(number)
     index.append(entry)
-    with open(index_path, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(index, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    finish(f"Thanks! **{name}** is on the website now, credited to {author}: "
-           f"https://aaronparayil.github.io/RaptorSense/animations.html#{file[:-5]}\n\n"
-           "It can take a minute or two to appear.", True)
+    save_index(index)
+    slug = file[:-5]
+    finish("added", f"Thanks! **{name}** is on the website now, credited to {author}: {PAGE}#{slug}\n\n"
+           "It can take a minute or two to appear. Anyone with RaptorSense can add it with **Add to RaptorSense** on "
+           "that page, or from **Shared** in the app's Animations tab.")
+
+
+def remove():
+    number = os.environ.get("ISSUE_NUMBER", "")
+    index = load_index()
+    gone = [e for e in index if str(e.get("issue", "")) == number]
+    if not gone:
+        finish("nothing", "There was no animation from this issue on the website.")
+    for e in gone:
+        path = os.path.join(ANIMATIONS, e["file"])
+        if os.path.exists(path):
+            os.remove(path)
+    save_index([e for e in index if e not in gone])
+    finish("removed", "This animation has been taken off the website.")
 
 
 if __name__ == "__main__":
     try:
-        main()
+        remove() if os.environ.get("MODE") == "remove" else add()
     except Refused as reason:
-        finish(f"This animation couldn't be added: {reason}\n\nYou're welcome to fix it and share it again.", False)
+        finish("refused", f"This animation couldn't be added: {reason}\n\n"
+               "You're welcome to fix it: edit this issue (or share it again) and it's checked again straight away.")
+    except Held as reason:
+        finish("held", f"Thanks! This one is waiting for a quick look before it goes up. {reason}\n\n"
+               "Nothing for you to do: you'll get a reply here when it's on the website.")

@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for sharing! In RaptorSense, open the **Animations** tab, pick your animation and press **Export**. That saves it as a `.json` file.
 
-        Once it's looked at and approved, it goes on the [animations page](https://aaronparayil.github.io/RaptorSense/animations.html) automatically, and you'll get a reply here with the link. Animations that flash more than three times a second can't go up, for people who are sensitive to flashing.
+        It's checked automatically as soon as you submit, and if all is well it's on the [animations page](https://aaronparayil.github.io/RaptorSense/animations.html) within a few minutes. You'll get a reply here either way. Animations that flash more than three times a second can't go up, for people who are sensitive to flashing, and you can share up to three a day.
   - type: input
     id: name
     attributes:

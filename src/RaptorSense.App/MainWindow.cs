@@ -59,6 +59,8 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     readonly StackPanel favouritesGroup = new() { Spacing = 4 };
     readonly TabItem galleryTab = new() { Header = L("Gallery"), Content = new Panel() };
     TabControl? tabs;
+    readonly AnimationsPanel animationsPanel;
+    readonly TabItem animationsTab;
     EffectGallery? gallery;
     bool demoMusic;
     readonly CheckBox autoColor = new() { Content = L("Auto (rainbow colours)") };
@@ -106,6 +108,8 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         ExtendClientAreaTitleBarHeightHint = TopBarHeight;
 
         var lighting = BuildLighting();
+        animationsPanel = new AnimationsPanel(engine, () => ChooseEffect(Effects.Animation));
+        animationsTab = new TabItem { Header = L("Animations"), Content = animationsPanel };
 
         automations = new AutomationRunner(this);
         automations.EnabledChanged += () => TrayStateChanged?.Invoke();
@@ -119,7 +123,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
             {
                 new TabItem { Header = L("Lighting"), Content = lighting },
                 galleryTab,
-                new TabItem { Header = L("Animations"), Content = new AnimationsPanel(engine, () => ChooseEffect(Effects.Animation)) },
+                animationsTab,
                 new TabItem { Header = L("Light bar"), Content = lightBar, IsVisible = ThisLaptop.HasLightBar },
                 // Only on laptops whose 4-zone keyboard has been checked. Reading the model needs no administrator rights.
                 new TabItem { Header = L("Keyboard zones"), Content = zonesPanel, IsVisible = HasFourZoneKeyboard },
@@ -1030,6 +1034,17 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     {
         get => autostart.IsChecked == true;
         set => autostart.IsChecked = value;
+    }
+
+    /// <summary>
+    /// Adds an animation from the website, for an "Add to RaptorSense" link: shows the window on the Animations tab,
+    /// where it is fetched, opened and played.
+    /// </summary>
+    public void AddSharedAnimation(string slug)
+    {
+        ShowFromTray();
+        if (tabs is not null) tabs.SelectedItem = animationsTab;
+        animationsPanel.AddShared(slug);
     }
 
     public void ShowFromTray()

@@ -7,3 +7,5 @@ dist/
 .idea/
 # Probe reports contain machine-specific data; share them deliberately, not by accident.
 reports/
+
+__pycache__/
