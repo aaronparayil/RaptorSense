@@ -24,7 +24,9 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
     readonly object firmwareLock = new();
     IGamingFirmware? firmware;
     ILightBar? lightBar;
-    IFourZoneKeyboard? keyboard;   // only on a laptop whose 4-zone keyboard has been checked, whatever the fans' state
+    // Only on a laptop whose 4-zone keyboard has been checked, or whose owner may try it; whatever the fans' state.
+    IFourZoneKeyboard? keyboard;
+    Func<string>? describeZones;
     FanController? fans;
     IReadOnlyList<PowerProfile> supported = [];
     PowerProfile? knownProfile;
@@ -50,7 +52,11 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
             refusal = LaptopModels.Refusal(model);
             firmware = fansAllowed ? new FansOnlyFirmware(wmi, refusal) : new ReadOnlyFirmware(wmi, refusal);
         }
-        if (LaptopModels.HasFourZoneKeyboard(model)) keyboard = wmi;
+        if (LaptopModels.HasFourZoneKeyboard(model) || LaptopModels.MayTryFourZoneKeyboard(model))
+        {
+            keyboard = wmi;
+            describeZones = wmi.DescribeZones;
+        }
         fans = new FanController(firmware);
         lock (firmwareLock)
         {
@@ -137,7 +143,7 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
         lock (firmwareLock)
         {
             // On a laptop that isn't fully verified, only what has been checked there: the fans, a 4-zone keyboard.
-            bool allowed = request.Command == "status" || (request.Command == "keyboard" && keyboard is not null) ||
+            bool allowed = request.Command == "status" || (request.Command == "keyboard" && LaptopModels.AllowsKeyboard(model, request.Keyboard)) ||
                            (request.Command == "fans" && fansAllowed);
             if (refusal is not null && !allowed) return Status(refusal) with { Ok = false };
             try
@@ -166,7 +172,13 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
                         log.LogInformation("Light bar set: {Mode}, colours {Colours}, brightness {Brightness}",
                             bar.Mode?.ToString() ?? "static", string.Join(" ", bar.Colors), bar.Brightness);
                         break;
-                    case "keyboard" when request.Keyboard is { } zones && keyboard is not null:
+                    case "keyboard" when request.Keyboard is { } zones && keyboard is not null && LaptopModels.AllowsKeyboard(model, zones):
+                        if (zones.Trial)
+                        {
+                            // Only the test itself: once accepted, effects stream frames this way too.
+                            if (zones.Describe) log.LogInformation("Keyboard test: {Mode}, {Order}", zones.Mode ?? FourZoneMode.Static, zones.Order);
+                            return Trial(zones, keyboard);
+                        }
                         zones.ApplyTo(keyboard);
                         // The app's effects stream frames several times a second: those aren't worth a log line each.
                         if (zones.Confirm) log.LogInformation("Keyboard set: {Mode}, colours {Colours}, brightness {Brightness}",
@@ -188,6 +200,16 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
         }
     }
 
+    // A test on a model that hasn't been checked. The firmware's own error and what it reads back go to the owner's
+    // report either way: they are how the model gets added.
+    ThermalStatus Trial(FourZoneRequest request, IFourZoneKeyboard target)
+    {
+        string? error = null;
+        try { request.ApplyTo(target); }
+        catch (Exception e) when (e is FirmwareException or ArgumentException) { error = e.Message; }
+        return Status(error) with { Ok = error is null, KeyboardDetail = request.Describe ? describeZones?.Invoke() : null };
+    }
+
     ThermalStatus Status(string? error) => new()
     {
         Ok = true,
@@ -203,7 +225,7 @@ sealed class ThermalService(ILogger<ThermalService> log) : BackgroundService
         ReadOnly = refusal is not null && !fansAllowed,
         PowerControl = refusal is null,
         HelperRevision = ThermalProtocol.HelperRevision,
-        FourZoneKeyboard = keyboard is not null,
+        FourZoneKeyboard = LaptopModels.HasFourZoneKeyboard(model),
     };
 
     // Called with the firmware lock held. A failed read is not kept, so the next reply tries again.

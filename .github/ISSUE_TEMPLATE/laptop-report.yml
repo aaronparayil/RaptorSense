@@ -14,11 +14,11 @@ body:
     attributes:
       label: Your laptop
       description: |
-        Paste what this prints in PowerShell. It only reads the model, the BIOS version and which Chicony devices
-        (the keyboard maker) are connected:
+        Paste what this prints in PowerShell. It only reads the model, the BIOS version and which keyboard and lighting
+        devices from the makers Acer uses are connected:
 
         ```
-        $cs = Get-CimInstance Win32_ComputerSystem; $b = Get-CimInstance Win32_BIOS; "$($cs.Manufacturer) $($cs.Model), BIOS $($b.SMBIOSBIOSVersion)"; Get-PnpDevice -PresentOnly | Where-Object InstanceId -match 'VID_04F2&PID_([0-9A-F]{4})' | ForEach-Object { $Matches[0] + '  ' + $_.FriendlyName } | Sort-Object -Unique
+        $cs = Get-CimInstance Win32_ComputerSystem; $b = Get-CimInstance Win32_BIOS; "$($cs.Manufacturer) $($cs.Model), BIOS $($b.SMBIOSBIOSVersion)"; Get-PnpDevice -PresentOnly | Where-Object InstanceId -match 'VID_(04F2|05AF|0D62|0CF2)&PID_[0-9A-F]{4}|HID\\(ENEK\w+|1025174B)' | ForEach-Object { $Matches[0] + '  ' + $_.FriendlyName } | Sort-Object -Unique
         ```
       placeholder: |
         Acer Predator PH16-71, BIOS V1.18

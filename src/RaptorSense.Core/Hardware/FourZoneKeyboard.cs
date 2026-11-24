@@ -17,6 +17,17 @@ public enum FourZoneDirection : byte
     RightToLeft = 1, LeftToRight = 2,
 }
 
+/// <summary>The order a firmware keyboard takes its calls in. Laptops differ in which one lights it.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum FourZoneOrder
+{
+    /// <summary>The zones are switched on and coloured, then static mode is set: the AN515-57, and most others.</summary>
+    ZonesFirst,
+
+    /// <summary>Static mode is set, then the zones are switched on and coloured: the PHN14-51.</summary>
+    StaticFirst,
+}
+
 /// <summary>The keyboard of the Nitro 5 AN515-57 (four zones, left to right). Needs administrator rights, so it lives behind the helper.</summary>
 public interface IFourZoneKeyboard
 {
@@ -24,7 +35,8 @@ public interface IFourZoneKeyboard
     /// One colour per zone (left to right), brightness 0..100. With <paramref name="confirm"/> the colours are read
     /// back before the call returns; without, it is quicker, for effects that send a new frame several times a second.
     /// </summary>
-    void SetZones(IReadOnlyList<Rgb> zones, int brightness, bool confirm = true);
+    /// <param name="order">For keyboards in the firmware; others ignore it.</param>
+    void SetZones(IReadOnlyList<Rgb> zones, int brightness, bool confirm = true, FourZoneOrder order = FourZoneOrder.ZonesFirst);
 
     /// <summary>One of the keyboard's own effects, in one colour where the effect uses one.</summary>
     void SetEffect(FourZoneMode mode, Rgb color, int speed, int brightness, FourZoneDirection direction);
@@ -71,6 +83,13 @@ public static class FourZoneProtocol
     /// <summary>The 16-byte <c>SetGamingKBBacklight</c> payload sent after the zone colours, to keep them static.</summary>
     public static byte[] StaticBacklight(int brightness) =>
         [0, 0, ClampBrightness(brightness), 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0];
+
+    /// <summary>
+    /// The same for <see cref="FourZoneOrder.StaticFirst"/>, sent before the zone colours. Byte 8 is 3 here, as the
+    /// PHN14-51's owner had it (Linuwu-Sense issue 150); the AN515 models need 0 there.
+    /// </summary>
+    public static byte[] StaticFirstBacklight(int brightness) =>
+        [0, 0, ClampBrightness(brightness), 0, 0, 0, 0, 0, 3, 1, 0, 0, 0, 0, 0, 0];
 
     /// <summary>The 16-byte <c>SetGamingKBBacklight</c> payload that starts one of the keyboard's own effects.</summary>
     public static byte[] EffectBacklight(FourZoneMode mode, Rgb color, int speed, int brightness,

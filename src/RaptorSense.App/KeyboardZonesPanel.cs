@@ -9,13 +9,13 @@ using RaptorSense.Thermal;
 namespace RaptorSense.App;
 
 /// <summary>
-/// The 4-zone keyboard of a Nitro 5 AN515-57: a colour for each zone, or one of the keyboard's own effects.
-/// Changes go through the elevated helper, and only when Apply is pressed, like the light bar's.
+/// A 4-zone keyboard: a colour for each zone, or one of the keyboard's own effects. Changes are sent (through the
+/// helper on a Nitro 5, see <see cref="ZoneLight"/>) only when Apply is pressed, like the light bar's.
 /// </summary>
 sealed class KeyboardZonesPanel : UserControl
 {
     static readonly string[] ZoneNames = [L("Zone {0}", 1), L("Zone {0}", 2), L("Zone {0}", 3), L("Zone {0}", 4)];   // left to right
-    static readonly FourZoneMode[] Modes = Enum.GetValues<FourZoneMode>();
+    static readonly FourZoneMode[] Modes = [.. Enum.GetValues<FourZoneMode>().Where(m => ThisLaptop.EneKeyboard?.Supports(m) ?? true)];
 
     readonly Rgb[] zones = [Rgb.PredatorTeal, Rgb.PredatorTeal, Rgb.PredatorTeal, Rgb.PredatorTeal];
     readonly ColorEditor editor;
@@ -82,12 +82,25 @@ sealed class KeyboardZonesPanel : UserControl
         var page = new StackPanel { Spacing = 14, Margin = new Thickness(28, 12, 28, 16), MaxWidth = 900 };
         page.Children.Add(new TextBlock
         {
-            Text = L("This laptop's keyboard lights in four zones, left to right. It goes through the RaptorSense helper (see README: Fans and power modes). Pick a colour for each zone, then Apply."),
+            Text = ThisLaptop.EneKeyboard is not null || ThisLaptop.TriedOrder is not null
+                ? L("This laptop's keyboard lights in four zones, left to right. Support for it is new and waiting for owners to try it, so please say how it went on GitHub. Pick a colour for each zone, then Apply.")
+                : L("This laptop's keyboard lights in four zones, left to right. It goes through the RaptorSense helper (see README: Fans and power modes). Pick a colour for each zone, then Apply."),
             TextWrapping = TextWrapping.Wrap,
             Foreground = Look.Muted,
             Margin = new Thickness(4, 0, 0, 0),
         });
         page.Children.Add(new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), Children = { Look.Card(colours, L("Zone colours")), settingsCard } });
+        if (ThisLaptop.TriedOrder is not null)
+        {
+            var forget = new Button { Content = L("Stop using this keyboard") };
+            var note = Look.Note(L("You chose to use it after the test. RaptorSense hasn't been checked on this model."));
+            forget.Click += (_, _) =>
+            {
+                ThisLaptop.RememberTried(null);
+                App.Restart();
+            };
+            page.Children.Add(Look.Card(new StackPanel { Spacing = 10, Children = { note, forget } }, L("Keyboard test")));
+        }
         Content = new ScrollViewer { Content = page };
 
         UpdateEnabled();
@@ -130,12 +143,9 @@ sealed class KeyboardZonesPanel : UserControl
         result.Text = L("Sending…");
         try
         {
-            var status = await ThermalClient.SetKeyboardAsync(request);
-            if (status.Ok) Applied?.Invoke();
-            result.Text = status.Ok ? L("Keyboard updated.")
-                : status.Reading is not null && status.HelperRevision < ThermalProtocol.FourZoneRevision
-                    ? L("The helper installed is from an older RaptorSense that can't light this keyboard. Update it on the Performance tab.")
-                    : status.Error ?? L(ThermalClient.HelperMissing);
+            var error = await ZoneLight.SetAsync(request);
+            if (error is null) Applied?.Invoke();
+            result.Text = error ?? L("Keyboard updated.");
         }
         finally
         {

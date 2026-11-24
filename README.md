@@ -39,7 +39,7 @@ all here to read or [build yourself](#build-from-source). Tested on the **Predat
 
 ## Where it stands
 
-The current release is **1.8.9**, for Windows. One download works on both tested laptops: the app reads the laptop's
+The current release is **1.9**, for Windows. One download works on both tested laptops: the app reads the laptop's
 model when it starts and shows what works on it.
 
 | | Predator Helios 16 PH16-71 | Nitro 5 AN515-57 |
@@ -52,8 +52,8 @@ model when it starts and shows what works on it.
 | Rear light bar | Works | The laptop has none |
 | PREDATOR key and Fn brightness keys | Works | Not supported yet |
 
-**On other Acer laptops:** per-key lighting works only if the keyboard is one of the known ones, and fans and power
-are read-only until the model has been checked. See [Will it work on my laptop?](#will-it-work-on-my-laptop)
+**On other Acer laptops:** per-key lighting works only if the keyboard is one of the known ones. Since 1.9, some more
+4-zone keyboards can be tried, untested by us. Fans and power are read-only until the model has been checked. See [Will it work on my laptop?](#will-it-work-on-my-laptop)
 
 **Linux:** a [preview to test](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-2), now at 1.8.8, is up, separate from the
 Windows download. It lights the Helios's per-key keyboard, but that has **not driven a real keyboard yet**, so testers
@@ -95,8 +95,16 @@ Tested on two machines so far: **Predator Helios 16 PH16-71** (BIOS V1.18, per-k
 **Nitro 5 AN515-57** (BIOS V1.22, 4-zone keyboard). One download works on both: the app reads the laptop's model
 when it starts and shows what works on it. Windows only for now; [Linux](#linux) is in progress.
 
-- **Per-key lighting** looks for keyboards `04F2:0117`, `011A` and `0119`. If yours isn't one of these and the laptop
-  isn't the Nitro below, the app says "Keyboard not found" and does nothing. A similar keyboard may have its keys
+- **4-zone keyboards with an ENE controller** (`ENEK5130`, USB id `0CF2:5130`), such as the **Helios Neo 16S PHN16S-71**, are
+  new and **untested by us**: they follow what other projects found out on those laptops. The app asks the keyboard what it
+  is before sending anything, needs no admin rights for it, and leaves fans and power read-only. If you have one, please
+  [tell us how it went](https://github.com/aaronparayil/RaptorSense/issues/new?template=laptop-report.yml).
+- **Other 4-zone keyboards, by test.** On the Helios Neo PHN14-51, PHN16-71, PHN16-72 and PHN18-71, the Helios 300 PH315-52 to
+  -55 and PH317-53, and the Nitro 5 AN515-45, -55, -56, -58 and AN517-41, owners lit the keyboard on Linux the way
+  RaptorSense lights the Nitro below. **We haven't tried them**, so a **Keyboard test** tab lets you: it shows four colours,
+  asks what you see, and only then uses the keyboard. It changes nothing but the keyboard's colours and needs the helper.
+- **Per-key lighting** looks for keyboards `04F2:0117`, `011A` and `0119`. If yours isn't one of these and isn't a
+  4-zone keyboard listed here, the app says "Keyboard not found" and does nothing. A similar keyboard may have its keys
   mapped differently.
 - **Fans, power modes and the light bar** use Acer's gaming firmware interface, and RaptorSense only changes them
   on models where they have been tested: all three on the PH16-71, the fans on the AN515-57. Firmware differs between
@@ -304,12 +312,23 @@ Safety rules, enforced by the helper (tests in `tests/RaptorSense.Tests`):
 - It changes fans, power profiles and the light bar only on tested models (the lists in
   `src/RaptorSense.Core/Thermal/LaptopModels.cs`, matched against the model Windows reports): all of them on the
   PH16-71; the fans and the keyboard zones, but not power profiles, on the AN515-57. On any other laptop it only
-  reads, and every change is refused before it reaches the firmware.
+  reads, and every change is refused before it reaches the firmware. The one exception is the keyboard test: on the
+  models listed for it, its owner may change the keyboard's colours, and nothing else.
 - Custom fan speeds are at least 25 %.
 - At 90 °C in custom mode the fans go to Max until everything is below 80 °C.
 - If the sensors can't be read in custom mode, the fans go to Max.
 - When the helper stops, the fans go back to Auto. After a crash, it resets leftover custom speeds on its next start.
 - Power profiles are limited to the ones the firmware reports, and every change is read back.
+
+### Beside PreySense
+
+[PreySense](https://github.com/hammadzaigham/PreySense) controls fans, power limits and more on Predator laptops. The two
+can run together if one of them has the fans. While PreySense runs, RaptorSense does **lighting only**: it leaves the fans,
+the power mode and the PREDATOR key alone, automations included. The Performance tab shows this and lets you choose who
+has them. PreySense lights the keyboard too, so set your lighting in one app; RaptorSense's effects play over PreySense's.
+You don't need RaptorSense's fan control installed for per-key lighting. If it is, note that after a restart it puts
+custom fan speeds left over from before back to Auto. A PH16-71 owner has run both without our fan control; the rest of
+this hasn't been tried with PreySense yet.
 
 ## Command line
 
@@ -479,5 +498,15 @@ Created by [aaronparayil](https://github.com/aaronparayil).
 
 The keyboard protocol and key map come from [TrueSense](https://github.com/Order52/truesense) (MIT),
 which mapped this keyboard on the same model and BIOS. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
-and the prior-art list in [docs/protocol.md](docs/protocol.md). The download's `licenses` folder lists the
+and the prior-art list in [docs/protocol.md](docs/protocol.md).
+
+Support for more keyboards builds on what these people worked out and shared:
+
+- [hammadzaigham](https://github.com/hammadzaigham), author of [PreySense](https://github.com/hammadzaigham/PreySense) (MIT)
+- [shwetankg07](https://github.com/shwetankg07), author of [kbrgb](https://github.com/shwetankg07/kbrgb) (MIT)
+- [cleyton1986](https://github.com/cleyton1986), author of [predator-sense](https://github.com/cleyton1986/predator-sense) (GPL-3.0)
+- [JafarAkhondali](https://github.com/JafarAkhondali), author of the [Acer Predator Linux module](https://github.com/JafarAkhondali/acer-predator-turbo-and-rgb-keyboard-linux-module) (GPL-3.0)
+- [0x7375646F](https://github.com/0x7375646F), author of [Linuwu-Sense](https://github.com/0x7375646F/Linuwu-Sense) (GPL-3.0)
+
+RaptorSense's code for these keyboards is its own, and none of these projects is affiliated with it. The download's `licenses` folder lists the
 licence of every library it bundles.

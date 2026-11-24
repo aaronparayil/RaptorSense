@@ -44,7 +44,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     // Room for the window's own minimise, maximise and close buttons at the right of the strip.
     const double CaptionButtonsWidth = 146;
 
-    readonly KeyboardView keyboard = HasFourZoneKeyboard ? new(LaptopLayouts.NitroCaps, FourZoneLayout.ZoneOf) : new();
+    readonly KeyboardView keyboard = HasFourZoneKeyboard ? new(LaptopLayouts.CapsFor(ThisLaptop.Layout, ThisLaptop.Model), FourZoneLayout.ZoneOf) : new();
     // Connection and frame rates: only shown, and only kept up to date, while the info panel is open.
     readonly TextBlock status = new() { FontSize = 13, TextWrapping = TextWrapping.Wrap };
     readonly TextBlock frameRates = new() { FontSize = 13, Foreground = Look.Muted };
@@ -127,7 +127,9 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
                 new TabItem { Header = L("Light bar"), Content = lightBar, IsVisible = ThisLaptop.HasLightBar },
                 // Only on laptops whose 4-zone keyboard has been checked. Reading the model needs no administrator rights.
                 new TabItem { Header = L("Keyboard zones"), Content = zonesPanel, IsVisible = HasFourZoneKeyboard },
-                new TabItem { Header = L("Performance"), Content = new PerformancePanel() },
+                // Offered on models where a 4-zone keyboard is likely to work but hasn't been checked.
+                new TabItem { Header = L("Keyboard test"), Content = ThisLaptop.CanTryFourZones ? new KeyboardTestPanel() : null, IsVisible = ThisLaptop.CanTryFourZones },
+                new TabItem { Header = L("Performance"), Content = new PerformancePanel(automations.Reconsider) },
                 new TabItem { Header = L("Automations"), Content = new AutomationsPanel(automations) },
             },
         };
@@ -211,7 +213,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     // back in the tray.
     void OnPredatorKey()
     {
-        if (shutDown) return;
+        if (shutDown || LightingOnly.Active) return;   // the other app has this key
         if (IsVisible && IsActive && WindowState != WindowState.Minimized) Close();
         else ShowFromTray();
     }
@@ -225,6 +227,8 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     }
 
     // ---- Automations ----
+
+    bool IAutomationTarget.LeavesFansAndPower => LightingOnly.Active;
 
     Profile IAutomationTarget.CaptureLighting()
     {
@@ -501,7 +505,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
                 VerticalAlignment = VerticalAlignment.Center,
                 Child = new TextBlock
                 {
-                    Text = L("Currently on {0}", LaptopLayouts.ShortName(ThisLaptop.Layout)),
+                    Text = L("Currently on {0}", LaptopLayouts.ShortName(ThisLaptop.Layout, ThisLaptop.Model)),
                     Foreground = Look.OnAccent,
                     FontWeight = FontWeight.SemiBold,
                     FontSize = 13,
@@ -735,7 +739,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         var about = Look.Heading(L("About"));
         about.Margin = new Thickness(0, 10, 0, 0);
         panel.Children.Add(about);
-        panel.Children.Add(Look.Note($"{AppInfo.Name} {AppInfo.Version}\n" + L("Created by {0}", AppInfo.Author) + "\n" + L("Free and open source ({0})", AppInfo.Licence)));
+        panel.Children.Add(Look.Note($"{AppInfo.Name} {AppInfo.Version}\n" + L("Created by {0}", AppInfo.Author) + "\n" + L("With thanks to {0}", AppInfo.Thanks) + "\n" + L("Free and open source ({0})", AppInfo.Licence)));
 
         var flyout = new Flyout { Content = panel, Placement = PlacementMode.BottomEdgeAlignedRight };
         flyout.Opened += (_, _) => { infoOpen = true; ShowEngineStatus(); };
@@ -981,14 +985,14 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         afterShow = null;
     }
 
-    // The Nitro's own rainbow wave, through the helper.
+    // The keyboard's own rainbow wave.
     async Task HandBackZones()
     {
-        var status = await ThermalClient.SetKeyboardAsync(new FourZoneRequest
+        var error = await ZoneLight.SetAsync(new FourZoneRequest
         {
             Colors = [Rgb.White.ToString()], Mode = FourZoneMode.Wave, Speed = FourZoneProtocol.DefaultSpeed,
         });
-        if (!status.Ok) Notify(L("Could not set the keyboard effect: {0}", status.Error ?? L(ThermalClient.HelperMissing)));
+        if (error is not null) Notify(L("Could not set the keyboard effect: {0}", error));
     }
 
     void RefreshPreview()

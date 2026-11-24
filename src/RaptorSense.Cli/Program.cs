@@ -23,13 +23,14 @@ const string Usage = """
       raptorsense lightbar <RRGGBB> [<RRGGBB> <RRGGBB>]   Rear light bar: one colour, or left, centre, right (needs the helper)
       raptorsense lightbar off
       raptorsense lightbar <mode> [--color RRGGBB]        breathing | neon | rainbow | wave | ripple | scanner | strobe
-      raptorsense zones <RRGGBB> [x4]       4-zone keyboard (Nitro 5 AN515-57): one colour, or four left to right (needs the helper)
+      raptorsense zones <RRGGBB> [x4]       4-zone keyboard: one colour, or four left to right (the Nitro 5 AN515-57 needs the helper)
       raptorsense zones off
       raptorsense zones <mode> [--color RRGGBB] [--direction left|right]   breathing | neon | wave | shifting | zoom
 
     Options:
       --color RRGGBB      main colour
       --color2 RRGGBB     second colour (spectrum top, pulse peak)
+      --try ORDER         zones: try it on a laptop that hasn't been checked; zones-first or static-first. Changes only colours
       --speed N           run: speed multiplier (1 = normal); builtin: 1 slowest .. 12 fastest; lightbar mode: 0..10; zones mode: 1..9
       --brightness N      0..50 (default: keyboard's current level); lightbar and zones: 0..100 (default 100)
       --auto on|off       run: rainbow "Auto" colours instead of --color
@@ -76,8 +77,16 @@ catch (Exception e) when (e is FormatException or ArgumentException)
     return 2;
 }
 
+static EneKeyboard? OpenEne() => EneKeyboard.TryOpen(OperatingSystem.IsWindows() ? LaptopModels.ReadModel() : null);
+
 static int Info()
 {
+    using var ene = OpenEne();
+    if (ene is not null)
+    {
+        Console.WriteLine($"Keyboard: 4 zones on an ENE controller ({EneProtocol.VendorId:X4}:{EneProtocol.ProductId:X4}, modes {ene.Capabilities.Modes:X})");
+        return 0;
+    }
     using var keyboard = OpenOrFail();
     if (keyboard is null) return 1;
     Console.WriteLine($"Keyboard: {keyboard.Description}");
@@ -236,7 +245,28 @@ static int SetZones(List<string> args, Dictionary<string, string> options)
     else
         request = request with { Colors = args.Select(a => Rgb.Parse(a).ToString()).ToList() };
 
+    // An ENE keyboard is reached directly; the Nitro 5's goes through the helper.
+    using var ene = OpenEne();
+    if (ene is not null)
+    {
+        try { request.ApplyTo(ene); }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or IOException or NotSupportedException)
+        {
+            Console.Error.WriteLine(e.Message);
+            return 1;
+        }
+        Console.WriteLine("Keyboard zones set.");
+        return 0;
+    }
+
+    if (options.TryGetValue("try", out var tryOrder))
+    {
+        if (!Enum.TryParse<FourZoneOrder>(tryOrder.Replace("-", ""), ignoreCase: true, out var order) || !Enum.IsDefined(order) || char.IsDigit(tryOrder[0]))
+            throw new ArgumentException("--try takes zones-first or static-first.");
+        request = request with { Trial = true, Order = order, Confirm = false, Describe = true };
+    }
     var status = ThermalClient.SetKeyboardAsync(request).GetAwaiter().GetResult();
+    if (status.KeyboardDetail is { } detail) Console.WriteLine(detail);
     if (status.Ok) Console.WriteLine("Keyboard zones set.");
     else Console.Error.WriteLine(status.Error ?? ThermalClient.HelperMissing);
     return status.Ok ? 0 : 1;

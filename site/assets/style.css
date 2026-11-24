@@ -219,6 +219,8 @@ footer nav a:hover { color: var(--text); }
 .tag.music { color: var(--accent); border-color: rgba(255, 143, 63, 0.4); }
 .anim .foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding-top: 14px; }
 .anim .btn { padding: 10px 14px; font-size: 13.6px; }
+.anim .hint { font-size: 13.5px; color: var(--muted); margin: 10px 0 0; overflow-wrap: anywhere; }
+.anim .hint:empty { display: none; }
 .link-btn { background: none; border: 0; color: var(--muted); font: 14px var(--font-body); cursor: pointer; padding: 6px 0; margin-left: auto; }
 .link-btn:hover { color: var(--text); }
 .empty { padding: 48px; text-align: center; color: var(--muted); border: 1px dashed var(--line-2); border-radius: var(--radius); }

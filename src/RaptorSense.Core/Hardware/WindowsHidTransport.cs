@@ -66,6 +66,20 @@ public sealed class WindowsHidTransport : IHidTransport
     static List<(string Path, ushort Pid)> Collections(ushort vid, IReadOnlyList<ushort> pids)
     {
         var found = new List<(string, ushort)>();
+        foreach (var path in InterfacePaths())
+        {
+            foreach (ushort pid in pids)
+            {
+                if (path.Contains($"vid_{vid:x4}&pid_{pid:x4}", StringComparison.OrdinalIgnoreCase)) found.Add((path, pid));
+            }
+        }
+        return found;
+    }
+
+    /// <summary>The paths of every HID collection present.</summary>
+    internal static List<string> InterfacePaths()
+    {
+        var found = new List<string>();
         HidD_GetHidGuid(out Guid hidGuid);
         IntPtr set = SetupDiGetClassDevs(ref hidGuid, IntPtr.Zero, IntPtr.Zero, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
         if (set == new IntPtr(-1)) throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -74,16 +88,27 @@ public sealed class WindowsHidTransport : IHidTransport
             var data = new SP_DEVICE_INTERFACE_DATA { cbSize = Marshal.SizeOf<SP_DEVICE_INTERFACE_DATA>() };
             for (int i = 0; SetupDiEnumDeviceInterfaces(set, IntPtr.Zero, ref hidGuid, i, ref data); i++)
             {
-                string? path = GetInterfacePath(set, ref data);
-                if (path is null) continue;
-                foreach (ushort pid in pids)
-                {
-                    if (path.Contains($"vid_{vid:x4}&pid_{pid:x4}", StringComparison.OrdinalIgnoreCase)) found.Add((path, pid));
-                }
+                if (GetInterfacePath(set, ref data) is { } path) found.Add(path);
             }
         }
         finally { SetupDiDestroyDeviceInfoList(set); }
         return found;
+    }
+
+    /// <summary>Opens a collection for reading and writing. The handle is invalid if Windows refuses.</summary>
+    internal static SafeFileHandle OpenPath(string path) =>
+        CreateFile(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
+
+    /// <summary>The length of the collection's longest feature report, the id included; 0 if it has none.</summary>
+    internal static int FeatureLength(SafeFileHandle handle)
+    {
+        if (!HidD_GetPreparsedData(handle, out IntPtr preparsed)) return 0;
+        try
+        {
+            HidP_GetCaps(preparsed, out var caps);
+            return caps.FeatureReportByteLength;
+        }
+        finally { HidD_FreePreparsedData(preparsed); }
     }
 
     /// <summary>Reads the reports a collection sends by itself, one at a time.</summary>

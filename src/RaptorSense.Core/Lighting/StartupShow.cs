@@ -35,7 +35,7 @@ public sealed class StartupShow(LaptopLayout layout) : IEffect
         Elapsed = ctx.RealTime - start.Value;
         double t = Elapsed;
 
-        if (layout == LaptopLayout.Nitro)
+        if (layout.HasZones())
         {
             foreach (int cell in KeyGeometry.Cells)
             {

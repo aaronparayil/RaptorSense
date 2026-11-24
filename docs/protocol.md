@@ -204,6 +204,56 @@ most ten a second, with `Confirm = false` so the helper skips the read-back.
 Still to check on the AN515-57: the effect modes other than 2, the wave direction, how long a 4-zone update takes
 (for anything faster than static colours), and the brightness keys.
 
+## ENE KB5130: 4-zone keyboards on I2C (2025 Helios Neo and Nitro)
+
+**Not measured by RaptorSense.** Gathered on 2026-11-24 from projects whose authors or users own the laptops:
+[kbrgb](https://github.com/shwetankg07/kbrgb) (`PROTOCOL.md`, tested on a PHN16S-71, BIOS V1.26; MIT),
+[predator-sense](https://github.com/cleyton1986/predator-sense) (`hid_rgb.rs`, PHN16S-71, PHN16-73 and AN16S-61; GPL-3.0) and
+[PreySense](https://github.com/hammadzaigham/PreySense) (`EnekRgbClient.cs`, Windows, PHN16S-71; MIT). RaptorSense's code
+(`EneKeyboard.cs`) was written from these descriptions.
+
+- **Where:** an I2C HID device named `ENEK5130`, ids `0CF2:5130`. A Windows path holds the name, not the ids, so the
+  ids are read with `HidD_GetAttributes`. No administrator rights.
+- **Reported on:** PHN16S-71, ANV16S-41, AN16S-61 (static colours and effects seen working), PHN16-73 (same chip, less
+  checked). **Not** on the PHN16-72 in [kbrgb issue 9](https://github.com/shwetankg07/kbrgb/issues/9): that one has
+  `1025174B` / `6243:0001`, which refuses the reports below.
+- **The gaming firmware is no use on these:** it accepts 4-zone colours and answers OK, but the lights don't change.
+- **Asking first** (feature reports, nothing lights up): read `A1` (11 bytes: `A1 count target…`), where target `21` is the
+  keyboard and `83` the lid logo. Write `A2 target`, then read `A3` (9 bytes: `A3 target .. .. zones modes[4]`), where mode
+  *n* is bit *n* − 1 of the little-endian `modes`. The AN16S-61's keyboard answered `A3 21 01 09 04 FB 07 00 00`.
+- **Lighting** (feature report, 11 bytes): `A4 target mode brightness speed flag R G B zones 00`. Brightness 0 to 100; zones
+  is a mask, 1 2 4 8 from the left, or 0F for all.
+- **Modes:** 2 static, 4 breathing, 5 neon, 7 wave (flag 1 left to right, 2 right to left), 9 zoom, 0A a sweep, 0B twinkling.
+  Breathing and neon were confirmed with flag 0 on the PHN16S-71 and 2 elsewhere. **Never sent:** 1 and 3 (lights off),
+  6 and 8 (glitch on the laptops tried; PreySense calls 8 "shifting"), 0C (freezes the lights until the next change).
+- **Rate:** 50 to 80 reports a second were fine. Effects here send at most 15 frames a second of up to four reports.
+- **Nothing is kept:** after a power-off the keyboard starts on its own rainbow wave. The Fn brightness keys are overridden
+  by the next report.
+
+RaptorSense drives it only if the answers list a keyboard with four zones that takes static colours, whatever the model,
+and never looks for it on the PH16-71 or AN515-57. Fans and power stay read-only on all these laptops. The zones are drawn
+where the AN515-57's are, which may be a little off.
+
+## 4-zone keyboards in the firmware: the opt-in test
+
+Gathered on 2026-11-24, **not measured by RaptorSense**. Owners of these laptops lit the keyboard on Linux through the same
+`AcerGamingFunction` calls as the AN515-57's, so the app offers their owners a test (`FourZoneTrial`,
+`LaptopModels.KeyboardCandidates`):
+
+- [acer-predator-turbo-and-rgb-keyboard-linux-module](https://github.com/JafarAkhondali/acer-predator-turbo-and-rgb-keyboard-linux-module)
+  lists RGB as tested on AN515-45, -55, -56, -58, AN517-41, PH315-52, -53, -54, PH317-53 and PHN18-71. Its issues have
+  owners saying so for PHN16-71 (175, 215), PHN16-72 (228), PHN14-51 (286) and PH315-55 (79, though its table says no).
+- **PHN16-72, doubtful:** [kbrgb issue 9](https://github.com/shwetankg07/kbrgb/issues/9) has one whose firmware took the
+  colours without showing them. There may be two kinds.
+- **Two orders.** *ZonesFirst* is the AN515-57's: switch the zones on, colour them, then static mode. *StaticFirst* is from
+  a PHN14-51 ([Linuwu-Sense issue 150](https://github.com/0x7375646F/Linuwu-Sense/issues/150)): `SetGamingKBBacklight`
+  `00 00 64 00 00 00 00 00 03 01 …`, then switch the zones on and colour them. The test tries the first and offers the second.
+
+The test sends red, green, blue and white once its owner presses Start, and asks what they saw. The helper passes it on only
+on a listed model and only for the keyboard's colours; fans, power and the light bar stay refused. Nothing the firmware
+answers is taken as proof, because some keyboards accept colours they don't show. The report says how the methods take
+their values and what the zones read back.
+
 ## Battery: Windows battery driver
 
 **Confirmed on Windows (2026-11-06), PH16-71, BIOS V1.18, battery AP21A8T**, without administrator rights:
