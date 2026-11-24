@@ -739,7 +739,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
         var about = Look.Heading(L("About"));
         about.Margin = new Thickness(0, 10, 0, 0);
         panel.Children.Add(about);
-        panel.Children.Add(Look.Note($"{AppInfo.Name} {AppInfo.Version}\n" + L("Created by {0}", AppInfo.Author) + "\n" + L("Free and open source ({0})", AppInfo.Licence)));
+        panel.Children.Add(Look.Note($"{AppInfo.Name} {AppInfo.Version}\n" + L("Created by {0}", AppInfo.Author) + "\n" + L("With thanks to {0}", AppInfo.Thanks) + "\n" + L("Free and open source ({0})", AppInfo.Licence)));
 
         var flyout = new Flyout { Content = panel, Placement = PlacementMode.BottomEdgeAlignedRight };
         flyout.Opened += (_, _) => { infoOpen = true; ShowEngineStatus(); };

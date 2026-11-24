@@ -451,5 +451,15 @@ Created by [aaronparayil](https://github.com/aaronparayil).
 
 The keyboard protocol and key map come from [TrueSense](https://github.com/Order52/truesense) (MIT),
 which mapped this keyboard on the same model and BIOS. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
-and the prior-art list in [docs/protocol.md](docs/protocol.md). The download's `licenses` folder lists the
+and the prior-art list in [docs/protocol.md](docs/protocol.md).
+
+Support for more keyboards builds on what these people worked out and shared:
+
+- [hammadzaigham](https://github.com/hammadzaigham), author of [PreySense](https://github.com/hammadzaigham/PreySense) (MIT)
+- [shwetankg07](https://github.com/shwetankg07), author of [kbrgb](https://github.com/shwetankg07/kbrgb) (MIT)
+- [cleyton1986](https://github.com/cleyton1986), author of [predator-sense](https://github.com/cleyton1986/predator-sense) (GPL-3.0)
+- [JafarAkhondali](https://github.com/JafarAkhondali), author of the [Acer Predator Linux module](https://github.com/JafarAkhondali/acer-predator-turbo-and-rgb-keyboard-linux-module) (GPL-3.0)
+- [0x7375646F](https://github.com/0x7375646F), author of [Linuwu-Sense](https://github.com/0x7375646F/Linuwu-Sense) (GPL-3.0)
+
+RaptorSense's code for these keyboards is its own, and none of these projects is affiliated with it. The download's `licenses` folder lists the
 licence of every library it bundles.
