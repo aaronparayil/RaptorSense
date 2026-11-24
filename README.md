@@ -39,7 +39,7 @@ all here to read or [build yourself](#build-from-source). Tested on the **Predat
 
 ## Where it stands
 
-The current release is **1.8.9**, for Windows. One download works on both tested laptops: the app reads the laptop's
+The current release is **1.9**, for Windows. One download works on both tested laptops: the app reads the laptop's
 model when it starts and shows what works on it.
 
 | | Predator Helios 16 PH16-71 | Nitro 5 AN515-57 |
@@ -52,8 +52,8 @@ model when it starts and shows what works on it.
 | Rear light bar | Works | The laptop has none |
 | PREDATOR key and Fn brightness keys | Works | Not supported yet |
 
-**On other Acer laptops:** per-key lighting works only if the keyboard is one of the known ones, and fans and power
-are read-only until the model has been checked. See [Will it work on my laptop?](#will-it-work-on-my-laptop)
+**On other Acer laptops:** per-key lighting works only if the keyboard is one of the known ones. Since 1.9, some more
+4-zone keyboards can be tried, untested by us. Fans and power are read-only until the model has been checked. See [Will it work on my laptop?](#will-it-work-on-my-laptop)
 
 **Linux:** a [preview to test](https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-2), now at 1.8.8, is up, separate from the
 Windows download. It lights the Helios's per-key keyboard, but that has **not driven a real keyboard yet**, so testers
