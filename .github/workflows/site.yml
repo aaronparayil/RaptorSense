@@ -45,5 +45,9 @@ jobs:
         with:
           path: _site
 
+      # The deploy step looks the upload up by its name, and GitHub doesn't always list it straight away (seen 2026-11-24).
+      - name: Give the upload time to be listed
+        run: sleep 25
+
       - id: deployment
         uses: actions/deploy-pages@v4
