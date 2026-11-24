@@ -6,7 +6,7 @@ name: Website
 on:
   push:
     branches: [main]
-    paths: [site/**, docs/*.png, docs/*.gif, .github/workflows/site.yml]
+    paths: [site/**, docs/*.png, docs/demo.mp4, docs/demo-poster.jpg, .github/workflows/site.yml]
   workflow_dispatch:
   workflow_call:
 
@@ -37,7 +37,7 @@ jobs:
         run: |
           mkdir -p _site/media
           cp -r site/. _site/
-          cp docs/demo.gif docs/gallery.png docs/screenshot.png docs/animations.png _site/media/
+          cp docs/demo.mp4 docs/demo-poster.jpg docs/gallery.png docs/screenshot.png docs/animations.png _site/media/
 
       - uses: actions/configure-pages@v5
 

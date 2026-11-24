@@ -1,8 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using RaptorSense.Layout;
 using RaptorSense.Lighting;
 using RaptorSense.Profiles;
+using RaptorSense.Thermal;
 using Xunit;
 
 namespace RaptorSense.Tests;
@@ -48,6 +50,33 @@ public sealed class SiteTests
             ["keys"] = keys,
         };
         return layout.ToJsonString(Indented).ReplaceLineEndings("\n") + "\n";
+    }
+
+    /// <summary>The models the home page lists under one of its answers.</summary>
+    static List<string> ModelsListedAs(string state)
+    {
+        var page = File.ReadAllText(Path.Combine(Site, "index.html"));
+        var list = Regex.Match(page, $"""data-state="{state}".*?</ul>""", RegexOptions.Singleline);
+        Assert.True(list.Success, state);
+        return Regex.Matches(list.Value, "data-model=\"([^\"]+)\"").Select(m => m.Groups[1].Value).ToList();
+    }
+
+    [Fact]
+    public void The_site_lists_the_models_the_app_does()
+    {
+        Assert.Equal(LaptopModels.Verified.Concat(LaptopModels.FourZoneKeyboards).Order(), ModelsListedAs("tested").Order());
+        Assert.Equal(LaptopModels.KeyboardCandidates.Order(), ModelsListedAs("test").Order());
+        var all = new[] { "tested", "found", "test", "report" }.SelectMany(ModelsListedAs).ToList();
+        Assert.Equal(all.Distinct().Count(), all.Count);
+        Assert.Equal(all.Order(), Regex.Matches(File.ReadAllText(Path.Combine(Site, "index.html")), "data-model=\"([^\"]+)\"").Select(m => m.Groups[1].Value).Order());
+    }
+
+    [Fact]
+    public void The_sites_and_readmes_commands_have_no_stray_control_characters()
+    {
+        var files = Directory.GetFiles(Site, "*.html").Append(Path.Combine(Site, "..", "README.md"));
+        foreach (var file in files)
+            Assert.DoesNotMatch(@"[\x00-\x08\x0B\x0C\x0E-\x1F]|\r(?!\n)", File.ReadAllText(file));
     }
 
     [Fact]

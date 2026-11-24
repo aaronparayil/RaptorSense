@@ -52,3 +52,12 @@ async function start() {
 }
 
 start().catch(() => { /* The page reads fine without the keyboard. */ });
+
+// The demo film loads and plays only while it's in sight, and only by hand when the visitor asked for less motion.
+const demo = document.getElementById("demo");
+if (demo && "IntersectionObserver" in window) {
+  new IntersectionObserver(([entry]) => {
+    if (entry.isIntersecting && !reducedMotion.matches) demo.play().catch(() => {});
+    else if (!entry.isIntersecting) demo.pause();
+  }, { threshold: 0.4 }).observe(demo);
+}

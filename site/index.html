@@ -5,9 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RaptorSense: lighting and fans for Acer Predator laptops</title>
   <meta name="description" content="A free, open-source alternative to PredatorSense and NitroSense. 147 keyboard lighting effects, your own animations, lighting that follows your music and typing, plus fan and power control. No account, no telemetry.">
+  <link rel="canonical" href="https://aaronkp.tech/RaptorSense/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://aaronkp.tech/RaptorSense/">
   <meta property="og:title" content="RaptorSense">
   <meta property="og:description" content="A free, open-source alternative to PredatorSense and NitroSense for Acer Predator and Nitro laptops.">
   <meta property="og:image" content="https://aaronparayil.github.io/RaptorSense/media/gallery.png">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#0c0f15">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,6 +19,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="assets/style.css">
   <script type="module" src="assets/home.js"></script>
+  <script type="module" src="assets/laptops.js"></script>
 </head>
 <body>
   <header class="top">
@@ -22,10 +27,10 @@
       <a class="brand" href="./">RaptorSense</a>
       <nav class="nav" aria-label="Main">
         <a class="wide" href="#features">Features</a>
-        <a class="wide" href="#laptops">Laptops</a>
+        <a href="#laptops">Laptops</a>
         <a href="animations.html">Animations</a>
         <a class="wide" href="#faq">FAQ</a>
-        <a href="https://github.com/aaronparayil/RaptorSense">GitHub</a>
+        <a class="mid" href="https://github.com/aaronparayil/RaptorSense">GitHub</a>
       </nav>
       <a class="btn primary" href="https://github.com/aaronparayil/RaptorSense/releases/latest">Download</a>
     </div>
@@ -50,7 +55,7 @@
             </a>
             <a class="btn" href="animations.html">Browse animations</a>
           </div>
-          <p class="small">Tested on the Predator Helios 16 PH16-71 and the Nitro 5 AN515-57. A <a href="https://github.com/aaronparayil/RaptorSense/releases/tag/linux-preview-2">Linux preview</a> is being tested.</p>
+          <p class="small"><b>New in 1.9:</b> <a href="#laptops">more keyboards to try</a>, and it can run <a href="#preysense">beside PreySense</a>. Tested on the Helios 16 PH16-71 and the Nitro 5 AN515-57.</p>
         </div>
 
         <figure class="stage" style="margin:0">
@@ -97,7 +102,7 @@
           <div class="card">
             <div class="icon sky"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M12 10c0-4 1-7 4-7s3 4 0 6M14 12c4 0 7 1 7 4s-4 3-6 0M12 14c0 4-1 7-4 7s-3-4 0-6M10 12c-4 0-7-1-7-4s4-3 6 0"/></svg></div>
             <h3>Fans and power</h3>
-            <p>Power profiles, fans on Auto, Max or speeds you set, live temperatures, the rear light bar, and battery health. Only changed on models where they've been tested.</p>
+            <p>Power profiles, fans on Auto, Max or speeds you set, live temperatures, the rear light bar, and battery health. Only changed on models where they've been tested, and left alone if another app has them.</p>
           </div>
           <div class="card">
             <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7z"/></svg></div>
@@ -120,7 +125,7 @@
           <figcaption>The gallery: every effect plays at once, so you can see them before you pick.</figcaption>
         </figure>
         <figure class="shot" style="margin:0">
-          <img src="media/demo.gif" alt="The gallery on a Predator Helios 16's screen while its real keyboard changes with each effect picked" loading="lazy" width="480" height="456">
+          <video id="demo" src="media/demo.mp4" poster="media/demo-poster.jpg" width="480" height="456" muted loop playsinline controls preload="none" aria-label="The gallery on a Predator Helios 16's screen while its real keyboard changes with each effect picked. No sound."></video>
           <figcaption>On a real Helios 16: a click in the gallery and the keyboard follows.</figcaption>
         </figure>
       </div>
@@ -131,10 +136,74 @@
         <div class="section-head">
           <div>
             <h2>Will it work on my laptop?</h2>
-            <p>One download covers both tested laptops. On other models RaptorSense is careful: it lights only keyboards it knows, and it reads fans and power without changing them until that model has been checked.</p>
+            <p>Two laptops are tested. Since 1.9, more keyboards can be tried. Everywhere else RaptorSense is careful: it lights only keyboards it knows, and reads fans and power without changing them until that model has been checked.</p>
           </div>
           <a class="btn" href="https://github.com/aaronparayil/RaptorSense/issues/new?template=laptop-report.yml">Report your laptop</a>
         </div>
+
+        <form class="finder" id="finder" hidden>
+          <label for="model">Your laptop's model</label>
+          <div class="finder-row">
+            <input id="model" type="text" placeholder="For example PHN16-72" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" aria-describedby="finder-help">
+            <button class="btn primary" type="submit">Check</button>
+          </div>
+          <p class="small" id="finder-help">It's on the sticker underneath. Or open PowerShell and run <code>(Get-CimInstance Win32_ComputerSystem).Model</code></p>
+          <div class="finder-result" id="finder-result" role="status"></div>
+        </form>
+
+        <div class="models" id="models">
+          <div class="card" data-state="tested">
+            <h3><span class="dot ok"></span>Tested by us</h3>
+            <p>Lighting and fans work. On the Helios, power modes and the light bar too.</p>
+            <ul>
+              <li data-model="PH16-71">Predator Helios 16 <b>PH16-71</b></li>
+              <li data-model="AN515-57">Nitro 5 <b>AN515-57</b></li>
+            </ul>
+          </div>
+          <div class="card" data-state="found">
+            <h3><span class="dot try"></span>Should be found by itself</h3>
+            <p>Four zones on an <code>ENEK5130</code> chip. No admin rights. <b>Not tried by us.</b></p>
+            <ul>
+              <li data-model="PHN16S-71">Helios Neo 16S AI <b>PHN16S-71</b></li>
+              <li data-model="PHN16-73">Helios Neo 16 AI <b>PHN16-73</b></li>
+              <li data-model="ANV16S-41">Nitro V 16S AI <b>ANV16S-41</b></li>
+              <li data-model="AN16S-61">Nitro 16S AI <b>AN16S-61</b></li>
+            </ul>
+          </div>
+          <div class="card" data-state="test">
+            <h3><span class="dot try"></span>Try the keyboard test</h3>
+            <p>Four zones through the firmware. Changes only colours. <b>Not tried by us.</b></p>
+            <ul>
+              <li data-model="PHN16-71">Helios Neo 16 <b>PHN16-71</b></li>
+              <li data-model="PHN16-72">Helios Neo 16 <b>PHN16-72</b></li>
+              <li data-model="PHN14-51">Helios Neo 14 <b>PHN14-51</b></li>
+              <li data-model="PHN18-71">Helios Neo 18 <b>PHN18-71</b></li>
+              <li data-model="PH315-52">Helios 300 <b>PH315-52</b></li>
+              <li data-model="PH315-53">Helios 300 <b>PH315-53</b></li>
+              <li data-model="PH315-54">Helios 300 <b>PH315-54</b></li>
+              <li data-model="PH315-55">Helios 300 <b>PH315-55</b></li>
+              <li data-model="PH317-53">Helios 300 <b>PH317-53</b></li>
+              <li data-model="AN515-45">Nitro 5 <b>AN515-45</b></li>
+              <li data-model="AN515-55">Nitro 5 <b>AN515-55</b></li>
+              <li data-model="AN515-56">Nitro 5 <b>AN515-56</b></li>
+              <li data-model="AN515-58">Nitro 5 <b>AN515-58</b></li>
+              <li data-model="AN517-41">Nitro 5 <b>AN517-41</b></li>
+            </ul>
+          </div>
+          <div class="card" data-state="report">
+            <h3><span class="dot"></span>We need a report</h3>
+            <p>Nobody has told us yet which keyboard these have.</p>
+            <ul>
+              <li data-model="PH16-72">Predator Helios 16 <b>PH16-72</b></li>
+              <li data-model="PH16-73">Predator Helios 16 AI <b>PH16-73</b></li>
+              <li data-model="PH18-71">Predator Helios 18 <b>PH18-71</b></li>
+              <li data-model="PH18-72">Predator Helios 18 <b>PH18-72</b></li>
+              <li data-model="PH18-73">Predator Helios 18 AI <b>PH18-73</b></li>
+            </ul>
+          </div>
+        </div>
+
+        <h3 class="sub">On the tested laptops</h3>
         <div class="table-wrap">
           <table>
             <thead><tr><th scope="col"></th><th scope="col">Predator Helios 16 PH16-71</th><th scope="col">Nitro 5 AN515-57</th></tr></thead>
@@ -151,8 +220,12 @@
         </div>
         <div class="split">
           <div class="card">
-            <h3>Another Predator?</h3>
-            <p>Per-key lighting works on keyboards <code>04F2:0117</code>, <code>011A</code> and <code>0119</code>. The <a href="https://github.com/aaronparayil/RaptorSense/issues/new?template=laptop-report.yml">laptop report</a> tells you which keyboard you have with one command, and it's how new models get added.</p>
+            <h3>Another Acer?</h3>
+            <p>Per-key lighting works on keyboards <code>04F2:0117</code>, <code>011A</code> and <code>0119</code>. The <a href="https://github.com/aaronparayil/RaptorSense/issues/new?template=laptop-report.yml">laptop report</a> shows which keyboard you have with one command, and it's how new models get added.</p>
+          </div>
+          <div class="card" id="preysense">
+            <h3>Using PreySense?</h3>
+            <p>While <a href="https://github.com/hammadzaigham/PreySense">PreySense</a> runs, RaptorSense does lighting only and leaves fans, power modes and the PREDATOR key to it. Set your lighting in one app, because both can light the keyboard. We haven't tried it with PreySense itself yet.</p>
           </div>
           <div class="card">
             <h3>On Linux?</h3>
@@ -186,7 +259,11 @@
           </details>
           <details>
             <summary>Do I need to close PredatorSense?</summary>
-            <p>Yes. Both try to drive the keyboard, so close PredatorSense (or NitroSense) before you start RaptorSense.</p>
+            <p>Yes. Both try to drive the keyboard, so close PredatorSense (or NitroSense) before you start RaptorSense. PreySense can stay open: <a href="#preysense">RaptorSense then does lighting only</a>.</p>
+          </details>
+          <details>
+            <summary>What does the keyboard test do?</summary>
+            <p>It shows red, green, blue and white across the keyboard, left to right, and asks what you see. RaptorSense uses the keyboard only if you say it's right. It changes nothing but colours, and needs the small helper from the Performance tab. The colours may stay until the laptop restarts.</p>
           </details>
           <details>
             <summary>Does it send anything anywhere?</summary>
@@ -194,11 +271,11 @@
           </details>
           <details>
             <summary>Does it need administrator rights?</summary>
-            <p>Not for the keyboard on the Helios. Fans, power modes and the light bar go through a small helper you install from the Performance tab, which asks once. On the Nitro, the keyboard goes through that helper too.</p>
+            <p>Not for a per-key keyboard, or one with an <code>ENEK5130</code> chip. Fans, power modes and the light bar go through a small helper you install from the Performance tab, which asks once. On the Nitro 5 and the keyboards in the test, lighting goes through that helper too.</p>
           </details>
           <details>
             <summary>How do I install, update or remove it?</summary>
-            <p>Extract the zip to a folder you'll keep and run <code>RaptorSense.exe</code>. To update, quit it from the tray and extract the new zip over the old folder; your profiles and animations stay. To remove it, run <code>Remove fan control.cmd</code> if you installed fan control, then delete the folder.</p>
+            <p>Extract the zip to a folder you'll keep and run <code>RaptorSense.exe</code>. To update, quit it from the tray and extract the new zip over the old folder; your profiles and animations stay. To remove it, run <code>Remove fan control.cmd</code> if you installed fan control, then delete the folder. So website links stop looking for it, also run <code>reg delete HKCU\Software\Classes\raptorsense /f</code>.</p>
           </details>
           <details>
             <summary>Is this made by Acer?</summary>
@@ -218,7 +295,8 @@
         <a href="https://github.com/aaronparayil/RaptorSense#privacy">Privacy</a>
         <a href="https://github.com/aaronparayil/RaptorSense/blob/main/LICENSE">Licence (GPL-3.0-or-later)</a>
       </nav>
-      <p>Made by <a href="https://github.com/aaronparayil">aaronparayil</a>. The keyboard protocol and key map come from <a href="https://github.com/Order52/truesense">TrueSense</a>.</p>
+      <p>Made by <a href="https://github.com/aaronparayil">aaronparayil</a>. The Helios 16's keyboard protocol and key map come from <a href="https://github.com/Order52/truesense">TrueSense</a>.</p>
+      <p>With thanks to <a href="https://github.com/hammadzaigham">hammadzaigham</a> (PreySense), <a href="https://github.com/shwetankg07">shwetankg07</a> (kbrgb), <a href="https://github.com/cleyton1986">cleyton1986</a> (predator-sense), <a href="https://github.com/JafarAkhondali">JafarAkhondali</a> and <a href="https://github.com/0x7375646F">0x7375646F</a> (Linuwu-Sense), whose findings the newer keyboards build on. Not affiliated with any of them.</p>
       <p>Unofficial. Not affiliated with or endorsed by Acer. "Predator", "Nitro", "PredatorSense" and "NitroSense" are Acer trademarks, used here only to describe compatibility. No analytics or tracking on this site; its fonts come from Google Fonts.</p>
     </div>
   </footer>
