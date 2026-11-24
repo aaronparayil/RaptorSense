@@ -12,8 +12,8 @@ plus fan and power control. No account, no telemetry.
 ![Runs on Windows](https://img.shields.io/badge/runs%20on-Windows-38bdf8)
 
 [**Download**](https://github.com/aaronparayil/RaptorSense/releases/latest) ·
-[Website](https://aaronparayil.github.io/RaptorSense/) ·
-[Shared animations](https://aaronparayil.github.io/RaptorSense/animations.html) ·
+[Website](https://aaronkp.tech/RaptorSense/) ·
+[Shared animations](https://aaronkp.tech/RaptorSense/animations.html) ·
 [Where it stands](#where-it-stands) ·
 [Will it work on my laptop?](#will-it-work-on-my-laptop) ·
 [Report your laptop](https://github.com/aaronparayil/RaptorSense/issues/new?template=laptop-report.yml) ·
@@ -31,6 +31,9 @@ plus fan and power control. No account, no telemetry.
 
 Created by [aaronparayil](https://github.com/aaronparayil). Free and open source, forever. Built with the help of
 [Claude Code](https://claude.com/claude-code), and tested on real laptops.
+
+**New in 1.9:** [more keyboards to try](#will-it-work-on-my-laptop), untested by us, and it can run
+[beside PreySense](#beside-preysense).
 
 **Before you download:** the app isn't code-signed, so Windows may warn "Windows protected your PC" the first time
 (choose **More info**, then **Run anyway**). Each release lists the zip's SHA-256 so you can check it, and the code is
@@ -64,8 +67,9 @@ Music and typing effects, fans, power and automations are still to come on Linux
 
 ## What you get
 
-- **Two laptops, one download.** A Helios 16 with a per-key keyboard and a Nitro 5 with a 4-zone one, each seeing its
-  own controls.
+- **One download for every laptop it knows.** A Helios 16 with a per-key keyboard, a Nitro 5 with a 4-zone one, and since
+  1.9 more 4-zone keyboards to try, each seeing its own controls.
+- **Room for PreySense.** While PreySense runs, RaptorSense does lighting only and leaves it the fans and power modes.
 - **Lighting that follows the real keys.** 147 effects: 96 animated and static ones, 14 that move to your music, 23 that
   react to typing and the keyboard's own 13, all drawn on a live preview of your keyboard at 60 fps. Paint single keys by hand, pick two colours or
   let it run a rainbow.
@@ -91,6 +95,15 @@ Filmed on a Predator Helios 16 with RaptorSense 1.8.8, sped up twice: the galler
 <img src="docs/screenshot.png" alt="The Lighting tab: a rainbow wave on the keyboard preview, with colours, speed, profiles and the list of effects around it" width="920">
 
 ## Will it work on my laptop?
+
+Check yours on the [website](https://aaronkp.tech/RaptorSense/#laptops), or here:
+
+| | Models | What works |
+|---|---|---|
+| **Tested by us** | Helios 16 PH16-71, Nitro 5 AN515-57 | See [Where it stands](#where-it-stands) |
+| **Should be found by itself, not tried by us** | Helios Neo 16S PHN16S-71, Helios Neo 16 PHN16-73, Nitro V 16S ANV16S-41, Nitro 16S AN16S-61 | Lighting in four zones; fans and power read-only |
+| **Keyboard test, not tried by us** | Helios Neo PHN14-51, PHN16-71, PHN16-72, PHN18-71; Helios 300 PH315-52 to -55, PH317-53; Nitro 5 AN515-45, -55, -56, -58, AN517-41 | Lighting in four zones if the test shows the right colours; fans and power read-only |
+| **We need a report** | Helios 16 PH16-72 and PH16-73, Helios 18, anything else | Per-key lighting only if its keyboard is a known one; fans and power read-only |
 
 Tested on two machines so far: **Predator Helios 16 PH16-71** (BIOS V1.18, per-key keyboard `04F2:0117`) and
 **Nitro 5 AN515-57** (BIOS V1.22, 4-zone keyboard). One download works on both: the app reads the laptop's model
@@ -128,7 +141,7 @@ The [probe](#other-laptops) helps add new models.
 
 1. Download the zip from [Releases](https://github.com/aaronparayil/RaptorSense/releases/latest). You don't need to install .NET.
 2. Extract it to a folder you'll keep, such as `Documents\RaptorSense`.
-3. Run `RaptorSense.exe`. Close PredatorSense first, because both try to drive the keyboard.
+3. Run `RaptorSense.exe`. Close PredatorSense first, because both try to drive the keyboard. ([PreySense](#beside-preysense) can stay open.)
 
 The download isn't code-signed, so Windows may show "Windows protected your PC". Choose **More info**, then **Run anyway**.
 If you'd rather not trust a download, [build it yourself](#build-from-source).
@@ -147,7 +160,7 @@ changed the helper too.
 1. If you installed fan control, double-click `Remove fan control.cmd`.
 2. Turn off **Start with Windows** in the app if you turned it on.
 3. Quit from the tray and delete the folder. Your profiles are in `%APPDATA%\RaptorSense`; delete that too if you don't want them.
-4. So `raptorsense://` links no longer look for it, run `reg delete HKCU\Software\Classesaptorsense /f`.
+4. So `raptorsense://` links no longer look for it, run `reg delete HKCU\Software\Classes\raptorsense /f`.
 
 ## Features
 
@@ -171,6 +184,9 @@ changed the helper too.
 | Start with Windows (no admin needed), starts hidden with your last setup | Works |
 | Start-up light show: a few seconds of rainbow, strobes and flashes when RaptorSense starts | Works on both keyboards. **Off unless you switch it on** (Lighting tab), because it flashes |
 | Nitro 5 AN515-57: 4-zone keyboard with a colour per zone, the keyboard's own effects, 16 zone effects, and fans | Works; needs fan control installed. At most ten changes a second, so it is less smooth than per-key |
+| 4-zone keyboards on an `ENEK5130` chip, with the same zone effects, up to 15 changes a second, no admin rights | New in 1.9; not tried by us |
+| Keyboard test for 14 more 4-zone models | New in 1.9; not tried by us. Needs the helper, changes only colours |
+| Lighting only, beside PreySense | New in 1.9; not tried with PreySense itself yet |
 | Power profiles, fans (Auto / Max / Custom) and live temperatures | Works; needs fan control installed (a button on the Performance tab). Changes nothing on models that haven't been tested |
 | Rear light bar: a colour per zone, brightness, and its 6 built-in animations | Works; needs fan control installed. No live effects or music sync on it yet |
 | Battery: charge cycles and health, from Windows' battery driver | Works |
@@ -371,7 +387,7 @@ the website. Then it fetches the website's list or that one animation file from 
 nothing but the request. See `src/RaptorSense.Core/Profiles/SharedAnimations.cs`.
 
 So the website's button can open it, RaptorSense registers `raptorsense://` links for your Windows account each time
-it starts (no administrator rights; `HKCU\Software\Classesaptorsense`). Such a link can only name an animation on
+it starts (no administrator rights; `HKCU\Software\Classes\raptorsense`). Such a link can only name an animation on
 the website; it can't point the app anywhere else.
 
 Typing effects need a Windows keyboard hook. RaptorSense uses it only to learn **which key position** was
