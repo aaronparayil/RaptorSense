@@ -38,7 +38,22 @@ sealed class PerformancePanel : UserControl
     IReadOnlyList<PowerProfile> shownProfiles = [];
     bool busy, slidersLoaded, choosingCustom;
 
-    public PerformancePanel()
+    // Who has the fans, the power mode and the PREDATOR key: RaptorSense, or another app beside it.
+    readonly ComboBox owner = new()
+    {
+        ItemsSource = new[]
+        {
+            L("Leave them to PreySense while it runs"), L("Always RaptorSense"), L("Always another app (RaptorSense does lighting only)"),
+        },
+        MinWidth = 320,
+    };
+    readonly TextBlock ownerNote = new() { TextWrapping = TextWrapping.Wrap, Foreground = Look.Muted, FontSize = 12 };
+    readonly Button letGo = new() { Content = L("Hand the fans back to Auto"), IsVisible = false };
+    readonly List<Control> ownControls = [];   // hidden while another app has them
+    bool handsOff;
+
+    /// <param name="ownerChanged">Called when the choice of who has the fans and power mode changes.</param>
+    public PerformancePanel(Action ownerChanged)
     {
         var tiles = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, -12, -12) };   // takes back the last tile's gap
         tiles.Children.Add(Tile(L("CPU"), cpuTemp));
@@ -51,6 +66,8 @@ sealed class PerformancePanel : UserControl
         custom.IsCheckedChanged += (_, _) => { if (custom.IsChecked == true && !updating) choosingCustom = true; UpdateCustomEnabled(); };
         cpuSpeed.ValueChanged += (_, e) => cpuSpeedText.Text = L("CPU fan {0:N0}%", e.NewValue);
         gpuSpeed.ValueChanged += (_, e) => gpuSpeedText.Text = L("GPU fan {0:N0}%", e.NewValue);
+        cpuSpeedText.Text = L("CPU fan {0:N0}%", cpuSpeed.Value);
+        gpuSpeedText.Text = L("GPU fan {0:N0}%", gpuSpeed.Value);
         apply.Click += async (_, _) => { await SendFans(FanMode.Custom); choosingCustom = false; };
 
         setup.Click += async (_, _) => await InstallHelper();
@@ -71,9 +88,28 @@ sealed class PerformancePanel : UserControl
         {
             // The install button stays usable while the controls are greyed out: it's how they become usable.
             var fans = new StackPanel { Spacing = 14, Children = { setupRow, fanControls } };
-            if (ThisLaptop.HasPowerControl) controls.Children.Add(Look.Card(profiles, L("Power profile")));
+            if (ThisLaptop.HasPowerControl)
+            {
+                var power = Look.Card(profiles, L("Power profile"));
+                ownControls.Add(power);
+                controls.Children.Add(power);
+            }
             else fans.Children.Add(Look.Note(L("Power modes haven't been tested on this laptop yet, so they aren't shown.")));
-            controls.Children.Add(Look.Card(fans, L("Fans")));
+            var fansCard = Look.Card(fans, L("Fans"));
+            if (ThisLaptop.KeyboardNeedsHelper) ownControls.Add(fanControls);   // its card also installs the keyboard's helper
+            else ownControls.Add(fansCard);
+            controls.Children.Add(fansCard);
+
+            owner.SelectedIndex = (int)LightingOnly.Choice;
+            owner.SelectionChanged += async (_, _) =>
+            {
+                if (owner.SelectedIndex < 0) return;
+                LightingOnly.Choice = (HandsOffChoice)owner.SelectedIndex;
+                ownerChanged();
+                await Refresh();
+            };
+            letGo.Click += async (_, _) => await SendFans(FanMode.Auto);
+            controls.Children.Add(Look.Card(new StackPanel { Spacing = 10, Children = { owner, ownerNote, letGo } }, L("Fans, power mode and the PREDATOR key")));
         }
         else
         {
@@ -171,6 +207,19 @@ sealed class PerformancePanel : UserControl
         await Refresh();
     }
 
+    // Lighting only: another app has the fans, the power mode and the PREDATOR key, so nothing here may change them.
+    void ShowOwner(ThermalStatus status, bool connected)
+    {
+        if (!ThisLaptop.HasFanControl) return;
+        handsOff = LightingOnly.Active;
+        foreach (var control in ownControls) control.IsVisible = !handsOff;
+        // What RaptorSense asked for before the other app took over still holds until someone lets go of it.
+        letGo.IsVisible = handsOff && connected && status.FanMode != FanMode.Auto;
+        ownerNote.Text = !handsOff ? L("Two apps setting the fans undo each other, so let one of them have all of this.")
+            : L("RaptorSense is doing lighting only. It won't change the fans or the power mode, automations included, and it leaves the PREDATOR key alone.") +
+              (letGo.IsVisible ? " " + L("The fans are still on RaptorSense's own setting.") : "");
+    }
+
     void ShowSetup(ThermalStatus status, bool connected)
     {
         // Offered when the helper isn't there, or is older than this app. Only possible when the app has a helper to install.
@@ -203,6 +252,7 @@ sealed class PerformancePanel : UserControl
         fanControls.IsEnabled = connected && !status.ReadOnly;
         // Helpers before revision 4 don't say; for them, "not read-only" meant power modes too.
         profiles.IsEnabled = connected && !status.ReadOnly && (status.PowerControl || status.HelperRevision < 4);
+        ShowOwner(status, connected);
         ShowSetup(status, connected);
         helperState.Text = !connected ? status.Error ?? L(ThermalClient.HelperMissing)
             : status.ReadOnly && !ThisLaptop.HasFanControl ? L("Connected to the RaptorSense helper.")   // the card below says why there are no controls

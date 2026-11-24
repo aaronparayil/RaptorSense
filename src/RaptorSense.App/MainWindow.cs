@@ -129,7 +129,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
                 new TabItem { Header = L("Keyboard zones"), Content = zonesPanel, IsVisible = HasFourZoneKeyboard },
                 // Offered on models where a 4-zone keyboard is likely to work but hasn't been checked.
                 new TabItem { Header = L("Keyboard test"), Content = ThisLaptop.CanTryFourZones ? new KeyboardTestPanel() : null, IsVisible = ThisLaptop.CanTryFourZones },
-                new TabItem { Header = L("Performance"), Content = new PerformancePanel() },
+                new TabItem { Header = L("Performance"), Content = new PerformancePanel(automations.Reconsider) },
                 new TabItem { Header = L("Automations"), Content = new AutomationsPanel(automations) },
             },
         };
@@ -213,7 +213,7 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     // back in the tray.
     void OnPredatorKey()
     {
-        if (shutDown) return;
+        if (shutDown || LightingOnly.Active) return;   // the other app has this key
         if (IsVisible && IsActive && WindowState != WindowState.Minimized) Close();
         else ShowFromTray();
     }
@@ -227,6 +227,8 @@ sealed class MainWindow : Window, IAutomationTarget, IGalleryHost
     }
 
     // ---- Automations ----
+
+    bool IAutomationTarget.LeavesFansAndPower => LightingOnly.Active;
 
     Profile IAutomationTarget.CaptureLighting()
     {

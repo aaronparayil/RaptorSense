@@ -62,6 +62,9 @@ sealed class AutomationRunner : IDisposable
 
     public void Start() => Refresh();
 
+    /// <summary>Looks at the rules again, after something they can't see changed (who has the fans and power mode).</summary>
+    public void Reconsider() => Evaluate();
+
     /// <summary>Saves new settings and acts on them straight away.</summary>
     public void Update(AutomationSettings settings)
     {

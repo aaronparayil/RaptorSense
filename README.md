@@ -321,6 +321,16 @@ Safety rules, enforced by the helper (tests in `tests/RaptorSense.Tests`):
 - When the helper stops, the fans go back to Auto. After a crash, it resets leftover custom speeds on its next start.
 - Power profiles are limited to the ones the firmware reports, and every change is read back.
 
+### Beside PreySense
+
+[PreySense](https://github.com/hammadzaigham/PreySense) controls fans, power limits and more on Predator laptops. The two
+can run together if one of them has the fans. While PreySense runs, RaptorSense does **lighting only**: it leaves the fans,
+the power mode and the PREDATOR key alone, automations included. The Performance tab shows this and lets you choose who
+has them. PreySense lights the keyboard too, so set your lighting in one app; RaptorSense's effects play over PreySense's.
+You don't need RaptorSense's fan control installed for per-key lighting. If it is, note that after a restart it puts
+custom fan speeds left over from before back to Auto. A PH16-71 owner has run both without our fan control; the rest of
+this hasn't been tried with PreySense yet.
+
 ## Command line
 
 The download includes `cli\raptorsense.exe`:

@@ -30,6 +30,11 @@ sealed class AutomationsPanel : UserControl
     readonly ToggleSwitch master = new() { OnContent = L("Automations on"), OffContent = L("Automations off") };
     readonly StackPanel cards = new() { Spacing = 12 };
     readonly TextBlock problem = new() { Foreground = Look.Warning, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+    readonly TextBlock lightingOnly = new()
+    {
+        Text = L("Lighting only: another app has the fans and the power mode, so rules leave them alone."),
+        Foreground = Look.Muted, TextWrapping = TextWrapping.Wrap, IsVisible = false,
+    };
     readonly List<TextBlock> activeTags = [];
 
     public AutomationsPanel(AutomationRunner runner)
@@ -63,6 +68,7 @@ sealed class AutomationsPanel : UserControl
         intro.Children.Add(master);
 
         var page = new StackPanel { Spacing = 14, Margin = new Thickness(28, 12, 28, 16), MaxWidth = 1100 };
+        intro.Children.Add(lightingOnly);
         page.Children.Add(Look.Card(intro, L("Automations")));
         page.Children.Add(cards);
         page.Children.Add(add);
@@ -93,6 +99,7 @@ sealed class AutomationsPanel : UserControl
 
     void ShowState()
     {
+        lightingOnly.IsVisible = ThisLaptop.HasFanControl && LightingOnly.Active;
         var rules = runner.Settings.Rules;
         var state = runner.State;
         for (int i = 0; i < activeTags.Count && i < rules.Count; i++)

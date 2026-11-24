@@ -258,6 +258,7 @@ public sealed class AutomationTests
         public PowerProfile Power = PowerProfile.Balanced;
         public (FanMode Mode, int Cpu, int Gpu) Fans = (FanMode.Custom, 65, 70);
         public bool HelperMissing;
+        public bool LeavesFansAndPower { get; set; }
         public TaskCompletionSource? Gate;
         public HashSet<string> Profiles = ["gaming", "dim"];
 
@@ -406,6 +407,62 @@ public sealed class AutomationTests
         await controller.RequestAsync(default);   // nothing was remembered, so nothing is sent to put back
         Assert.Equal("mine", target.Lighting.Name);
         Assert.Null(controller.LastProblem);
+    }
+
+    static readonly AutomationOutcome GamingTurboMax = new("gaming", PowerProfile.Turbo, FanMode.Max);
+
+    [Fact]
+    public async Task With_another_app_in_charge_rules_change_only_the_lighting()
+    {
+        var target = new FakeTarget { LeavesFansAndPower = true };
+        var controller = new AutomationController(target);
+        await controller.RequestAsync(GamingTurboMax);
+        await controller.RequestAsync(default);
+        Assert.Equal(["lighting gaming", "lighting mine"], target.Calls);
+        Assert.Null(controller.LastProblem);
+    }
+
+    [Fact]
+    public async Task When_another_app_takes_over_the_rule_lets_go_of_the_fans_and_leaves_the_power_mode()
+    {
+        var target = new FakeTarget();
+        var controller = new AutomationController(target);
+        await controller.RequestAsync(GamingTurboMax);
+        target.Calls.Clear();
+        target.LeavesFansAndPower = true;
+        target.Power = PowerProfile.Quiet;   // the other app's choice
+        await controller.RequestAsync(GamingTurboMax);
+        Assert.Equal(["fans Auto 50 50"], target.Calls);
+        await controller.RequestAsync(default);
+        Assert.Equal(["fans Auto 50 50", "lighting mine"], target.Calls);
+        Assert.Equal(PowerProfile.Quiet, target.Power);
+    }
+
+    [Fact]
+    public async Task When_the_other_app_closes_the_rule_takes_the_fans_and_power_again_and_puts_back_what_it_found()
+    {
+        var target = new FakeTarget { LeavesFansAndPower = true, Power = PowerProfile.Quiet };
+        var controller = new AutomationController(target);
+        await controller.RequestAsync(GamingTurboMax);
+        target.LeavesFansAndPower = false;
+        await controller.RequestAsync(GamingTurboMax);
+        Assert.Equal(PowerProfile.Turbo, target.Power);
+        Assert.Equal(FanMode.Max, target.Fans.Mode);
+        await controller.RequestAsync(default);
+        Assert.Equal(PowerProfile.Quiet, target.Power);
+        Assert.Equal((FanMode.Custom, 65, 70), target.Fans);
+    }
+
+    [Fact]
+    public async Task Quitting_while_another_app_is_in_charge_leaves_the_power_mode_alone()
+    {
+        var target = new FakeTarget();
+        var controller = new AutomationController(target);
+        await controller.RequestAsync(GamingTurboMax);
+        target.LeavesFansAndPower = true;
+        target.Calls.Clear();
+        await controller.RestoreHelperSettingsAsync();
+        Assert.Equal(["fans Auto 50 50"], target.Calls);
     }
 
     [Fact]

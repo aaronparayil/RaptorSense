@@ -6,6 +6,9 @@ namespace RaptorSense.Automation;
 /// <summary>What the rules act on: the app's lighting and the elevated helper.</summary>
 public interface IAutomationTarget
 {
+    /// <summary>True while another app has the fans and the power mode, so rules change only the lighting.</summary>
+    bool LeavesFansAndPower { get; }
+
     Profile CaptureLighting();
 
     /// <summary>The saved profile with this name, or null if it no longer exists.</summary>
@@ -54,13 +57,15 @@ public sealed class AutomationController(IAutomationTarget target)
         running = true;
         try
         {
-            while (applied != desired)
+            while (true)
             {
-                var next = desired;
+                bool handsOff = target.LeavesFansAndPower;
+                var next = handsOff ? desired with { Power = null, Fans = null } : desired;
+                if (applied == next) break;
                 LastProblem = null;
                 ApplyLighting(next.LightingProfile);
-                await ApplyPowerAsync(next.Power);
-                await ApplyFansAsync(next.Fans);
+                await ApplyPowerAsync(next.Power, handsOff);
+                await ApplyFansAsync(next.Fans, handsOff);
                 applied = next;
                 Applied?.Invoke();
             }
@@ -74,8 +79,9 @@ public sealed class AutomationController(IAutomationTarget target)
     /// </summary>
     public async Task RestoreHelperSettingsAsync()
     {
-        await ApplyPowerAsync(null);
-        await ApplyFansAsync(null);
+        bool handsOff = target.LeavesFansAndPower;
+        await ApplyPowerAsync(null, handsOff);
+        await ApplyFansAsync(null, handsOff);
         applied = applied with { Power = null, Fans = null };
     }
 
@@ -98,7 +104,7 @@ public sealed class AutomationController(IAutomationTarget target)
         target.ApplyLighting(profile);
     }
 
-    async Task ApplyPowerAsync(PowerProfile? wanted)
+    async Task ApplyPowerAsync(PowerProfile? wanted, bool handsOff)
     {
         if (wanted == applied.Power) return;
         if (wanted is { } profile)
@@ -112,12 +118,13 @@ public sealed class AutomationController(IAutomationTarget target)
         }
         else
         {
-            if (powerBefore is { } before) Report(await target.SetPowerAsync(before));
+            // Once another app has the power mode, the old one is not ours to bring back.
+            if (!handsOff && powerBefore is { } before) Report(await target.SetPowerAsync(before));
             powerBefore = null;
         }
     }
 
-    async Task ApplyFansAsync(FanMode? wanted)
+    async Task ApplyFansAsync(FanMode? wanted, bool handsOff)
     {
         if (wanted == applied.Fans) return;
         if (wanted is { } mode)
@@ -131,7 +138,10 @@ public sealed class AutomationController(IAutomationTarget target)
         }
         else
         {
-            if (fansBefore is { } before) Report(await target.SetFansAsync(before.Mode, before.Cpu, before.Gpu));
+            // With another app in charge a rule's fan setting is let go of, not swapped for an older one of ours: the
+            // firmware's own control is the safe thing to leave behind.
+            if (handsOff) Report(await target.SetFansAsync(FanMode.Auto, DefaultFanPercent, DefaultFanPercent));
+            else if (fansBefore is { } before) Report(await target.SetFansAsync(before.Mode, before.Cpu, before.Gpu));
             fansBefore = null;
         }
     }
