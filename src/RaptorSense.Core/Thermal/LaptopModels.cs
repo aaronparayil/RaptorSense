@@ -28,6 +28,27 @@ public static class LaptopModels
     /// </summary>
     public static readonly IReadOnlyList<string> FanControl = ["AN515-57"];
 
+    /// <summary>
+    /// Laptops whose owners got a 4-zone keyboard lit on Linux through the same firmware calls (docs/protocol.md), but
+    /// that haven't been tried with RaptorSense. Their owner can choose to try the keyboard's colours; nothing else.
+    /// A model moves to <see cref="FourZoneKeyboards"/> once an owner's report says it works.
+    /// </summary>
+    public static readonly IReadOnlyList<string> KeyboardCandidates =
+    [
+        "PHN14-51", "PHN16-71", "PHN16-72", "PHN18-71",
+        "PH315-52", "PH315-53", "PH315-54", "PH315-55", "PH317-53",
+        "AN515-45", "AN515-55", "AN515-56", "AN515-58", "AN517-41",
+    ];
+
+    /// <summary>The owner may try the 4-zone keyboard here: likely to work, not checked.</summary>
+    public static bool MayTryFourZoneKeyboard(string? model) =>
+        // Some firmware adds a board name: "Predator PHN16-72/EQE_RTX". Only the test looks past it.
+        Matches(model?.Split('/')[0], KeyboardCandidates) && !IsVerified(model) && !HasFourZoneKeyboard(model);
+
+    /// <summary>Whether the helper passes this keyboard change on: a checked model, or a test on one that may be tried.</summary>
+    public static bool AllowsKeyboard(string? model, FourZoneRequest? request) =>
+        request is not null && (HasFourZoneKeyboard(model) || (request.Trial && MayTryFourZoneKeyboard(model)));
+
     public static bool IsVerified(string? model) => Matches(model, Verified);
 
     public static bool HasFourZoneKeyboard(string? model) => Matches(model, FourZoneKeyboards);

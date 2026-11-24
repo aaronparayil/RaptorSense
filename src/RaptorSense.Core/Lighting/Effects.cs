@@ -116,10 +116,10 @@ public static class Effects
     ];
 
     /// <summary>The effects that keyboard can show.</summary>
-    public static IReadOnlyList<IEffect> For(LaptopLayout layout) => layout == LaptopLayout.Nitro ? Nitro : All;
+    public static IReadOnlyList<IEffect> For(LaptopLayout layout) => layout.HasZones() ? Nitro : All;
 
     /// <summary>The effect a list starts on when a profile names one it doesn't have.</summary>
-    public static IEffect DefaultFor(LaptopLayout layout) => layout == LaptopLayout.Nitro ? Nitro[3] : All[0];
+    public static IEffect DefaultFor(LaptopLayout layout) => layout.HasZones() ? Nitro[3] : All[0];
 
     /// <summary>Finds an effect in either list, so profiles made on one laptop still load on the other.</summary>
     public static IEffect? Find(string id) =>

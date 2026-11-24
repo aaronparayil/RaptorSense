@@ -7,13 +7,14 @@ using RaptorSense.Thermal;
 namespace RaptorSense.App;
 
 /// <summary>
-/// Plays the Lighting tab's effects on a Nitro's 4-zone keyboard. Each zone shows the average of its keys in the
-/// engine's frame. A zone update goes through the helper and takes several firmware calls, so frames go a few times a
-/// second, and only when the colours change.
+/// Plays the Lighting tab's effects on a 4-zone keyboard. Each zone shows the average of its keys in the engine's
+/// frame. On a Nitro 5 a zone update goes through the helper and takes several firmware calls, so frames go a few times
+/// a second, and only when the colours change. An ENE controller takes up to four reports per frame.
 /// </summary>
 sealed class ZoneStreamer : IDisposable
 {
-    static readonly TimeSpan Interval = TimeSpan.FromMilliseconds(100);
+    // An ENE controller was seen to take 50 to 80 reports a second: 15 frames of four zones stay within that.
+    static readonly TimeSpan Interval = TimeSpan.FromMilliseconds(ThisLaptop.EneKeyboard is null ? 100 : 67);
     const long KeepAliveMs = 2000;      // re-sent this often, so the look comes back after the Keyboard zones tab or a sleep
     const int RetryAfterFailureMs = 3000;
     const int SmallestChange = 3;       // per channel: closer than this doesn't need another update
@@ -83,13 +84,13 @@ sealed class ZoneStreamer : IDisposable
                 if (!force && last is not null && Close(zones, last) && now - lastSentMs < KeepAliveMs) continue;
 
                 var watch = Stopwatch.StartNew();
-                var status = await ThermalClient.SetKeyboardAsync(new FourZoneRequest
+                var error = await ZoneLight.SetAsync(new FourZoneRequest
                 {
                     Colors = zones.Select(z => z.ToString()).ToList(),
                     Brightness = brightness,
                     Confirm = false,
                 }, cancel);
-                if (status.Ok)
+                if (error is null)
                 {
                     last = zones;
                     lastBrightness = brightness;
@@ -100,9 +101,7 @@ sealed class ZoneStreamer : IDisposable
                 else
                 {
                     last = null;
-                    Status = status.Reading is not null && status.HelperRevision < ThermalProtocol.FourZoneRevision
-                        ? L("The helper is from an older RaptorSense. Update it on the Performance tab to light this keyboard.")
-                        : status.Error ?? ThermalClient.HelperMissing;
+                    Status = error;
                     await Task.Delay(RetryAfterFailureMs, cancel);
                 }
             }

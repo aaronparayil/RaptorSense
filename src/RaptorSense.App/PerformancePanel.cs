@@ -175,24 +175,24 @@ sealed class PerformancePanel : UserControl
     {
         // Offered when the helper isn't there, or is older than this app. Only possible when the app has a helper to install.
         bool missing = !connected && status.Error == ThermalClient.HelperMissing;
-        bool outdated = connected && status.HelperRevision < ThermalProtocol.HelperRevision;
+        bool outdated = connected && status.HelperRevision < ThermalProtocol.RevisionNeeded(ThisLaptop.Model);
         setupRow.IsVisible = helperExe is not null && (missing || outdated || installing);
         if (!setupRow.IsVisible) setupResult = null;   // done: an old result shouldn't greet the next time it's needed
         if (!setupRow.IsVisible || installing) return;
 
         // Named for what it does on this laptop: fan control on the Helios, the keyboard and readings on the Nitro.
         setup.Content = ThisLaptop.HasFanControl ? (outdated ? L("Update fan control") : L("Install fan control"))
-            : ThisLaptop.HasFourZoneKeyboard ? (outdated ? L("Update the keyboard helper") : L("Install the keyboard helper"))
+            : ThisLaptop.KeyboardNeedsHelper ? (outdated ? L("Update the keyboard helper") : L("Install the keyboard helper"))
             : outdated ? L("Update the readings helper") : L("Install the readings helper");
         setupNote.Text = setupResult ?? (outdated
             ? L("The helper installed is from an older RaptorSense. Updating it needs administrator rights once.")
             : ThisLaptop.HasPowerControl
                 ? L("Fans, power modes and the light bar need a small helper service. Installing it needs administrator rights once.")
-            : ThisLaptop.HasFanControl && ThisLaptop.HasFourZoneKeyboard
+            : ThisLaptop.HasFanControl && ThisLaptop.KeyboardNeedsHelper
                 ? L("The fans and the keyboard's lighting need a small helper service. Installing it needs administrator rights once.")
             : ThisLaptop.HasFanControl
                 ? L("The fans need a small helper service. Installing it needs administrator rights once.")
-                : ThisLaptop.HasFourZoneKeyboard
+                : ThisLaptop.KeyboardNeedsHelper
                     ? L("The keyboard's lighting and these readings need a small helper service. Installing it needs administrator rights once.")
                     : L("These readings need a small helper service. Installing it needs administrator rights once."));
     }

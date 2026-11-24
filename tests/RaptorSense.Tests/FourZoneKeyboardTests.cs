@@ -13,10 +13,12 @@ public sealed class FourZoneKeyboardTests
         public List<Rgb>? Zones;
         public int Brightness = -1;
         public bool? Confirmed;
+        public FourZoneOrder? Order;
         public (FourZoneMode Mode, Rgb Color, int Speed, FourZoneDirection Direction)? Effect;
 
-        public void SetZones(IReadOnlyList<Rgb> zones, int brightness, bool confirm = true)
+        public void SetZones(IReadOnlyList<Rgb> zones, int brightness, bool confirm = true, FourZoneOrder order = FourZoneOrder.ZonesFirst)
         {
+            Order = order;
             Zones = [.. zones];
             Brightness = brightness;
             Confirmed = confirm;

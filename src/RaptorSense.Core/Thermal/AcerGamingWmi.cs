@@ -25,7 +25,8 @@ public sealed class AcerGamingWmi : IGamingFirmware, ILightBar, IFourZoneKeyboar
     const ulong CpuFanId = 1, GpuFanId = 4;
 
     readonly ManagementObject instance;
-    bool zonesEnabled;
+    FourZoneOrder? zonesEnabledFor;
+    string? switchOnError;
 
     AcerGamingWmi(ManagementObject instance) => this.instance = instance;
 
@@ -109,14 +110,15 @@ public sealed class AcerGamingWmi : IGamingFirmware, ILightBar, IFourZoneKeyboar
         }
     }
 
-    // The 4-zone keyboard (AN515-57). Order as tested there: turn the zones on, the colours, then static mode.
+    // The 4-zone keyboard. On the AN515-57 the order tested is: turn the zones on, the colours, then static mode.
     // Each zone colour is read back before the change is reported as done.
-    public void SetZones(IReadOnlyList<Rgb> zones, int brightness, bool confirm = true)
+    public void SetZones(IReadOnlyList<Rgb> zones, int brightness, bool confirm = true, FourZoneOrder order = FourZoneOrder.ZonesFirst)
     {
         if (zones.Count != FourZoneProtocol.Zones) throw new ArgumentException($"The keyboard has {FourZoneProtocol.Zones} zones.", nameof(zones));
-        EnableZones();
+        if (order == FourZoneOrder.StaticFirst) Set("SetGamingKBBacklight", FourZoneProtocol.StaticFirstBacklight(brightness));
+        EnableZones(order);
         for (int zone = 0; zone < FourZoneProtocol.Zones; zone++) Set("SetGamingRgbKb", FourZoneProtocol.ZoneColor(zone, zones[zone]));
-        Set("SetGamingKBBacklight", FourZoneProtocol.StaticBacklight(brightness));
+        if (order == FourZoneOrder.ZonesFirst) Set("SetGamingKBBacklight", FourZoneProtocol.StaticBacklight(brightness));
         if (!confirm) return;
         Settle(() => Enumerable.Range(0, FourZoneProtocol.Zones).All(zone =>
                 FourZoneProtocol.ReadZoneColor(Invoke("GetGamingRgbKb", FourZoneProtocol.ZoneMask(zone))) == zones[zone]),
@@ -125,16 +127,51 @@ public sealed class AcerGamingWmi : IGamingFirmware, ILightBar, IFourZoneKeyboar
 
     public void SetEffect(FourZoneMode mode, Rgb color, int speed, int brightness, FourZoneDirection direction)
     {
-        EnableZones();
+        EnableZones(zonesEnabledFor ?? FourZoneOrder.ZonesFirst);
         Set("SetGamingKBBacklight", FourZoneProtocol.EffectBacklight(mode, color, speed, brightness, direction));
     }
 
-    void EnableZones()
+    /// <summary>
+    /// How this firmware takes the keyboard's calls and what its zones read back, for an owner's report on a model that
+    /// hasn't been checked. Only reads.
+    /// </summary>
+    public string DescribeZones()
     {
-        if (zonesEnabled) return;
-        Get("GetGamingSysInfo", 0);   // the Linux module found this read is needed before the AN515-57 takes changes
-        Set("SetGamingLED", FourZoneProtocol.EnableAllZones);
-        zonesEnabled = true;
+        var parts = new List<string>();
+        foreach (var method in new[] { "SetGamingLED", "SetGamingRgbKb", "SetGamingKBBacklight" })
+        {
+            try
+            {
+                using var parameters = instance.GetMethodParameters(method);
+                var input = parameters.Properties["gmInput"];
+                parts.Add($"{method} takes {input.Type}{(input.IsArray ? "[]" : "")}");
+            }
+            catch (Exception e) when (e is ManagementException or COMException) { parts.Add($"{method} isn't there"); }
+        }
+        var zones = Enumerable.Range(0, FourZoneProtocol.Zones).Select(zone =>
+        {
+            try { return $"{Invoke("GetGamingRgbKb", FourZoneProtocol.ZoneMask(zone)):X}"; }
+            catch (FirmwareException) { return "refused"; }
+        });
+        return string.Join(", ", parts) + "; zones read " + string.Join(" ", zones) + (switchOnError is null ? "" : "; " + switchOnError);
+    }
+
+    void EnableZones(FourZoneOrder order)
+    {
+        if (zonesEnabledFor == order) return;
+        // Neither answer matters by itself (the Linux modules ignore both): whether the keys light does.
+        try
+        {
+            Get("GetGamingSysInfo", 0);   // the Linux module found this read is needed before the AN515-57 takes changes
+        }
+        catch (FirmwareException) { }
+        try
+        {
+            Set("SetGamingLED", FourZoneProtocol.EnableAllZones);
+            zonesEnabledFor = order;
+            switchOnError = null;
+        }
+        catch (FirmwareException e) { switchOnError = e.Message; }
     }
 
     // The firmware is busy for a moment after a change and fails reads with "Generic failure" meanwhile,
@@ -180,7 +217,8 @@ public sealed class AcerGamingWmi : IGamingFirmware, ILightBar, IFourZoneKeyboar
             using var result = instance.InvokeMethod(method, parameters, null);
             return Convert.ToUInt64(result["gmOutput"]);
         }
-        catch (Exception e) when (e is ManagementException or COMException)
+        // The last three: this model's method takes another type of value.
+        catch (Exception e) when (e is ManagementException or COMException or InvalidCastException or OverflowException or FormatException)
         {
             throw new FirmwareException($"{method}({Describe(input)}) was refused: {e.Message.Trim()}");
         }

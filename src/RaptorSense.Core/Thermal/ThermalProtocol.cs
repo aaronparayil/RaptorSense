@@ -17,7 +17,16 @@ public static class ThermalProtocol
     /// Which helper this is. Raise it whenever the helper changes, so the app offers to update an installed one.
     /// Helpers from before 1.8.5 send none, which reads as 0.
     /// </summary>
-    public const int HelperRevision = 4;   // 2: the 4-zone keyboard; 3: zone frames without the read-back; 4: Nitro fans
+    public const int HelperRevision = 5;   // 2: the 4-zone keyboard; 3: zone frames without the read-back; 4: Nitro fans; 5: the keyboard test
+
+    /// <summary>
+    /// The oldest helper that does everything on this model. Revision 5 only added the keyboard test, so the laptops
+    /// that can't be tested that way aren't asked to update.
+    /// </summary>
+    public static int RevisionNeeded(string? model) => LaptopModels.MayTryFourZoneKeyboard(model) ? TrialRevision : 4;
+
+    /// <summary>The first revision that takes a keyboard test (<see cref="FourZoneRequest.Trial"/>).</summary>
+    public const int TrialRevision = 5;
 
     /// <summary>The first revision that answers the "keyboard" command.</summary>
     public const int FourZoneRevision = 2;
@@ -66,6 +75,18 @@ public sealed record FourZoneRequest
     /// <summary>False skips reading the colours back: for the app's effects, which send several frames a second.</summary>
     public bool Confirm { get; init; } = true;
 
+    /// <summary>
+    /// True from an owner who chose to try this on a model that hasn't been checked. The helper takes it only on
+    /// <see cref="LaptopModels.KeyboardCandidates"/>, and it can change nothing but the keyboard's colours.
+    /// </summary>
+    public bool Trial { get; init; }
+
+    /// <summary>The order of the firmware calls, for a test. The checked models always use the first.</summary>
+    public FourZoneOrder Order { get; init; }
+
+    /// <summary>True asks for <see cref="ThermalStatus.KeyboardDetail"/> in the reply to a test.</summary>
+    public bool Describe { get; init; }
+
     bool IsEffect => Mode is { } mode && mode != FourZoneMode.Static;
 
     /// <summary>Checks the request and sends it. Throws <see cref="ArgumentException"/> for anything the helper must not pass on.</summary>
@@ -75,7 +96,7 @@ public sealed record FourZoneRequest
         CheckEnums();
         int brightness = Math.Clamp(Brightness, 0, FourZoneProtocol.MaxBrightness);
         if (IsEffect) keyboard.SetEffect(Mode!.Value, zones[0], Speed, brightness, Direction);
-        else keyboard.SetZones(zones, brightness, Confirm);
+        else keyboard.SetZones(zones, brightness, Confirm, Trial ? Order : FourZoneOrder.ZonesFirst);
     }
 
     /// <summary>The colours as one per zone, or false if the request is malformed (profile files are edited by hand).</summary>
@@ -98,6 +119,7 @@ public sealed record FourZoneRequest
     {
         if (Mode is { } mode && !Enum.IsDefined(mode)) throw new ArgumentException($"Unknown keyboard mode {(int)mode}.");
         if (!Enum.IsDefined(Direction)) throw new ArgumentException($"Unknown direction {(int)Direction}.");
+        if (!Enum.IsDefined(Order)) throw new ArgumentException($"Unknown order {(int)Order}.");
     }
 
     Lighting.Rgb[] ParseZones()
@@ -207,6 +229,9 @@ public sealed record ThermalStatus
 
     /// <summary>True when the helper drives a 4-zone keyboard on this laptop (<see cref="LaptopModels.FourZoneKeyboards"/>).</summary>
     public bool FourZoneKeyboard { get; init; }
+
+    /// <summary>What the firmware says about the keyboard, in the reply to a test that asked for it.</summary>
+    public string? KeyboardDetail { get; init; }
 
     public static ThermalStatus Failed(string error) => new() { Ok = false, Error = error };
 }

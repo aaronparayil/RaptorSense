@@ -29,6 +29,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## kbrgb, predator-sense and PreySense
+
+What RaptorSense knows about the ENE KB5130 keyboard controller (`src/RaptorSense.Core/Hardware/EneKeyboard.cs` and
+`docs/protocol.md`) comes from three projects that worked it out on real laptops. The code here was written from their
+descriptions; none of their code is included.
+
+- [kbrgb](https://github.com/shwetankg07/kbrgb) by shwetankg07, MIT, with effect numbers found by
+  [abduvaliy-engineer](https://github.com/abduvaliy-engineer)
+- [predator-sense](https://github.com/cleyton1986/predator-sense) by cleyton1986 and contributors, GPL-3.0
+- [PreySense](https://github.com/hammadzaigham/PreySense) by hammadzaigham, MIT
+
+In the same way, the models offered the 4-zone keyboard test and the second order of calls come from
+[acer-predator-turbo-and-rgb-keyboard-linux-module](https://github.com/JafarAkhondali/acer-predator-turbo-and-rgb-keyboard-linux-module)
+by JafarAkhondali and contributors, and [Linuwu-Sense](https://github.com/0x7375646F/Linuwu-Sense) by 0x7375646F and
+contributors, both GPL-3.0.
+
 ## NuGet packages
 
 - [Avalonia](https://github.com/AvaloniaUI/Avalonia), MIT
